@@ -19,6 +19,7 @@ application {
 
 repositories {
     mavenCentral()
+    maven { url = uri("https://jitpack.io")}
 }
 
 dependencies {
@@ -29,6 +30,8 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json-jvm")
     implementation("io.ktor:ktor-server-netty-jvm")
     implementation("ch.qos.logback:logback-classic:$logback_version")
+    implementation("com.github.ImAngelParraga:TennisTournamentLib:master-SNAPSHOT")
+
     testImplementation("io.ktor:ktor-server-test-host-jvm")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 }
