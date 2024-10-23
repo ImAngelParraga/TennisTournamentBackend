@@ -1,5 +1,6 @@
 val kotlin_version: String by project
 val logback_version: String by project
+val supabase_version: String by project
 
 plugins {
     kotlin("jvm") version "2.0.21"
@@ -31,6 +32,8 @@ dependencies {
     implementation("io.ktor:ktor-server-netty-jvm")
     implementation("ch.qos.logback:logback-classic:$logback_version")
     implementation("com.github.ImAngelParraga:TennisTournamentLib:master-SNAPSHOT")
+    implementation(platform("io.github.jan-tennert.supabase:bom:$supabase_version"))
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
 
     testImplementation("io.ktor:ktor-server-test-host-jvm")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
