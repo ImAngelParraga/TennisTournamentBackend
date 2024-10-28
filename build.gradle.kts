@@ -32,6 +32,9 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:$logback_version")
     implementation("com.github.ImAngelParraga:TennisTournamentLib:master-SNAPSHOT")
 
+    implementation("org.jetbrains.exposed:exposed-core:0.55.0")
+    implementation("org.jetbrains.exposed:exposed-jdbc:0.55.0")
+
     testImplementation("io.ktor:ktor-server-test-host-jvm")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 }
