@@ -6,6 +6,6 @@ interface TournamentRepository {
     suspend fun getTournaments(): List<Tournament>
     suspend fun getTournament(id: Int): Tournament
     suspend fun createTournament(tournament: Tournament): Tournament
-    suspend fun updateTournament(tournament: Tournament): Tournament
+    suspend fun updateTournament(id: Int, tournament: Tournament): Tournament
     suspend fun deleteTournament(id: Int)
 }

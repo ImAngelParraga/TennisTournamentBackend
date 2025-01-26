@@ -4,16 +4,17 @@ import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.IntIdTable
+import org.jetbrains.exposed.sql.javatime.timestamp
 
 // TODO("Add fk to brackets table")
 object TournamentsTable : IntIdTable("tournaments") {
-    val name = varchar("name", 255).uniqueIndex()
+    val name = varchar("name", 255)
     val description = varchar("description", 255).nullable()
     val surface = varchar("surface", 255).nullable()
-    val startDate = long("start_date")
-    val endDate = long("end_date")
-    val created = long("created").databaseGenerated()
-    val modified = long("modified").nullable()
+    val startDate = timestamp("start_date")
+    val endDate = timestamp("end_date")
+    val created = timestamp("created").databaseGenerated()
+    val modified = timestamp("modified").nullable()
 }
 
 class TournamentDAO(id: EntityID<Int>) : IntEntity(id) {

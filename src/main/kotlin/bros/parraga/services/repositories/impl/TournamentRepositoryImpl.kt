@@ -4,6 +4,7 @@ import bros.parraga.db.DatabaseFactory.dbQuery
 import bros.parraga.db.schema.TournamentDAO
 import bros.parraga.db.schema.TournamentsTable
 import bros.parraga.domain.Tournament
+import bros.parraga.domain.fromDomain
 import bros.parraga.domain.toDomain
 import bros.parraga.services.repositories.TournamentRepository
 import org.jetbrains.exposed.dao.DaoEntityID
@@ -15,27 +16,14 @@ class TournamentRepositoryImpl : TournamentRepository {
     override suspend fun getTournament(id: Int): Tournament = dbQuery { TournamentDAO[id].toDomain() }
 
     override suspend fun createTournament(tournament: Tournament): Tournament = dbQuery {
-        TournamentDAO.new {
-            name = tournament.name
-            description = tournament.description
-            surface = tournament.surface
-            startDate = tournament.startDate
-            endDate = tournament.endDate
-            created = tournament.created
-            modified = tournament.modified
-        }.toDomain()
+        TournamentDAO.new { fromDomain(tournament) }.toDomain()
     }
 
-    override suspend fun updateTournament(tournament: Tournament): Tournament = dbQuery {
-        TournamentDAO.findByIdAndUpdate(tournament.id) {
-            it.name = tournament.name
-            it.description = tournament.description
-            it.surface = tournament.surface
-            it.startDate = tournament.startDate
-            it.endDate = tournament.endDate
-            it.created = tournament.created
-            it.modified = tournament.modified
-        }?.toDomain() ?: throw EntityNotFoundException(DaoEntityID(tournament.id, TournamentsTable), TournamentDAO)
+    override suspend fun updateTournament(id: Int, tournament: Tournament): Tournament = dbQuery {
+        TournamentDAO.findByIdAndUpdate(id) { it.fromDomain(tournament) }?.toDomain() ?: throw EntityNotFoundException(
+            DaoEntityID(tournament.id, TournamentsTable),
+            TournamentDAO
+        )
     }
 
     override suspend fun deleteTournament(id: Int) = dbQuery {
