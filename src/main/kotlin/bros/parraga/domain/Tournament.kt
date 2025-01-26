@@ -1,8 +1,10 @@
 package bros.parraga.domain
 
 import bros.parraga.db.schema.TournamentDAO
+import kotlinx.datetime.Instant
+import kotlinx.datetime.toJavaInstant
+import kotlinx.datetime.toKotlinInstant
 import kotlinx.serialization.Serializable
-import java.time.Instant
 
 @Serializable
 data class Tournament(
@@ -22,19 +24,19 @@ fun TournamentDAO.toDomain() = Tournament(
     name = name,
     description = description,
     surface = surface,
-    startDate = startDate,
-    endDate = endDate,
-    created = created,
-    modified = modified,
-    players = players.map { Player(it.playerName) }
+    startDate = startDate.toKotlinInstant(),
+    endDate = endDate.toKotlinInstant(),
+    created = created.toKotlinInstant(),
+    modified = modified?.toKotlinInstant(),
+    players = players.map { Player(name = it.playerName) }
 )
 
 fun TournamentDAO.fromDomain(tournament: Tournament) {
     name = tournament.name
     description = tournament.description
     surface = tournament.surface
-    startDate = tournament.startDate
-    endDate = tournament.endDate
-    created = tournament.created
-    modified = tournament.modified
+    startDate = tournament.startDate.toJavaInstant()
+    endDate = tournament.endDate.toJavaInstant()
+    created = tournament.created.toJavaInstant()
+    modified = tournament.modified?.toJavaInstant()
 }
