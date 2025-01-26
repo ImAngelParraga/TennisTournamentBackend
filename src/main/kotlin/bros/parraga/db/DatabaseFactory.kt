@@ -1,8 +1,10 @@
 package bros.parraga.db
 
+import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.Transaction
+import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 
-@Suppress("unused")
 object DatabaseFactory {
     val db by lazy {
         Database.connect(
@@ -12,4 +14,7 @@ object DatabaseFactory {
             password = System.getenv("DATABASE_PASSWORD")
         )
     }
+
+    suspend fun <T> dbQuery(block: Transaction.() -> T): T =
+        newSuspendedTransaction(Dispatchers.IO, db, statement = block)
 }
