@@ -1,6 +1,8 @@
 package bros.parraga.routes
 
 import bros.parraga.domain.Tournament
+import bros.parraga.routes.dto.CreateTournamentRequest
+import bros.parraga.routes.dto.UpdateTournamentRequest
 import bros.parraga.services.repositories.TournamentRepository
 import io.ktor.http.*
 import io.ktor.server.request.*
@@ -27,20 +29,15 @@ fun Route.tournamentRouting() {
 
         post {
             handleRequest(call) {
-                val tournament = call.receive<Tournament>()
-                tournamentRepository.createTournament(tournament)
+                val request = call.receive<CreateTournamentRequest>()
+                tournamentRepository.createTournament(request)
             }
         }
 
-        put("/{id}") {
-            try {
-                val id = call.requireIntParameter("id")
-                handleRequest(call) {
-                    val updatedTournament = call.receive<Tournament>()
-                    tournamentRepository.updateTournament(id, updatedTournament)
-                }
-            } catch (e: IllegalArgumentException) {
-                call.respond(HttpStatusCode.BadRequest, ApiResponse<Tournament>(FAILURE, message = e.message))
+        put() {
+            handleRequest(call) {
+                val request = call.receive<UpdateTournamentRequest>()
+                tournamentRepository.updateTournament(request)
             }
         }
     }
