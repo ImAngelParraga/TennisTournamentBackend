@@ -1,46 +1,46 @@
 package bros.parraga.routes
 
-import bros.parraga.domain.Tournament
-import bros.parraga.services.repositories.tournament.TournamentRepository
+import bros.parraga.domain.Player
+import bros.parraga.services.repositories.player.PlayerRepository
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
 
-fun Route.tournamentRouting() {
-    val tournamentRepository: TournamentRepository by inject()
+fun Route.playerRouting() {
+    val playerRepository: PlayerRepository by inject()
 
-    route("/tournaments") {
+    route("/players") {
         get {
-            handleRequest(call) { tournamentRepository.getTournaments() }
+            handleRequest(call) { playerRepository.getPlayers() }
         }
 
         get("/{id}") {
             try {
                 val id = call.requireIntParameter("id")
-                handleRequest(call) { tournamentRepository.getTournament(id) }
+                handleRequest(call) { playerRepository.getPlayer(id) }
             } catch (e: IllegalArgumentException) {
-                call.respond(HttpStatusCode.BadRequest, ApiResponse<Tournament>(FAILURE, message = e.message))
+                call.respond(HttpStatusCode.BadRequest, ApiResponse<Player>(FAILURE, message = e.message))
             }
         }
 
         post {
             handleRequest(call) {
-                tournamentRepository.createTournament(call.receive())
+                playerRepository.createPlayer(call.receive())
             }
         }
 
-        put() {
+        put {
             handleRequest(call) {
-                tournamentRepository.updateTournament(call.receive())
+                playerRepository.updatePlayer(call.receive())
             }
         }
 
         delete("/{id}") {
             try {
                 val id = call.requireIntParameter("id")
-                handleRequest(call, HttpStatusCode.NoContent) { tournamentRepository.deleteTournament(id) }
+                handleRequest(call, HttpStatusCode.NoContent) { playerRepository.deletePlayer(id) }
             } catch (e: IllegalArgumentException) {
                 call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(FAILURE, message = e.message))
             }

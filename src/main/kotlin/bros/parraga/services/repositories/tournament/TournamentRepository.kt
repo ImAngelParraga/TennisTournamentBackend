@@ -1,8 +1,8 @@
-package bros.parraga.services.repositories
+package bros.parraga.services.repositories.tournament
 
 import bros.parraga.domain.Tournament
-import bros.parraga.routes.dto.CreateTournamentRequest
-import bros.parraga.routes.dto.UpdateTournamentRequest
+import bros.parraga.services.repositories.tournament.dto.CreateTournamentRequest
+import bros.parraga.services.repositories.tournament.dto.UpdateTournamentRequest
 
 interface TournamentRepository {
     suspend fun getTournaments(): List<Tournament>

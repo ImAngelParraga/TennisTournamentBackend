@@ -1,18 +1,22 @@
 package bros.parraga.routes
 
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.response.respond
+import io.ktor.http.*
+import io.ktor.server.application.*
+import io.ktor.server.plugins.*
+import io.ktor.server.response.*
 import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
-import io.ktor.server.plugins.CannotTransformContentToTypeException
 
 const val SUCCESS = "SUCCESS"
 const val FAILURE = "FAILURE"
 
-suspend inline fun <reified T : Any> handleRequest(call: ApplicationCall, action: () -> T) {
+suspend inline fun <reified T : Any> handleRequest(
+    call: ApplicationCall,
+    statusCode: HttpStatusCode = HttpStatusCode.OK,
+    action: () -> T
+) {
     try {
         val result = action()
-        call.respond(HttpStatusCode.OK, ApiResponse(SUCCESS, result))
+        call.respond(statusCode, ApiResponse(SUCCESS, result))
     } catch (e: Exception) {
         when (e) {
             is EntityNotFoundException -> call.respond(

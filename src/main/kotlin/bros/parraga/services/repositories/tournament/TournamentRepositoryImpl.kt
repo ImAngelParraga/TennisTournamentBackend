@@ -1,4 +1,4 @@
-package bros.parraga.services.repositories.impl
+package bros.parraga.services.repositories.tournament
 
 import bros.parraga.db.DatabaseFactory.dbQuery
 import bros.parraga.db.schema.ClubDAO
@@ -6,9 +6,8 @@ import bros.parraga.db.schema.TournamentDAO
 import bros.parraga.db.schema.TournamentsTable
 import bros.parraga.domain.Tournament
 import bros.parraga.domain.toDomain
-import bros.parraga.routes.dto.CreateTournamentRequest
-import bros.parraga.routes.dto.UpdateTournamentRequest
-import bros.parraga.services.repositories.TournamentRepository
+import bros.parraga.services.repositories.tournament.dto.CreateTournamentRequest
+import bros.parraga.services.repositories.tournament.dto.UpdateTournamentRequest
 import kotlinx.datetime.toJavaInstant
 import org.jetbrains.exposed.dao.DaoEntityID
 import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException

@@ -1,46 +1,46 @@
 package bros.parraga.routes
 
-import bros.parraga.domain.Tournament
-import bros.parraga.services.repositories.tournament.TournamentRepository
+import bros.parraga.domain.Club
+import bros.parraga.services.repositories.club.ClubRepository
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
 
-fun Route.tournamentRouting() {
-    val tournamentRepository: TournamentRepository by inject()
+fun Route.clubRouting() {
+    val clubRepository: ClubRepository by inject()
 
-    route("/tournaments") {
+    route("/clubs") {
         get {
-            handleRequest(call) { tournamentRepository.getTournaments() }
+            handleRequest(call) { clubRepository.getClubs() }
         }
 
         get("/{id}") {
             try {
                 val id = call.requireIntParameter("id")
-                handleRequest(call) { tournamentRepository.getTournament(id) }
+                handleRequest(call) { clubRepository.getClub(id) }
             } catch (e: IllegalArgumentException) {
-                call.respond(HttpStatusCode.BadRequest, ApiResponse<Tournament>(FAILURE, message = e.message))
+                call.respond(HttpStatusCode.BadRequest, ApiResponse<Club>(FAILURE, message = e.message))
             }
         }
 
         post {
             handleRequest(call) {
-                tournamentRepository.createTournament(call.receive())
+                clubRepository.createClub(call.receive())
             }
         }
 
-        put() {
+        put {
             handleRequest(call) {
-                tournamentRepository.updateTournament(call.receive())
+                clubRepository.updateClub(call.receive())
             }
         }
 
         delete("/{id}") {
             try {
                 val id = call.requireIntParameter("id")
-                handleRequest(call, HttpStatusCode.NoContent) { tournamentRepository.deleteTournament(id) }
+                handleRequest(call, HttpStatusCode.NoContent) { clubRepository.deleteClub(id) }
             } catch (e: IllegalArgumentException) {
                 call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(FAILURE, message = e.message))
             }

@@ -1,4 +1,4 @@
-package bros.parraga.routes.dto
+package bros.parraga.services.repositories.tournament.dto
 
 import kotlinx.datetime.Instant
 
