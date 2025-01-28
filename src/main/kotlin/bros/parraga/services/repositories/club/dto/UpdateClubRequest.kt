@@ -1,5 +1,8 @@
 package bros.parraga.services.repositories.club.dto
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class UpdateClubRequest(
     val id: Int,
     val name: String? = null,

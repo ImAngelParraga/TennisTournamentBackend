@@ -1,5 +1,8 @@
 package bros.parraga.services.repositories.tournament.dto
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class TournamentPlayerRequest(
     val playerId: Int? = null,
     val name: String? = null
@@ -14,4 +17,5 @@ data class TournamentPlayerRequest(
     }
 }
 
+@Serializable
 data class AddPlayersRequest(val players: List<TournamentPlayerRequest>)
