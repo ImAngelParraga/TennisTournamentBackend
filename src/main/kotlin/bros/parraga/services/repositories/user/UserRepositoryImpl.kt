@@ -25,8 +25,6 @@ class UserRepositoryImpl : UserRepository {
             username = request.username
             password = request.password
             email = request.email
-            createdAt = Instant.now()
-            updatedAt = null
         }.toDomain()
     }
 

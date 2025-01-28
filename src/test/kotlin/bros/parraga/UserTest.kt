@@ -10,7 +10,6 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -125,14 +124,12 @@ class UserTest : BaseIntegrationTest() {
                 username = testUser1.username
                 password = testUser1.password
                 email = testUser1.email
-                createdAt = Instant.now()
             }
 
             UserDAO.new {
                 username = testUser2.username
                 password = testUser2.password
                 email = testUser2.email
-                createdAt = Instant.now()
             }
         }
     }

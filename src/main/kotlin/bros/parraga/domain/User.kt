@@ -10,8 +10,8 @@ data class User(
     val id : Int,
     val username: String,
     val password: String,
-    val email: String?,
-    val createdAt: Instant,
+    val email: String? = null,
+    val createdAt: Instant?,
     val updatedAt: Instant?
 )
 
@@ -20,6 +20,6 @@ fun UserDAO.toDomain() = User(
     username,
     password,
     email,
-    createdAt.toKotlinInstant(),
+    createdAt?.toKotlinInstant(),
     updatedAt?.toKotlinInstant()
 )
