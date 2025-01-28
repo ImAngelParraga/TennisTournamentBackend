@@ -19,12 +19,17 @@ suspend inline fun <reified T : Any> handleRequest(
         call.respond(statusCode, ApiResponse(SUCCESS, result))
     } catch (e: Exception) {
         when (e) {
-            is EntityNotFoundException -> call.respond(
+            is EntityNotFoundException, is NotFoundException -> call.respond(
                 HttpStatusCode.NotFound,
                 ApiResponse<T>(FAILURE, message = e.message ?: "Entity not found")
             )
 
             is CannotTransformContentToTypeException -> call.respond(
+                HttpStatusCode.BadRequest,
+                ApiResponse<T>(FAILURE, message = e.message ?: "Bad request")
+            )
+
+            is IllegalArgumentException -> call.respond(
                 HttpStatusCode.BadRequest,
                 ApiResponse<T>(FAILURE, message = e.message ?: "Bad request")
             )

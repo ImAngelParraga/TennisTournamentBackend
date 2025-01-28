@@ -21,6 +21,6 @@ object TournamentPlayersTable : CompositeIdTable("tournament_players") {
 class TournamentPlayerDAO(id: EntityID<CompositeID>) : CompositeEntity(id) {
     companion object : CompositeEntityClass<TournamentPlayerDAO>(TournamentPlayersTable)
 
-    val playerId by TournamentPlayersTable.playerId
-    val tournamentId by TournamentPlayersTable.tournamentId
+    var playerId by TournamentPlayersTable.playerId
+    var tournamentId by TournamentPlayersTable.tournamentId
 }

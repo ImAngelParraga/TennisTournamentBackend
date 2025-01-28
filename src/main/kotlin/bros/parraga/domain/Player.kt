@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Player(
+    val id: Int,
     val name: String,
     val external: Boolean,
     val user: User? = null,
@@ -13,6 +14,7 @@ data class Player(
 
 fun PlayerDAO.toDomain(includeTournaments: Boolean = true): Player =
     Player(
+        id.value,
         name,
         external,
         user?.toDomain(),

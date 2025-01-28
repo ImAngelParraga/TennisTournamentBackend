@@ -1,10 +1,8 @@
 package bros.parraga.routes
 
-import bros.parraga.domain.Tournament
 import bros.parraga.services.repositories.tournament.TournamentRepository
 import io.ktor.http.*
 import io.ktor.server.request.*
-import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
 
@@ -14,15 +12,6 @@ fun Route.tournamentRouting() {
     route("/tournaments") {
         get {
             handleRequest(call) { tournamentRepository.getTournaments() }
-        }
-
-        get("/{id}") {
-            try {
-                val id = call.requireIntParameter("id")
-                handleRequest(call) { tournamentRepository.getTournament(id) }
-            } catch (e: IllegalArgumentException) {
-                call.respond(HttpStatusCode.BadRequest, ApiResponse<Tournament>(FAILURE, message = e.message))
-            }
         }
 
         post {
@@ -37,13 +26,38 @@ fun Route.tournamentRouting() {
             }
         }
 
-        delete("/{id}") {
-            try {
-                val id = call.requireIntParameter("id")
-                handleRequest(call, HttpStatusCode.NoContent) { tournamentRepository.deleteTournament(id) }
-            } catch (e: IllegalArgumentException) {
-                call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(FAILURE, message = e.message))
+        route("/{id}") {
+            get {
+                handleRequest(call) { tournamentRepository.getTournament(call.requireIntParameter("id")) }
+            }
+
+            delete {
+                handleRequest(
+                    call,
+                    HttpStatusCode.NoContent
+                ) { tournamentRepository.deleteTournament(call.requireIntParameter("id")) }
+            }
+
+            route("/players") {
+                post {
+                    handleRequest(call) {
+                        tournamentRepository.addPlayersToTournament(
+                            call.requireIntParameter("id"),
+                            call.receive()
+                        )
+                    }
+                }
+
+                delete("/{playerId}") {
+                    handleRequest(call) {
+                        tournamentRepository.removePlayerFromTournament(
+                            tournamentId = call.requireIntParameter("id"),
+                            playerId = call.requireIntParameter("playerId")
+                        )
+                    }
+                }
             }
         }
+
     }
 }
