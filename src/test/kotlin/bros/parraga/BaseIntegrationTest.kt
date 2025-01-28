@@ -42,14 +42,14 @@ abstract class BaseIntegrationTest {
         )
 
         transaction {
-            SchemaUtils.create(*tables.toTypedArray())
+            SchemaUtils.create(*tables.toTypedArray(), inBatch = true)
         }
     }
 
     @After
     fun tearDown() {
         transaction {
-            SchemaUtils.drop(*tables.toTypedArray())
+            SchemaUtils.drop(*tables.toTypedArray(), inBatch = true)
         }
     }
 }
