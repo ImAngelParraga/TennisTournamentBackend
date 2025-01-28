@@ -1,6 +1,6 @@
 package bros.parraga
 
-import bros.parraga.plugins.configureRouting
+import bros.parraga.modules.configureRouting
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.testing.*

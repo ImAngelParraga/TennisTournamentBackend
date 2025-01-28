@@ -1,4 +1,4 @@
-package bros.parraga.plugins
+package bros.parraga.modules
 
 import bros.parraga.routes.clubRouting
 import bros.parraga.routes.playerRouting

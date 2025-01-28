@@ -26,7 +26,7 @@ fun Route.playerRouting() {
         }
 
         post {
-            handleRequest(call) {
+            handleRequest(call, HttpStatusCode.Created) {
                 playerRepository.createPlayer(call.receive())
             }
         }

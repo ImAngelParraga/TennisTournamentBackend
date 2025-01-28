@@ -10,9 +10,8 @@ object UsersTable : IntIdTable("users") {
     val username = varchar("username", 255).uniqueIndex()
     val password = varchar("password", 255)
     val email = varchar("email", 255).uniqueIndex().nullable()
-    val role = varchar("role", 50)
     val createdAt = timestamp("created_at").databaseGenerated()
-    val updatedAt = timestamp("updated_at").databaseGenerated()
+    val updatedAt = timestamp("updated_at").databaseGenerated().nullable()
 }
 
 class UserDAO(id: EntityID<Int>) : IntEntity(id) {
@@ -21,7 +20,6 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
     var username by UsersTable.username
     var password by UsersTable.password
     var email by UsersTable.email
-    var role by UsersTable.role
     var createdAt by UsersTable.createdAt
     var updatedAt by UsersTable.updatedAt
 }

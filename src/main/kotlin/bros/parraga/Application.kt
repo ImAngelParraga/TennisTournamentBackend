@@ -1,6 +1,6 @@
 package bros.parraga
 
-import bros.parraga.plugins.*
+import bros.parraga.modules.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
@@ -11,6 +11,15 @@ fun main() {
 }
 
 fun Application.module() {
+    configureKoin()
+    configureSecurity()
+    configureHTTP()
+    configureSerialization()
+    configureRouting()
+    configureDatabase()
+}
+
+fun Application.testModule() {
     configureSecurity()
     configureHTTP()
     configureSerialization()

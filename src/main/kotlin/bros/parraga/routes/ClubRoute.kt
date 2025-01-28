@@ -26,7 +26,7 @@ fun Route.clubRouting() {
         }
 
         post {
-            handleRequest(call) {
+            handleRequest(call, HttpStatusCode.Created) {
                 clubRepository.createClub(call.receive())
             }
         }

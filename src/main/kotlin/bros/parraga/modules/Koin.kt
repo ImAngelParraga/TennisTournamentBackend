@@ -1,4 +1,4 @@
-package bros.parraga.plugins
+package bros.parraga.modules
 
 import bros.parraga.services.repositories.club.ClubRepository
 import bros.parraga.services.repositories.club.ClubRepositoryImpl
@@ -8,8 +8,8 @@ import bros.parraga.services.repositories.tournament.TournamentRepository
 import bros.parraga.services.repositories.tournament.TournamentRepositoryImpl
 import bros.parraga.services.repositories.user.UserRepository
 import bros.parraga.services.repositories.user.UserRepositoryImpl
-import io.ktor.server.application.Application
-import io.ktor.server.application.install
+import io.ktor.server.application.*
+import org.koin.core.module.dsl.bind
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -25,7 +25,7 @@ fun Application.configureKoin() {
 
 val appModule = module {
     singleOf(::TournamentRepositoryImpl) bind TournamentRepository::class
-    singleOf(::UserRepositoryImpl) bind UserRepository::class
+    singleOf(::UserRepositoryImpl) { bind<UserRepository>() }
     singleOf(::PlayerRepositoryImpl) bind PlayerRepository::class
     singleOf(::ClubRepositoryImpl) bind ClubRepository::class
 }

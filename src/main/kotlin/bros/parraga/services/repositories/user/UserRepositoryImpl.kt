@@ -25,7 +25,8 @@ class UserRepositoryImpl : UserRepository {
             username = request.username
             password = request.password
             email = request.email
-            role = request.role.name
+            createdAt = Instant.now()
+            updatedAt = null
         }.toDomain()
     }
 
@@ -35,7 +36,6 @@ class UserRepositoryImpl : UserRepository {
                 request.username?.let { username = it }
                 request.password?.let { password = it }
                 request.email?.let { email = it }
-                request.role?.let { role = it.name }
                 updatedAt = Instant.now()
             }
         }?.toDomain() ?: throw EntityNotFoundException(

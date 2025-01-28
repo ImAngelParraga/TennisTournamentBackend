@@ -15,7 +15,7 @@ fun Route.tournamentRouting() {
         }
 
         post {
-            handleRequest(call) {
+            handleRequest(call, HttpStatusCode.Created) {
                 tournamentRepository.createTournament(call.receive())
             }
         }

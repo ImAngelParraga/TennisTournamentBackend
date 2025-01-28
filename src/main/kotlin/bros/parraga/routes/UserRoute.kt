@@ -26,7 +26,7 @@ fun Route.userRouting() {
         }
 
         post {
-            handleRequest(call) {
+            handleRequest(call, HttpStatusCode.Created) {
                 userRepository.createUser(call.receive())
             }
         }

@@ -1,10 +1,10 @@
 package bros.parraga.services.repositories.user.dto
 
-import bros.parraga.domain.Role
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class CreateUserRequest(
     val username: String,
     val password: String,
-    val email: String?,
-    val role: Role
+    val email: String?
 )

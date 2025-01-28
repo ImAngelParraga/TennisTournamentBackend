@@ -6,15 +6,22 @@ import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 
 object DatabaseFactory {
-    val db by lazy {
-        Database.connect(
-            System.getenv("DATABASE_URL"),
-            driver = System.getenv("DATABASE_DRIVER"),
-            user = System.getenv("DATABASE_USER"),
-            password = System.getenv("DATABASE_PASSWORD")
+    private var db: Database? = null
+
+    fun init(
+        url: String = System.getenv("DATABASE_URL"),
+        driver: String = System.getenv("DATABASE_DRIVER"),
+        user: String = System.getenv("DATABASE_USER"),
+        password: String = System.getenv("DATABASE_PASSWORD")
+    ) {
+        db = Database.connect(
+            url = url,
+            driver = driver,
+            user = user,
+            password = password
         )
     }
 
     suspend fun <T> dbQuery(block: Transaction.() -> T): T =
-        newSuspendedTransaction(Dispatchers.IO, db, statement = block)
+        newSuspendedTransaction(Dispatchers.IO, requireNotNull(db) { "Database not initialized" }, statement = block)
 }

@@ -11,9 +11,8 @@ data class User(
     val username: String,
     val password: String,
     val email: String?,
-    val role: Role,
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant?
 )
 
 fun UserDAO.toDomain() = User(
@@ -21,9 +20,6 @@ fun UserDAO.toDomain() = User(
     username,
     password,
     email,
-    Role.valueOf(role),
     createdAt.toKotlinInstant(),
-    updatedAt.toKotlinInstant()
+    updatedAt?.toKotlinInstant()
 )
-
-enum class Role { PLAYER, CLUB }
