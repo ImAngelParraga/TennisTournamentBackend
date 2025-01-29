@@ -1,5 +1,7 @@
 package bros.parraga.db.schema
 
+import bros.parraga.domain.User
+import kotlinx.datetime.toKotlinInstant
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -23,4 +25,13 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
     var email by UsersTable.email
     val createdAt by UsersTable.createdAt
     var updatedAt by UsersTable.updatedAt
+
+    fun toDomain() = User(
+        id.value,
+        username,
+        password,
+        email,
+        createdAt?.toKotlinInstant(),
+        updatedAt?.toKotlinInstant()
+    )
 }

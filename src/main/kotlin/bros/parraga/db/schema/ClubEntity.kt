@@ -1,5 +1,6 @@
 package bros.parraga.db.schema
 
+import bros.parraga.domain.Club
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -21,4 +22,13 @@ class ClubDAO(id: EntityID<Int>) : IntEntity(id) {
 
     var user by UserDAO referencedOn ClubsTable.userId
     val tournaments by TournamentDAO referrersOn TournamentsTable.clubId
+
+    fun toDomain(): Club = Club(
+        id = id.value,
+        name = name,
+        phoneNumber = phoneNumber,
+        address = address,
+        user = user.toDomain(),
+        tournaments = tournaments.map { it.toDomain() }
+    )
 }
