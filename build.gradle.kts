@@ -1,6 +1,6 @@
 val kotlin_version: String by project
 val logback_version: String by project
-val exposed_version: String by project
+val exposedVersion = "0.58.0"
 val koinVersion = "4.1.0-Beta5"
 val ktor_version: String by project
 val koinAnnotationsVersion = "2.0.0-Beta1"
@@ -35,6 +35,8 @@ repositories {
 }
 
 dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+
     implementation("io.ktor:ktor-server-core-jvm")
     implementation("io.ktor:ktor-server-auth-jvm")
     implementation("io.ktor:ktor-server-cors-jvm")
@@ -42,14 +44,15 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json:$ktor_version")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
     implementation("io.ktor:ktor-server-netty:$ktor_version")
-    implementation("ch.qos.logback:logback-classic:$logback_version")
+    //implementation("ch.qos.logback:logback-classic:$logback_version")
 
     implementation("com.github.ImAngelParraga:TennisTournamentLib:v0.0.1")
 
-    implementation("org.jetbrains.exposed:exposed-core:$exposed_version")
-    implementation("org.jetbrains.exposed:exposed-jdbc:$exposed_version")
-    implementation("org.jetbrains.exposed:exposed-dao:$exposed_version")
-    implementation("org.jetbrains.exposed:exposed-java-time:$exposed_version")
+    implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-dao:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-json:$exposedVersion")
     implementation("org.postgresql:postgresql:$postgresqlDriverVersion")
 
     implementation("io.insert-koin:koin-ktor3:$koinVersion")
