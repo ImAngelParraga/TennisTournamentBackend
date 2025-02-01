@@ -14,7 +14,8 @@ data class Tournament(
     val endDate: Instant,
     val createdAt: Instant?,
     val updatedAt: Instant?,
-    val players: List<Player>
+    val players: List<Player> = emptyList(),
+    val phases: List<TournamentPhase> = emptyList()
 )
 
 enum class SurfaceType { CLAY, HARD, GRASS }

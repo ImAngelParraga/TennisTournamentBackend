@@ -1,6 +1,7 @@
 package bros.parraga.db.schema
 
 import bros.parraga.domain.PhaseConfiguration
+import bros.parraga.domain.PhaseFormat
 import bros.parraga.domain.TournamentPhase
 import kotlinx.datetime.toKotlinInstant
 import kotlinx.serialization.json.Json
@@ -16,7 +17,7 @@ import java.time.Instant
 object TournamentPhasesTable : IntIdTable("tournament_phases") {
     val tournamentId = reference("tournament_id", TournamentsTable, onDelete = ReferenceOption.CASCADE)
     val phaseOrder = integer("phase_order").check { it greater 0 }
-    val format = varchar("format", 20).check { it.inList(listOf("KNOCKOUT", "GROUP", "SWISS")) }
+    val format = varchar("format", 20).check { column -> column.inList(PhaseFormat.entries.map { it.name }) }
     val rounds = integer("rounds").check { it greater 0 }
     val configuration = jsonb<PhaseConfiguration>(
         "configuration",
@@ -42,7 +43,7 @@ class TournamentPhaseDAO(id: EntityID<Int>) : IntEntity(id) {
         id = id.value,
         tournamentId = tournament.id.value,
         phaseOrder = phaseOrder,
-        format = format,
+        format = PhaseFormat.valueOf(format),
         rounds = rounds,
         configuration = configuration,
         createdAt = createdAt.toKotlinInstant(),
