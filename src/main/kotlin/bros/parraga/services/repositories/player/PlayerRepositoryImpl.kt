@@ -5,7 +5,6 @@ import bros.parraga.db.schema.PlayerDAO
 import bros.parraga.db.schema.PlayersTable
 import bros.parraga.db.schema.UserDAO
 import bros.parraga.domain.Player
-import bros.parraga.domain.toDomain
 import bros.parraga.services.repositories.player.dto.CreatePlayerRequest
 import bros.parraga.services.repositories.player.dto.UpdatePlayerRequest
 import org.jetbrains.exposed.dao.DaoEntityID

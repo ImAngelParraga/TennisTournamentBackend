@@ -4,7 +4,6 @@ import bros.parraga.db.DatabaseFactory
 import bros.parraga.db.schema.UserDAO
 import bros.parraga.db.schema.UsersTable
 import bros.parraga.domain.User
-import bros.parraga.domain.toDomain
 import bros.parraga.services.repositories.user.dto.CreateUserRequest
 import bros.parraga.services.repositories.user.dto.UpdateUserRequest
 import org.jetbrains.exposed.dao.DaoEntityID

@@ -5,7 +5,6 @@ import bros.parraga.db.schema.ClubDAO
 import bros.parraga.db.schema.ClubsTable
 import bros.parraga.db.schema.UserDAO
 import bros.parraga.domain.Club
-import bros.parraga.domain.toDomain
 import bros.parraga.services.repositories.club.dto.CreateClubRequest
 import bros.parraga.services.repositories.club.dto.UpdateClubRequest
 import org.jetbrains.exposed.dao.DaoEntityID

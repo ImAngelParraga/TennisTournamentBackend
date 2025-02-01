@@ -3,7 +3,6 @@ package bros.parraga.services.repositories.tournament
 import bros.parraga.db.DatabaseFactory.dbQuery
 import bros.parraga.db.schema.*
 import bros.parraga.domain.Tournament
-import bros.parraga.domain.toDomain
 import bros.parraga.services.repositories.tournament.dto.AddPlayersRequest
 import bros.parraga.services.repositories.tournament.dto.CreateTournamentRequest
 import bros.parraga.services.repositories.tournament.dto.TournamentPlayerRequest
@@ -40,7 +39,7 @@ class TournamentRepositoryImpl : TournamentRepository {
                 request.clubId?.let { club = ClubDAO[it] }
                 request.startDate?.let { startDate = it.toJavaInstant() }
                 request.endDate?.let { endDate = it.toJavaInstant() }
-                modifiedAt = Instant.now()
+                updatedAt = Instant.now()
             }
         }?.toDomain()
             ?: throw EntityNotFoundException(
