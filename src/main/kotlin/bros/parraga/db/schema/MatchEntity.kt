@@ -15,15 +15,14 @@ import org.jetbrains.exposed.sql.json.jsonb
 import java.time.Instant as JavaInstant
 
 object MatchesTable : IntIdTable("matches") {
-    val phase = reference("phase_id", TournamentPhasesTable, onDelete = ReferenceOption.CASCADE)
+    val phaseId = reference("phase_id", TournamentPhasesTable, onDelete = ReferenceOption.CASCADE)
     val round = integer("round").check { it greater 0 }
     val groupId = reference("group_id", GroupsTable, onDelete = ReferenceOption.CASCADE).nullable()
-    val swissRound = integer("swiss_round").nullable()
     val player1Id = reference("player1_id", PlayersTable).nullable()
     val player2Id = reference("player2_id", PlayersTable).nullable()
     val winner = reference("winner_id", PlayersTable).nullable()
-    val scores = jsonb<TennisScore>(
-        "scores",
+    val score = jsonb<TennisScore>(
+        "score",
         { Json.encodeToString(it) },
         { Json.decodeFromString(it) }
     ).nullable()
@@ -39,14 +38,13 @@ object MatchesTable : IntIdTable("matches") {
 class MatchDAO(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<MatchDAO>(MatchesTable)
 
-    var phase by TournamentPhaseDAO referencedOn MatchesTable.phase
+    var phase by TournamentPhaseDAO referencedOn MatchesTable.phaseId
     var round by MatchesTable.round
     var group by GroupDAO optionalReferencedOn MatchesTable.groupId
-    var swissRound by MatchesTable.swissRound
     var player1 by PlayerDAO optionalReferencedOn MatchesTable.player1Id
     var player2 by PlayerDAO optionalReferencedOn MatchesTable.player2Id
     var winner by PlayerDAO optionalReferencedOn MatchesTable.winner
-    var scores by MatchesTable.scores
+    var score by MatchesTable.score
     var status by MatchesTable.status
     var scheduledTime by MatchesTable.scheduledTime
     var court by MatchesTable.court
@@ -58,11 +56,10 @@ class MatchDAO(id: EntityID<Int>) : IntEntity(id) {
         phaseId = phase.id.value,
         round = round,
         groupId = group?.id?.value,
-        swissRound = swissRound,
         player1 = player1?.toDomain(),
         player2 = player2?.toDomain(),
         winnerId = winner?.id?.value,
-        scores = scores,
+        score = score,
         status = MatchStatus.valueOf(status),
         scheduledTime = scheduledTime?.toKotlinInstant(),
         court = court,
