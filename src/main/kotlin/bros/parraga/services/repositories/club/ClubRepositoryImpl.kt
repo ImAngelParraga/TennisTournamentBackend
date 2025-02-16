@@ -12,34 +12,34 @@ import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
 
 class ClubRepositoryImpl : ClubRepository {
     override suspend fun getClubs(): List<Club> = DatabaseFactory.dbQuery {
-        ClubDAO.Companion.all().map { it.toDomain() }
+        ClubDAO.all().map { it.toDomain() }
     }
 
     override suspend fun getClub(id: Int): Club = DatabaseFactory.dbQuery {
-        ClubDAO.Companion[id].toDomain()
+        ClubDAO[id].toDomain()
     }
 
     override suspend fun createClub(request: CreateClubRequest): Club = DatabaseFactory.dbQuery {
-        ClubDAO.Companion.new {
+        ClubDAO.new {
             name = request.name
             phoneNumber = request.phoneNumber
             address = request.address
-            user = UserDAO.Companion[request.userId]
+            user = UserDAO[request.userId]
         }.toDomain()
     }
 
     override suspend fun updateClub(request: UpdateClubRequest): Club = DatabaseFactory.dbQuery {
-        ClubDAO.Companion.findByIdAndUpdate(request.id) {
+        ClubDAO.findByIdAndUpdate(request.id) {
             it.apply {
                 request.name?.let { name = it }
                 request.phoneNumber?.let { phoneNumber = it }
                 request.address?.let { address = it }
-                request.userId?.let { user = UserDAO.Companion[it] }
+                request.userId?.let { user = UserDAO[it] }
             }
-        }?.toDomain() ?: throw EntityNotFoundException(DaoEntityID(request.id, ClubsTable), ClubDAO.Companion)
+        }?.toDomain() ?: throw EntityNotFoundException(DaoEntityID(request.id, ClubsTable), ClubDAO)
     }
 
     override suspend fun deleteClub(id: Int) = DatabaseFactory.dbQuery {
-        ClubDAO.Companion[id].delete()
+        ClubDAO[id].delete()
     }
 }

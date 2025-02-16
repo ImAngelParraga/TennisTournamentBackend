@@ -1,6 +1,7 @@
 package bros.parraga.services.repositories.user
 
 import bros.parraga.db.DatabaseFactory
+import bros.parraga.db.DatabaseFactory.dbQuery
 import bros.parraga.db.schema.UserDAO
 import bros.parraga.db.schema.UsersTable
 import bros.parraga.domain.User
@@ -11,24 +12,24 @@ import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
 import java.time.Instant
 
 class UserRepositoryImpl : UserRepository {
-    override suspend fun getUsers(): List<User> = DatabaseFactory.dbQuery {
-        UserDAO.Companion.all().map { it.toDomain() }
+    override suspend fun getUsers(): List<User> = dbQuery {
+        UserDAO.all().map { it.toDomain() }
     }
 
-    override suspend fun getUser(id: Int): User = DatabaseFactory.dbQuery {
-        UserDAO.Companion[id].toDomain()
+    override suspend fun getUser(id: Int): User = dbQuery {
+        UserDAO[id].toDomain()
     }
 
-    override suspend fun createUser(request: CreateUserRequest): User = DatabaseFactory.dbQuery {
-        UserDAO.Companion.new {
+    override suspend fun createUser(request: CreateUserRequest): User = dbQuery {
+        UserDAO.new {
             username = request.username
             password = request.password
             email = request.email
         }.toDomain()
     }
 
-    override suspend fun updateUser(request: UpdateUserRequest): User = DatabaseFactory.dbQuery {
-        UserDAO.Companion.findByIdAndUpdate(request.id) {
+    override suspend fun updateUser(request: UpdateUserRequest): User = dbQuery {
+        UserDAO.findByIdAndUpdate(request.id) {
             it.apply {
                 request.username?.let { username = it }
                 request.password?.let { password = it }
@@ -37,11 +38,11 @@ class UserRepositoryImpl : UserRepository {
             }
         }?.toDomain() ?: throw EntityNotFoundException(
             DaoEntityID(request.id, UsersTable),
-            UserDAO.Companion
+            UserDAO
         )
     }
 
-    override suspend fun deleteUser(id: Int) = DatabaseFactory.dbQuery {
-        UserDAO.Companion[id].delete()
+    override suspend fun deleteUser(id: Int) = dbQuery {
+        UserDAO[id].delete()
     }
 }
