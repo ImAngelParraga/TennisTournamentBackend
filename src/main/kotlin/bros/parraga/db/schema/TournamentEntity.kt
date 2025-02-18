@@ -33,19 +33,21 @@ class TournamentDAO(id: EntityID<Int>) : IntEntity(id) {
     var updatedAt by TournamentsTable.updatedAt
 
     var club by ClubDAO referencedOn TournamentsTable.clubId
-    val players by PlayerDAO via TournamentPlayersTable
+    var players by PlayerDAO via TournamentPlayersTable
+    val phases by TournamentPhaseDAO referrersOn TournamentPhasesTable.tournamentId
 
     fun toDomain(includePlayers: Boolean = true) = Tournament(
         id = id.value,
         name = name,
         description = description,
         surface = surface?.let { SurfaceType.valueOf(it) },
-        club = club.toDomain(),
+        clubId = club.id.value,
         startDate = startDate.toKotlinInstant(),
         endDate = endDate.toKotlinInstant(),
         createdAt = createdAt?.toKotlinInstant(),
         updatedAt = updatedAt?.toKotlinInstant(),
-        players = if (includePlayers) players.map { it.toDomain(false) } else emptyList()
+        players = if (includePlayers) players.map { it.toDomain(false) } else emptyList(),
+        phases = phases.map { it.toDomain() }
     )
 }
 

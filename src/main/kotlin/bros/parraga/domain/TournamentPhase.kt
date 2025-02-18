@@ -12,7 +12,8 @@ data class TournamentPhase(
     val rounds: Int,
     val configuration: PhaseConfiguration,
     val createdAt: Instant,
-    val updatedAt: Instant?
+    val updatedAt: Instant?,
+    val matches: List<Match> = emptyList()
 )
 
 enum class PhaseFormat { KNOCKOUT, GROUP, SWISS }

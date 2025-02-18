@@ -1,8 +1,10 @@
 package bros.parraga.domain
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class MatchDependency(
-    val match: Match,
-    val requiredMatch: Match,
+    val requiredMatchId: Int,
     val requiredOutcome: Outcome
 )
 

@@ -10,7 +10,7 @@ import org.jetbrains.exposed.dao.id.EntityID
 
 object MatchDependenciesTable : CompositeIdTable("match_dependencies") {
     val matchId = reference("match_id", MatchesTable)
-    val requiredMatchId = reference("match_id", MatchesTable)
+    val requiredMatchId = reference("required_match_id", MatchesTable)
     val requiredOutcome =
         varchar("required_outcome", 20).check { column -> column.inList(Outcome.entries.map { it.name }) }
 
@@ -25,13 +25,12 @@ object MatchDependenciesTable : CompositeIdTable("match_dependencies") {
 class MatchDependencyDAO(id: EntityID<CompositeID>) : CompositeEntity(id) {
     companion object : CompositeEntityClass<MatchDependencyDAO>(MatchDependenciesTable)
 
-    var match by MatchDAO referencedOn MatchDependenciesTable.matchId
+    var matchId by MatchDependenciesTable.matchId
     var requiredMatch by MatchDAO referencedOn MatchDependenciesTable.requiredMatchId
     var requiredOutcome by MatchDependenciesTable.requiredOutcome
 
-    fun toDomain() = MatchDependency(
-        match.toDomain(),
-        requiredMatch.toDomain(),
+    fun toDomain(): MatchDependency = MatchDependency(
+        requiredMatch.id.value,
         Outcome.valueOf(requiredOutcome)
     )
 }

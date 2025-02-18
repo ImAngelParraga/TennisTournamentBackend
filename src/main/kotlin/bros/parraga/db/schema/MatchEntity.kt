@@ -26,6 +26,7 @@ object MatchesTable : IntIdTable("matches") {
         { Json.encodeToString(it) },
         { Json.decodeFromString(it) }
     ).nullable()
+
     // TODO(Is it possible to use valueOf here?)
     val status = varchar("status", 20).check { it.inList(MatchStatus.entries.map { it.name }) }
         .default("SCHEDULED")
@@ -50,8 +51,9 @@ class MatchDAO(id: EntityID<Int>) : IntEntity(id) {
     var court by MatchesTable.court
     var createdAt by MatchesTable.createdAt
     var updatedAt by MatchesTable.updatedAt
+    val matchDependencies by MatchDependencyDAO referrersOn MatchDependenciesTable.matchId
 
-    fun toDomain() = Match(
+    fun toDomain(includeDependency: Boolean = true) = Match(
         id = id.value,
         phaseId = phase.id.value,
         round = round,
@@ -64,6 +66,7 @@ class MatchDAO(id: EntityID<Int>) : IntEntity(id) {
         scheduledTime = scheduledTime?.toKotlinInstant(),
         court = court,
         createdAt = createdAt.toKotlinInstant(),
-        updatedAt = updatedAt?.toKotlinInstant()
+        updatedAt = updatedAt?.toKotlinInstant(),
+        matchDependencies = if (includeDependency) matchDependencies.map { it.toDomain() } else emptyList()
     )
 }

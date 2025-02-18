@@ -2,7 +2,9 @@ package bros.parraga.services.repositories.tournament
 
 import bros.parraga.db.DatabaseFactory.dbQuery
 import bros.parraga.db.schema.*
+import bros.parraga.domain.TennisScore
 import bros.parraga.domain.Tournament
+import bros.parraga.domain.TournamentPhase
 import bros.parraga.services.repositories.tournament.dto.AddPlayersRequest
 import bros.parraga.services.repositories.tournament.dto.CreateTournamentRequest
 import bros.parraga.services.repositories.tournament.dto.TournamentPlayerRequest
@@ -12,6 +14,10 @@ import kotlinx.datetime.toJavaInstant
 import org.jetbrains.exposed.dao.DaoEntityID
 import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
 import org.jetbrains.exposed.sql.and
+import parraga.bros.tournament.domain.Format
+import parraga.bros.tournament.domain.Match
+import parraga.bros.tournament.domain.Phase
+import parraga.bros.tournament.services.TournamentService
 import java.time.Instant
 
 class TournamentRepositoryImpl : TournamentRepository {
@@ -61,8 +67,8 @@ class TournamentRepositoryImpl : TournamentRepository {
 
             if (tournament.players.none { it.id == player.id }) {
                 TournamentPlayerDAO.new {
-                    this.tournamentId = tournament.id
-                    playerId = player.id
+                    this.tournament = tournament
+                    this.player = player
                 }
             }
         }
@@ -76,6 +82,64 @@ class TournamentRepositoryImpl : TournamentRepository {
         )
 
         association.delete()
+    }
+
+    override suspend fun startTournament(id: Int): TournamentPhase = dbQuery {
+        val tournament = TournamentDAO[id]
+        require(tournament.phases.count() > 0) { "Tournament has no phases" }
+
+        val firstPhase = tournament.phases.first { it.phaseOrder == 1 }
+        val playerIds = tournament.players.map { it.id.value }
+
+        val phaseLib = Phase(
+            firstPhase.phaseOrder,
+            Format.valueOf(firstPhase.format),
+            firstPhase.rounds,
+            firstPhase.configuration.toPhaseConfigurationLib(),
+            emptyList()
+        )
+
+        val firstPhaseMatches = TournamentService.startPhase(phaseLib, playerIds)
+
+        saveMatchesForPhase(firstPhaseMatches, firstPhase)
+
+        TournamentPhaseDAO[firstPhase.id.value].toDomain()
+    }
+
+    fun saveMatchesForPhase(
+        matches: List<Match>,
+        phaseDao: TournamentPhaseDAO
+    ) {
+        val fakeIdsToRealMatches = mutableMapOf<Int, MatchDAO>()
+
+        matches.forEach { match ->
+            val player1Dao = match.player1Id?.let { PlayerDAO[it] }
+            val player2Dao = match.player2Id?.let { PlayerDAO[it] }
+            val winnerDao = match.winnerId?.let {
+                if (match.winnerId == match.player1Id) player1Dao else player2Dao
+            }
+            val tennisScore = TennisScore.fromLib(match.score)
+
+            val matchDao = MatchDAO.new {
+                phase = phaseDao
+                round = match.round
+                player1 = player1Dao
+                player2 = player2Dao
+                winner = winnerDao
+                score = tennisScore
+                status = match.status.name
+            }
+
+            fakeIdsToRealMatches.put(match.id, matchDao)
+
+            match.dependencies.forEach { dependency ->
+                MatchDependencyDAO.new {
+                    matchId = matchDao.id
+                    requiredMatch = fakeIdsToRealMatches[dependency.requiredMatchId]!!
+                    requiredOutcome = dependency.requiredOutcome.name
+                }
+            }
+        }
     }
 
     private fun getOrCreatePlayer(request: TournamentPlayerRequest) = when {

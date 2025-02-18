@@ -1,6 +1,17 @@
 package bros.parraga
 
 import bros.parraga.db.DatabaseFactory
+import bros.parraga.db.schema.ClubsTable
+import bros.parraga.db.schema.GroupStandingsTable
+import bros.parraga.db.schema.GroupsTable
+import bros.parraga.db.schema.MatchDependenciesTable
+import bros.parraga.db.schema.MatchesTable
+import bros.parraga.db.schema.PlayersTable
+import bros.parraga.db.schema.SwissRankingsTable
+import bros.parraga.db.schema.TournamentPhasesTable
+import bros.parraga.db.schema.TournamentPlayersTable
+import bros.parraga.db.schema.TournamentsTable
+import bros.parraga.db.schema.UsersTable
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.serialization.kotlinx.json.*
@@ -13,7 +24,19 @@ import org.junit.After
 import org.junit.Before
 
 abstract class BaseIntegrationTest {
-    abstract val tables: List<Table>
+    open val tables: List<Table> = listOf(
+        UsersTable,
+        PlayersTable,
+        ClubsTable,
+        TournamentsTable,
+        TournamentPlayersTable,
+        TournamentPhasesTable,
+        GroupsTable,
+        GroupStandingsTable,
+        SwissRankingsTable,
+        MatchesTable,
+        MatchDependenciesTable
+    )
 
     protected fun testApplicationWithClient(test: suspend ApplicationTestBuilder.(HttpClient) -> Unit) = testApplication {
         application {

@@ -38,6 +38,7 @@ class TournamentPhaseDAO(id: EntityID<Int>) : IntEntity(id) {
     var configuration by TournamentPhasesTable.configuration
     var createdAt by TournamentPhasesTable.createdAt
     var updatedAt by TournamentPhasesTable.updatedAt
+    val matches by MatchDAO referrersOn MatchesTable.phaseId
 
     fun toDomain() = TournamentPhase(
         id = id.value,
@@ -47,6 +48,7 @@ class TournamentPhaseDAO(id: EntityID<Int>) : IntEntity(id) {
         rounds = rounds,
         configuration = configuration,
         createdAt = createdAt.toKotlinInstant(),
-        updatedAt = updatedAt?.toKotlinInstant()
+        updatedAt = updatedAt?.toKotlinInstant(),
+        matches = matches.map { it.toDomain() }
     )
 }

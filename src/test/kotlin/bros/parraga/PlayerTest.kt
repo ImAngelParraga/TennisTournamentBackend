@@ -38,6 +38,7 @@ class PlayerTest : BaseIntegrationTest() {
 
     @Test
     fun `should return all players`() = testApplicationWithClient { client ->
+        println("Transaction")
         createTestData()
 
         val response = client.get("/players")

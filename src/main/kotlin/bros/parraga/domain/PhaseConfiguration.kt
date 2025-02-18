@@ -5,12 +5,17 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 sealed interface PhaseConfiguration {
+
+    fun toPhaseConfigurationLib(): parraga.bros.tournament.domain.PhaseConfiguration
+
     @Serializable
     @SerialName("knockout")
     data class KnockoutConfig(
-        val thirdPlacePlayoff: Boolean,
-        val seedByPreviousPhase: Boolean
-    ) : PhaseConfiguration
+        val thirdPlacePlayoff: Boolean
+    ) : PhaseConfiguration {
+        override fun toPhaseConfigurationLib(): parraga.bros.tournament.domain.PhaseConfiguration =
+            parraga.bros.tournament.domain.PhaseConfiguration.KnockoutConfig(thirdPlacePlayoff)
+    }
 
     @Serializable
     @SerialName("group")
@@ -18,12 +23,17 @@ sealed interface PhaseConfiguration {
         val groupCount: Int,
         val teamsPerGroup: Int,
         val advancingPerGroup: Int
-    ) : PhaseConfiguration
+    ) : PhaseConfiguration {
+        override fun toPhaseConfigurationLib(): parraga.bros.tournament.domain.PhaseConfiguration =
+            parraga.bros.tournament.domain.PhaseConfiguration.GroupConfig(groupCount, teamsPerGroup, advancingPerGroup)
+    }
 
     @Serializable
     @SerialName("swiss")
     data class SwissConfig(
-        val pointsPerWin: Int,
-        val pointsPerDraw: Int
-    ) : PhaseConfiguration
+        val pointsPerWin: Int
+    ) : PhaseConfiguration {
+        override fun toPhaseConfigurationLib(): parraga.bros.tournament.domain.PhaseConfiguration =
+            parraga.bros.tournament.domain.PhaseConfiguration.SwissConfig(pointsPerWin)
+    }
 }

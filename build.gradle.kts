@@ -46,7 +46,8 @@ dependencies {
     implementation("io.ktor:ktor-server-netty:$ktor_version")
     //implementation("ch.qos.logback:logback-classic:$logback_version")
 
-    implementation("com.github.ImAngelParraga:TennisTournamentLib:v0.0.2")
+    //implementation("com.github.ImAngelParraga:TennisTournamentLib:v0.0.2")
+    implementation(files("E:\\Develop\\TennisTournamentLibV2\\TennisTournamentLib\\build\\libs\\TennisTournamentLib-0.0.2.jar"))
 
     implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")

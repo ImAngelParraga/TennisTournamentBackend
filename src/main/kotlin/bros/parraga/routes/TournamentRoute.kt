@@ -38,6 +38,12 @@ fun Route.tournamentRouting() {
                 ) { tournamentRepository.deleteTournament(call.requireIntParameter("id")) }
             }
 
+            post("/start") {
+                handleRequest(call) {
+                    tournamentRepository.startTournament(call.requireIntParameter("id"))
+                }
+            }
+
             route("/players") {
                 post {
                     handleRequest(call) {
