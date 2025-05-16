@@ -36,7 +36,7 @@ class TournamentDAO(id: EntityID<Int>) : IntEntity(id) {
     var players by PlayerDAO via TournamentPlayersTable
     val phases by TournamentPhaseDAO referrersOn TournamentPhasesTable.tournamentId
 
-    fun toDomain(includePlayers: Boolean = true) = Tournament(
+    fun toDomain() = Tournament(
         id = id.value,
         name = name,
         description = description,
@@ -46,7 +46,7 @@ class TournamentDAO(id: EntityID<Int>) : IntEntity(id) {
         endDate = endDate.toKotlinInstant(),
         createdAt = createdAt?.toKotlinInstant(),
         updatedAt = updatedAt?.toKotlinInstant(),
-        players = if (includePlayers) players.map { it.toDomain(false) } else emptyList(),
+        players = players.map { it.toDomain() },
         phases = phases.map { it.toDomain() }
     )
 }

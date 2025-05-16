@@ -30,7 +30,6 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
         transaction {
             val user = UserDAO.new {
                 username = "testUser"
-                password = "password123"
                 email = ""
             }
 

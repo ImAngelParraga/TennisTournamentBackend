@@ -21,14 +21,12 @@ class ClubDAO(id: EntityID<Int>) : IntEntity(id) {
     var address by ClubsTable.address
 
     var user by UserDAO referencedOn ClubsTable.userId
-    val tournaments by TournamentDAO referrersOn TournamentsTable.clubId
 
-    fun toDomain(includeTournaments: Boolean = true): Club = Club(
+    fun toDomain(): Club = Club(
         id = id.value,
         name = name,
         phoneNumber = phoneNumber,
         address = address,
-        user = user.toDomain(),
-        tournaments = if (includeTournaments) tournaments.map { it.toDomain(false) } else emptyList()
+        user = user.toDomain()
     )
 }

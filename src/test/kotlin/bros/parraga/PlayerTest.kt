@@ -8,7 +8,6 @@ import bros.parraga.services.repositories.player.dto.UpdatePlayerRequest
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.server.testing.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -98,7 +97,6 @@ class PlayerTest : BaseIntegrationTest() {
         assertEquals(testPlayerUpdate.external, player.external)
     }
 
-
     @Test
     fun `should delete an existing player`() = testApplicationWithClient { client ->
         createTestData()
@@ -122,7 +120,7 @@ class PlayerTest : BaseIntegrationTest() {
         assertEquals(HttpStatusCode.NotFound, response.status)
     }
 
-    private fun ApplicationTestBuilder.createTestData() {
+    private fun createTestData() {
         transaction {
             PlayerDAO.new {
                 name = testPlayer1.name

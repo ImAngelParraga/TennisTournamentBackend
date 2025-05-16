@@ -1,6 +1,5 @@
 package bros.parraga.services.repositories.user
 
-import bros.parraga.db.DatabaseFactory
 import bros.parraga.db.DatabaseFactory.dbQuery
 import bros.parraga.db.schema.UserDAO
 import bros.parraga.db.schema.UsersTable
@@ -23,7 +22,6 @@ class UserRepositoryImpl : UserRepository {
     override suspend fun createUser(request: CreateUserRequest): User = dbQuery {
         UserDAO.new {
             username = request.username
-            password = request.password
             email = request.email
         }.toDomain()
     }
@@ -32,7 +30,6 @@ class UserRepositoryImpl : UserRepository {
         UserDAO.findByIdAndUpdate(request.id) {
             it.apply {
                 request.username?.let { username = it }
-                request.password?.let { password = it }
                 request.email?.let { email = it }
                 updatedAt = Instant.now()
             }

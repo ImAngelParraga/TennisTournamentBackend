@@ -122,13 +122,11 @@ class UserTest : BaseIntegrationTest() {
         transaction {
             UserDAO.new {
                 username = testUser1.username
-                password = testUser1.password
                 email = testUser1.email
             }
 
             UserDAO.new {
                 username = testUser2.username
-                password = testUser2.password
                 email = testUser2.email
             }
         }

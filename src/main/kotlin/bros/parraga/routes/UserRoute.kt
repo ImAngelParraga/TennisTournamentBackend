@@ -31,7 +31,7 @@ fun Route.userRouting() {
         }
 
         delete("/{id}") {
-            handleRequest(call) { userRepository.deleteUser(call.requireIntParameter("id")) }
+            handleRequest(call, HttpStatusCode.NoContent) { userRepository.deleteUser(call.requireIntParameter("id")) }
         }
     }
 }

@@ -11,7 +11,6 @@ import java.time.Instant
 
 object UsersTable : IntIdTable("users") {
     val username = varchar("username", 255).uniqueIndex()
-    val password = varchar("password", 255)
     val email = varchar("email", 255).uniqueIndex().nullable()
     val createdAt = timestamp("created_at").databaseGenerated().nullable().default(Instant.now())
     val updatedAt = timestamp("updated_at").databaseGenerated().nullable()
@@ -21,7 +20,6 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<UserDAO>(UsersTable)
 
     var username by UsersTable.username
-    var password by UsersTable.password
     var email by UsersTable.email
     val createdAt by UsersTable.createdAt
     var updatedAt by UsersTable.updatedAt
@@ -29,7 +27,6 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
     fun toDomain() = User(
         id.value,
         username,
-        password,
         email,
         createdAt?.toKotlinInstant(),
         updatedAt?.toKotlinInstant()

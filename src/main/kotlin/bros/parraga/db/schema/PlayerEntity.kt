@@ -19,14 +19,12 @@ class PlayerDAO(id: EntityID<Int>) : IntEntity(id) {
     var external by PlayersTable.external
 
     var user by UserDAO optionalReferencedOn PlayersTable.userId
-    val tournaments by TournamentDAO via TournamentPlayersTable
 
-    fun toDomain(includeTournaments: Boolean = true): Player =
+    fun toDomain(): Player =
         Player(
             id.value,
             name,
             external,
-            user?.toDomain(),
-            if (includeTournaments) tournaments.map { it.toDomain(false) } else emptyList())
-
+            user?.toDomain()
+        )
 }
