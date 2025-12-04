@@ -37,8 +37,8 @@ class TournamentRepositoryImpl : TournamentRepository {
     }
 
     override suspend fun updateTournament(request: UpdateTournamentRequest): Tournament = dbQuery {
-        TournamentDAO.findByIdAndUpdate(request.id) {
-            it.apply {
+        TournamentDAO.findByIdAndUpdate(request.id) { tournamentDAO ->
+            tournamentDAO.apply {
                 request.name?.let { name = it }
                 request.description?.let { description = it }
                 request.surface?.let { surface = it }
@@ -130,7 +130,7 @@ class TournamentRepositoryImpl : TournamentRepository {
                 status = match.status.name
             }
 
-            fakeIdsToRealMatches.put(match.id, matchDao)
+            fakeIdsToRealMatches[match.id] = matchDao
 
             match.dependencies.forEach { dependency ->
                 MatchDependencyDAO.new {

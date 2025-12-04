@@ -1,6 +1,7 @@
 package bros.parraga.db.schema
 
 import bros.parraga.domain.Player
+import bros.parraga.domain.PublicUser
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -25,6 +26,6 @@ class PlayerDAO(id: EntityID<Int>) : IntEntity(id) {
             id.value,
             name,
             external,
-            user?.toDomain()
+            user?.let { PublicUser(it.id.value, it.username) }
         )
 }

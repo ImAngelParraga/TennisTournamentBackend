@@ -11,3 +11,9 @@ data class User(
     val createdAt: Instant?,
     val updatedAt: Instant?
 )
+
+@Serializable
+data class PublicUser(
+    val id: Int,
+    val username: String
+)
