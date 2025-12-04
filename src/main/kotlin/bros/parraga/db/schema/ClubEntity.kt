@@ -1,6 +1,7 @@
 package bros.parraga.db.schema
 
 import bros.parraga.domain.Club
+import bros.parraga.domain.PublicUser
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -27,6 +28,6 @@ class ClubDAO(id: EntityID<Int>) : IntEntity(id) {
         name = name,
         phoneNumber = phoneNumber,
         address = address,
-        user = user.toDomain()
+        user = PublicUser(user.id.value, user.username)
     )
 }

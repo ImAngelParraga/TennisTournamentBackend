@@ -8,5 +8,5 @@ data class Club(
     val name: String,
     val phoneNumber: String?,
     val address: String?,
-    val user: User
+    val user: PublicUser
 )
