@@ -55,6 +55,7 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-json:$exposedVersion")
     implementation("org.postgresql:postgresql:$postgresqlDriverVersion")
+    implementation("com.h2database:h2:2.3.232")
 
     implementation("io.insert-koin:koin-ktor3:$koinVersion")
     implementation("io.insert-koin:koin-logger-slf4j:$koinVersion")

@@ -44,7 +44,27 @@ fun Route.tournamentRouting() {
                 }
             }
 
+            route("/phases") {
+                get {
+                    handleRequest(call) {
+                        tournamentRepository.getTournamentPhases(call.requireIntParameter("id"))
+                    }
+                }
+
+                post {
+                    handleRequest(call, HttpStatusCode.Created) {
+                        tournamentRepository.createPhase(call.requireIntParameter("id"), call.receive())
+                    }
+                }
+            }
+
             route("/players") {
+                get {
+                    handleRequest(call) {
+                        tournamentRepository.getTournamentPlayers(call.requireIntParameter("id"))
+                    }
+                }
+
                 post {
                     handleRequest(call) {
                         tournamentRepository.addPlayersToTournament(
@@ -61,6 +81,12 @@ fun Route.tournamentRouting() {
                             playerId = call.requireIntParameter("playerId")
                         )
                     }
+                }
+            }
+
+            get("/matches") {
+                handleRequest(call) {
+                    tournamentRepository.getTournamentMatches(call.requireIntParameter("id"))
                 }
             }
         }

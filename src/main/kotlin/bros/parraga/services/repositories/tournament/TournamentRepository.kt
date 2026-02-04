@@ -1,17 +1,25 @@
 package bros.parraga.services.repositories.tournament
 
-import bros.parraga.domain.Tournament
+import bros.parraga.domain.Match
+import bros.parraga.domain.Player
+import bros.parraga.domain.TournamentBasic
 import bros.parraga.domain.TournamentPhase
+import bros.parraga.domain.TournamentPhaseSummary
 import bros.parraga.services.repositories.tournament.dto.AddPlayersRequest
+import bros.parraga.services.repositories.tournament.dto.CreatePhaseRequest
 import bros.parraga.services.repositories.tournament.dto.CreateTournamentRequest
 import bros.parraga.services.repositories.tournament.dto.UpdateTournamentRequest
 
 interface TournamentRepository {
-    suspend fun getTournaments(): List<Tournament>
-    suspend fun getTournament(id: Int): Tournament
-    suspend fun createTournament(request: CreateTournamentRequest): Tournament
-    suspend fun updateTournament(request: UpdateTournamentRequest): Tournament
+    suspend fun getTournaments(): List<TournamentBasic>
+    suspend fun getTournament(id: Int): TournamentBasic
+    suspend fun createTournament(request: CreateTournamentRequest): TournamentBasic
+    suspend fun updateTournament(request: UpdateTournamentRequest): TournamentBasic
     suspend fun deleteTournament(id: Int)
+    suspend fun createPhase(tournamentId: Int, request: CreatePhaseRequest): TournamentPhase
+    suspend fun getTournamentPlayers(tournamentId: Int): List<Player>
+    suspend fun getTournamentPhases(tournamentId: Int): List<TournamentPhaseSummary>
+    suspend fun getTournamentMatches(tournamentId: Int): List<Match>
     suspend fun addPlayersToTournament(tournamentId: Int, request: AddPlayersRequest)
     suspend fun removePlayerFromTournament(tournamentId: Int, playerId: Int)
     suspend fun startTournament(id: Int): TournamentPhase

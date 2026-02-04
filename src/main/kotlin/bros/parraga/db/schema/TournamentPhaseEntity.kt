@@ -3,6 +3,7 @@ package bros.parraga.db.schema
 import bros.parraga.domain.PhaseConfiguration
 import bros.parraga.domain.PhaseFormat
 import bros.parraga.domain.TournamentPhase
+import bros.parraga.domain.TournamentPhaseSummary
 import kotlinx.datetime.toKotlinInstant
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.dao.IntEntity
@@ -39,6 +40,17 @@ class TournamentPhaseDAO(id: EntityID<Int>) : IntEntity(id) {
     var createdAt by TournamentPhasesTable.createdAt
     var updatedAt by TournamentPhasesTable.updatedAt
     val matches by MatchDAO referrersOn MatchesTable.phaseId
+
+    fun toSummary() = TournamentPhaseSummary(
+        id = id.value,
+        tournamentId = tournament.id.value,
+        phaseOrder = phaseOrder,
+        format = PhaseFormat.valueOf(format),
+        rounds = rounds,
+        configuration = configuration,
+        createdAt = createdAt.toKotlinInstant(),
+        updatedAt = updatedAt?.toKotlinInstant()
+    )
 
     fun toDomain() = TournamentPhase(
         id = id.value,

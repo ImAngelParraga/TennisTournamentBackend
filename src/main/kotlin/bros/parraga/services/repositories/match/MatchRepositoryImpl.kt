@@ -3,9 +3,11 @@ package bros.parraga.services.repositories.match
 import bros.parraga.db.DatabaseFactory.dbQuery
 import bros.parraga.db.schema.MatchDAO
 import bros.parraga.db.schema.MatchesTable
-import bros.parraga.services.repositories.match.dto.UpdateMatchScoreRequest
+import bros.parraga.db.schema.PlayerDAO
 import bros.parraga.domain.Match
 import bros.parraga.domain.MatchStatus
+import bros.parraga.services.TournamentProgressionService
+import bros.parraga.services.repositories.match.dto.UpdateMatchScoreRequest
 import org.jetbrains.exposed.dao.DaoEntityID
 import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
 import java.time.Instant
@@ -19,8 +21,13 @@ class MatchRepositoryImpl : MatchRepository {
         )
 
         match.score = request.score
+        val winnerId = request.score.getWinnerId(match.player1?.id?.value, match.player2?.id?.value)
+        requireNotNull(winnerId) { "Cannot determine winner from score" }
+        match.winner = PlayerDAO[winnerId]
         match.status = MatchStatus.COMPLETED.name
         match.updatedAt = Instant.now()
+
+        TournamentProgressionService.onMatchCompleted(match)
 
         match.toDomain()
     }

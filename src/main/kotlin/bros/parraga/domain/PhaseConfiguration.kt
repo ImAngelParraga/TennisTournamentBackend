@@ -11,7 +11,8 @@ sealed interface PhaseConfiguration {
     @Serializable
     @SerialName("knockout")
     data class KnockoutConfig(
-        val thirdPlacePlayoff: Boolean
+        val thirdPlacePlayoff: Boolean,
+        val qualifiers: Int = 1
     ) : PhaseConfiguration {
         override fun toPhaseConfigurationLib(): parraga.bros.tournament.domain.PhaseConfiguration =
             parraga.bros.tournament.domain.PhaseConfiguration.KnockoutConfig(thirdPlacePlayoff)

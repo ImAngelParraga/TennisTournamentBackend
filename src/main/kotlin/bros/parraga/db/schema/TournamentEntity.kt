@@ -2,6 +2,7 @@ package bros.parraga.db.schema
 
 import bros.parraga.domain.SurfaceType
 import bros.parraga.domain.Tournament
+import bros.parraga.domain.TournamentBasic
 import kotlinx.datetime.toKotlinInstant
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
@@ -35,6 +36,18 @@ class TournamentDAO(id: EntityID<Int>) : IntEntity(id) {
     var club by ClubDAO referencedOn TournamentsTable.clubId
     var players by PlayerDAO via TournamentPlayersTable
     val phases by TournamentPhaseDAO referrersOn TournamentPhasesTable.tournamentId
+
+    fun toBasic() = TournamentBasic(
+        id = id.value,
+        name = name,
+        description = description,
+        surface = surface?.let { SurfaceType.valueOf(it) },
+        clubId = club.id.value,
+        startDate = startDate.toKotlinInstant(),
+        endDate = endDate.toKotlinInstant(),
+        createdAt = createdAt?.toKotlinInstant(),
+        updatedAt = updatedAt?.toKotlinInstant()
+    )
 
     fun toDomain() = Tournament(
         id = id.value,
