@@ -15,7 +15,7 @@ sealed interface PhaseConfiguration {
         val qualifiers: Int = 1
     ) : PhaseConfiguration {
         override fun toPhaseConfigurationLib(): parraga.bros.tournament.domain.PhaseConfiguration =
-            parraga.bros.tournament.domain.PhaseConfiguration.KnockoutConfig(thirdPlacePlayoff)
+            parraga.bros.tournament.domain.PhaseConfiguration.KnockoutConfig(thirdPlacePlayoff, qualifiers)
     }
 
     @Serializable

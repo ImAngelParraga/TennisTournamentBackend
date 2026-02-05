@@ -36,7 +36,7 @@ Sequence 4: Swiss round creation
 
 Sequence 5: Match winner validation
 1) PUT /matches/{id}/score with a tied score (e.g., 6-6, 6-6)
-2) Expect 400 Bad Request: "Cannot determine winner from score"
+2) Expect 400 Bad Request: "Score does not produce a winner."
 
 Sequence 6: Add/remove players edge cases
 1) POST /tournaments/{id}/players with duplicate playerId

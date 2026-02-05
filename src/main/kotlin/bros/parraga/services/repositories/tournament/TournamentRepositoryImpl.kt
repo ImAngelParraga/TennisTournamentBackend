@@ -9,16 +9,14 @@ import io.ktor.server.plugins.*
 import kotlinx.datetime.toJavaInstant
 import org.jetbrains.exposed.dao.DaoEntityID
 import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.inList
 import parraga.bros.tournament.domain.Format
 import parraga.bros.tournament.domain.Phase
 import parraga.bros.tournament.services.TournamentService
 import java.time.Instant
-import parraga.bros.tournament.domain.Match as LibMatch
 import kotlin.math.ceil
 import kotlin.math.log2
+import parraga.bros.tournament.domain.Match as LibMatch
 
 class TournamentRepositoryImpl : TournamentRepository {
     override suspend fun getTournaments(): List<TournamentBasic> = dbQuery { TournamentDAO.all().map { it.toBasic() } }
@@ -142,6 +140,7 @@ class TournamentRepositoryImpl : TournamentRepository {
                     ?: throw IllegalArgumentException("Knockout configuration is required")
                 computeKnockoutRounds(playerIds.size, config.qualifiers)
             }
+
             else -> firstPhase.rounds
         }
 

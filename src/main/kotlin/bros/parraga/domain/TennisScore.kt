@@ -17,6 +17,9 @@ data class TennisScore(
         }
     }
 
+    fun toLib(): parraga.bros.tournament.domain.TennisScore =
+        parraga.bros.tournament.domain.TennisScore(sets.map { it.toLib() })
+
     companion object {
         fun fromLib(lib: parraga.bros.tournament.domain.TennisScore?): TennisScore? {
             return lib?.let { TennisScore(lib.sets.map { SetScore.fromLib(it) }) }
@@ -30,6 +33,13 @@ data class SetScore(
     val player2Games: Int,
     val tiebreak: TiebreakScore?
 ) {
+    fun toLib(): parraga.bros.tournament.domain.SetScore =
+        parraga.bros.tournament.domain.SetScore(
+            player1Games,
+            player2Games,
+            tiebreak?.toLib()
+        )
+
     companion object {
         fun fromLib(lib: parraga.bros.tournament.domain.SetScore): SetScore {
             return SetScore(
@@ -58,6 +68,9 @@ data class TiebreakScore(
     val player1Points: Int,
     val player2Points: Int
 ) {
+    fun toLib(): parraga.bros.tournament.domain.TiebreakScore =
+        parraga.bros.tournament.domain.TiebreakScore(player1Points, player2Points)
+
     companion object {
         fun fromLib(lib: parraga.bros.tournament.domain.TiebreakScore): TiebreakScore {
             return TiebreakScore(lib.player1Points, lib.player2Points)

@@ -20,7 +20,7 @@ fun Route.tournamentRouting() {
             }
         }
 
-        put() {
+        put {
             handleRequest(call) {
                 tournamentRepository.updateTournament(call.receive())
             }
