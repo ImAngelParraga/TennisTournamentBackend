@@ -411,6 +411,13 @@
             "method": "GET",
             "url": "{{baseUrl}}/tournaments/{tournamentId}/matches"
           }
+        },
+        {
+          "name": "Get Tournament Bracket",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/bracket"
+          }
         }
       ]
     },

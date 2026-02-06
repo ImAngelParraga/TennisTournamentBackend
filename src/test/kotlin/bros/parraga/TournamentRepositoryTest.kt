@@ -2,6 +2,7 @@ package bros.parraga
 
 import bros.parraga.db.schema.*
 import bros.parraga.domain.PhaseConfiguration
+import bros.parraga.domain.TournamentBracket
 import bros.parraga.domain.TournamentPhase
 import bros.parraga.routes.ApiResponse
 import io.ktor.client.call.*
@@ -12,6 +13,8 @@ import parraga.bros.tournament.domain.Format
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class TournamentRepositoryTest : BaseIntegrationTest() {
 
@@ -26,7 +29,23 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
         //assertEquals(HttpStatusCode.OK, response.status)
     }
 
-    private fun createTestData() {
+    @Test
+    fun `bracket endpoint groups matches by round`() = testApplicationWithClient { client ->
+        createTestData(thirdPlacePlayoff = true)
+
+        client.post("/tournaments/1/start").body<ApiResponse<TournamentPhase>>()
+
+        val response = client.get("/tournaments/1/bracket").body<ApiResponse<TournamentBracket>>()
+        val bracket = requireNotNull(response.data)
+        assertEquals(1, bracket.phases.size)
+        val rounds = bracket.phases.first().rounds
+        assertTrue(rounds.isNotEmpty())
+        val finalRound = rounds.maxOf { it.round }
+        val finalMatches = rounds.first { it.round == finalRound }.matches
+        assertEquals(2, finalMatches.size)
+    }
+
+    private fun createTestData(thirdPlacePlayoff: Boolean = false) {
         transaction {
             val user = UserDAO.new {
                 username = "testUser"
@@ -65,9 +84,12 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
                 phaseOrder = 1
                 format = Format.KNOCKOUT.name
                 rounds = 3
-                configuration = PhaseConfiguration.KnockoutConfig(false)
+                configuration = PhaseConfiguration.KnockoutConfig(thirdPlacePlayoff)
             }
 
         }
     }
 }
+
+
+

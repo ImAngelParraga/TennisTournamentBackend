@@ -43,3 +43,9 @@ Sequence 6: Add/remove players edge cases
 2) POST /tournaments/{id}/players with {} or both playerId + name
 3) Expect 400 for invalid payload; duplicates should be ignored
 4) GET /tournaments/{id}/players -> verify player list changes
+
+Sequence 7: Bracket view
+1) POST /tournaments/{id}/start
+2) GET /tournaments/{id}/bracket -> rounds grouped by round number
+3) If thirdPlacePlayoff is true, final round should include a third-place match
+

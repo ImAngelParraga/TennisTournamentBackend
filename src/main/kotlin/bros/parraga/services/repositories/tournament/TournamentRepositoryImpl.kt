@@ -94,6 +94,40 @@ class TournamentRepositoryImpl : TournamentRepository {
             .map { it.toDomain() }
     }
 
+    override suspend fun getTournamentBracket(tournamentId: Int): TournamentBracket = dbQuery {
+        val tournament = TournamentDAO[tournamentId]
+        val phases = TournamentPhaseDAO.find { TournamentPhasesTable.tournamentId eq tournamentId }
+            .sortedBy { it.phaseOrder }
+        if (phases.isEmpty()) {
+            return@dbQuery TournamentBracket(tournament.id.value, emptyList())
+        }
+
+        val phaseIds = phases.map { it.id }
+        val matches = MatchDAO.find { MatchesTable.phaseId inList phaseIds }
+            .sortedBy { it.id.value }
+            .toList()
+
+        val matchesByPhase = matches.groupBy { it.phase.id.value }
+        val phaseBrackets = phases.map { phase ->
+            val phaseMatches = matchesByPhase[phase.id.value].orEmpty()
+            val rounds = phaseMatches.groupBy { it.round }
+                .toSortedMap()
+                .map { (round, roundMatches) ->
+                    TournamentBracketRound(round, roundMatches.map { it.toDomain() })
+                }
+
+            TournamentBracketPhase(
+                id = phase.id.value,
+                tournamentId = tournament.id.value,
+                phaseOrder = phase.phaseOrder,
+                format = PhaseFormat.valueOf(phase.format),
+                rounds = rounds
+            )
+        }
+
+        TournamentBracket(tournament.id.value, phaseBrackets)
+    }
+
     override suspend fun addPlayersToTournament(
         tournamentId: Int,
         request: AddPlayersRequest
@@ -260,3 +294,4 @@ class TournamentRepositoryImpl : TournamentRepository {
         else -> throw IllegalArgumentException("Invalid player request")
     }
 }
+

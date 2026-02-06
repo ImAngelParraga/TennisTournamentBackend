@@ -89,7 +89,14 @@ fun Route.tournamentRouting() {
                     tournamentRepository.getTournamentMatches(call.requireIntParameter("id"))
                 }
             }
+
+            get("/bracket") {
+                handleRequest(call) {
+                    tournamentRepository.getTournamentBracket(call.requireIntParameter("id"))
+                }
+            }
         }
 
     }
 }
+

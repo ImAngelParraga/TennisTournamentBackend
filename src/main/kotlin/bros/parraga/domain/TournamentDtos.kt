@@ -27,3 +27,24 @@ data class TournamentPhaseSummary(
     val createdAt: Instant,
     val updatedAt: Instant?
 )
+
+@Serializable
+data class TournamentBracket(
+    val tournamentId: Int,
+    val phases: List<TournamentBracketPhase>
+)
+
+@Serializable
+data class TournamentBracketPhase(
+    val id: Int,
+    val tournamentId: Int,
+    val phaseOrder: Int,
+    val format: PhaseFormat,
+    val rounds: List<TournamentBracketRound>
+)
+
+@Serializable
+data class TournamentBracketRound(
+    val round: Int,
+    val matches: List<Match>
+)
