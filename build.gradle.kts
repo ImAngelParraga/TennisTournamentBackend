@@ -1,3 +1,5 @@
+import java.util.Properties
+
 val kotlin_version: String by project
 val logback_version: String by project
 val exposedVersion = "0.58.0"
@@ -9,6 +11,13 @@ val flywayVersion = "12.0.3"
 
 fun firstNonBlank(vararg candidates: String?): String? =
     candidates.firstOrNull { !it.isNullOrBlank() }
+
+val localProperties = Properties().apply {
+    val localFile = rootProject.file("local.properties")
+    if (localFile.exists()) {
+        localFile.inputStream().use { load(it) }
+    }
+}
 
 buildscript {
     dependencies {
@@ -94,14 +103,17 @@ flyway {
 
     val flywayUrl = firstNonBlank(
         providers.gradleProperty("databaseUrl").orNull,
+        localProperties.getProperty("databaseUrl"),
         System.getenv("DATABASE_URL")
     )
     val flywayUser = firstNonBlank(
         providers.gradleProperty("databaseUser").orNull,
+        localProperties.getProperty("databaseUser"),
         System.getenv("DATABASE_USER")
     )
     val flywayPassword = firstNonBlank(
         providers.gradleProperty("databasePassword").orNull,
+        localProperties.getProperty("databasePassword"),
         System.getenv("DATABASE_PASSWORD")
     )
 
