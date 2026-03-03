@@ -10,4 +10,6 @@ interface UserRepository {
     suspend fun createUser(request: CreateUserRequest): User
     suspend fun updateUser(request: UpdateUserRequest): User
     suspend fun deleteUser(id: Int)
+    suspend fun findByAuthSubject(authSubject: String): User?
+    suspend fun findOrCreateByAuthSubject(authSubject: String, email: String?, preferredName: String?): User
 }

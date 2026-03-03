@@ -22,6 +22,7 @@ class ClubDAO(id: EntityID<Int>) : IntEntity(id) {
     var address by ClubsTable.address
 
     var user by UserDAO referencedOn ClubsTable.userId
+    var admins by UserDAO via ClubAdminsTable
 
     fun toDomain(): Club = Club(
         id = id.value,

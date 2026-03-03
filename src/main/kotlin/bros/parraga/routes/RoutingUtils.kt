@@ -1,5 +1,7 @@
 package bros.parraga.routes
 
+import bros.parraga.errors.ConflictException
+import bros.parraga.errors.ForbiddenException
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.*
@@ -32,6 +34,16 @@ suspend inline fun <reified T : Any> handleRequest(
             is IllegalArgumentException -> call.respond(
                 HttpStatusCode.BadRequest,
                 ApiResponse<T>(FAILURE, message = e.message ?: "Bad request")
+            )
+
+            is ForbiddenException -> call.respond(
+                HttpStatusCode.Forbidden,
+                ApiResponse<T>(FAILURE, message = e.message ?: "Forbidden")
+            )
+
+            is ConflictException -> call.respond(
+                HttpStatusCode.Conflict,
+                ApiResponse<T>(FAILURE, message = e.message ?: "Conflict")
             )
 
             else -> call.respond(

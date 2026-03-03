@@ -12,6 +12,8 @@ import java.time.Instant
 object UsersTable : IntIdTable("users") {
     val username = varchar("username", 255).uniqueIndex()
     val email = varchar("email", 255).uniqueIndex().nullable()
+    val authProvider = varchar("auth_provider", 50).default("clerk")
+    val authSubject = varchar("auth_subject", 255).uniqueIndex().nullable()
     val createdAt = timestamp("created_at").databaseGenerated().nullable().default(Instant.now())
     val updatedAt = timestamp("updated_at").databaseGenerated().nullable()
 }
@@ -21,6 +23,8 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
 
     var username by UsersTable.username
     var email by UsersTable.email
+    var authProvider by UsersTable.authProvider
+    var authSubject by UsersTable.authSubject
     val createdAt by UsersTable.createdAt
     var updatedAt by UsersTable.updatedAt
 
@@ -28,6 +32,8 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
         id.value,
         username,
         email,
+        authProvider,
+        authSubject,
         createdAt?.toKotlinInstant(),
         updatedAt?.toKotlinInstant()
     )

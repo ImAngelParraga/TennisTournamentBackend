@@ -6,6 +6,5 @@ import kotlinx.serialization.Serializable
 data class CreateClubRequest(
     val name: String,
     val phoneNumber: String?,
-    val address: String?,
-    val userId: Int
+    val address: String?
 )

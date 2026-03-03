@@ -1,5 +1,7 @@
 package bros.parraga.services.repositories.player
 
+import bros.parraga.errors.ConflictException
+import bros.parraga.errors.ForbiddenException
 import bros.parraga.db.DatabaseFactory.dbQuery
 import bros.parraga.db.schema.PlayerDAO
 import bros.parraga.db.schema.PlayersTable
@@ -9,6 +11,7 @@ import bros.parraga.services.repositories.player.dto.CreatePlayerRequest
 import bros.parraga.services.repositories.player.dto.UpdatePlayerRequest
 import org.jetbrains.exposed.dao.DaoEntityID
 import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 
 class PlayerRepositoryImpl : PlayerRepository {
     override suspend fun getPlayers(): List<Player> = dbQuery {
@@ -19,25 +22,40 @@ class PlayerRepositoryImpl : PlayerRepository {
         PlayerDAO[id].toDomain()
     }
 
-    override suspend fun createPlayer(request: CreatePlayerRequest): Player = dbQuery {
+    override suspend fun createPlayerForUser(userId: Int, request: CreatePlayerRequest): Player = dbQuery {
+        if (PlayerDAO.find { PlayersTable.userId eq userId }.firstOrNull() != null) {
+            throw ConflictException("Authenticated user already has a player profile")
+        }
+
         PlayerDAO.new {
             name = request.name
-            external = request.external
-            user = request.userId?.let { UserDAO[it] }
+            external = false
+            user = UserDAO[userId]
         }.toDomain()
     }
 
-    override suspend fun updatePlayer(request: UpdatePlayerRequest): Player = dbQuery {
-        PlayerDAO.findByIdAndUpdate(request.id) {
-            it.apply {
-                request.name?.let { name = it }
-                request.external?.let { external = it }
-                request.userId?.let { user = UserDAO[it] }
-            }
-        }?.toDomain() ?: throw EntityNotFoundException(DaoEntityID(request.id, PlayersTable), PlayerDAO)
+    override suspend fun updatePlayerForUser(userId: Int, request: UpdatePlayerRequest): Player = dbQuery {
+        val player = PlayerDAO.findById(request.id)
+            ?: throw EntityNotFoundException(DaoEntityID(request.id, PlayersTable), PlayerDAO)
+        if (player.user?.id?.value != userId) {
+            throw ForbiddenException("You can only update your own player profile")
+        }
+
+        request.name?.let { player.name = it }
+        player.toDomain()
     }
 
-    override suspend fun deletePlayer(id: Int) = dbQuery {
-        PlayerDAO[id].delete()
+    override suspend fun deletePlayerForUser(userId: Int, playerId: Int) = dbQuery {
+        val player = PlayerDAO.findById(playerId)
+            ?: throw EntityNotFoundException(DaoEntityID(playerId, PlayersTable), PlayerDAO)
+        if (player.user?.id?.value != userId) {
+            throw ForbiddenException("You can only delete your own player profile")
+        }
+
+        player.delete()
+    }
+
+    override suspend fun getPlayerByUserId(userId: Int): Player? = dbQuery {
+        PlayerDAO.find { PlayersTable.userId eq userId }.firstOrNull()?.toDomain()
     }
 }

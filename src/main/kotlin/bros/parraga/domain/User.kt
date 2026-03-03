@@ -8,6 +8,8 @@ data class User(
     val id: Int,
     val username: String,
     val email: String? = null,
+    val authProvider: String? = null,
+    val authSubject: String? = null,
     val createdAt: Instant?,
     val updatedAt: Instant?
 )

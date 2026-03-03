@@ -10,6 +10,7 @@ import bros.parraga.services.repositories.tournament.TournamentRepository
 import bros.parraga.services.repositories.tournament.TournamentRepositoryImpl
 import bros.parraga.services.repositories.user.UserRepository
 import bros.parraga.services.repositories.user.UserRepositoryImpl
+import bros.parraga.services.auth.AuthorizationService
 import io.ktor.server.application.*
 import org.koin.core.module.dsl.bind
 import org.koin.core.module.dsl.singleOf
@@ -31,4 +32,5 @@ val appModule = module {
     singleOf(::PlayerRepositoryImpl) bind PlayerRepository::class
     singleOf(::ClubRepositoryImpl) bind ClubRepository::class
     singleOf(::MatchRepositoryImpl) bind MatchRepository::class
+    singleOf(::AuthorizationService)
 }

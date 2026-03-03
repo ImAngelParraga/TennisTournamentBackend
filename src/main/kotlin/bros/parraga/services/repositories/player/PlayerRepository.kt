@@ -7,7 +7,8 @@ import bros.parraga.services.repositories.player.dto.UpdatePlayerRequest
 interface PlayerRepository {
     suspend fun getPlayers(): List<Player>
     suspend fun getPlayer(id: Int): Player
-    suspend fun createPlayer(request: CreatePlayerRequest): Player
-    suspend fun updatePlayer(request: UpdatePlayerRequest): Player
-    suspend fun deletePlayer(id: Int)
+    suspend fun createPlayerForUser(userId: Int, request: CreatePlayerRequest): Player
+    suspend fun updatePlayerForUser(userId: Int, request: UpdatePlayerRequest): Player
+    suspend fun deletePlayerForUser(userId: Int, playerId: Int)
+    suspend fun getPlayerByUserId(userId: Int): Player?
 }

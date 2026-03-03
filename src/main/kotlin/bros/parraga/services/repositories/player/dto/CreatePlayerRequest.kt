@@ -4,7 +4,5 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class CreatePlayerRequest(
-    val name: String,
-    val external: Boolean,
-    val userId: Int? = null
+    val name: String
 )
