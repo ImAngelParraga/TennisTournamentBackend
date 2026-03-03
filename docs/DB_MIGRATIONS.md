@@ -23,16 +23,16 @@ Application DB connection:
 - `DATABASE_AUTO_CREATE` (set to `false` for Supabase/hosted DB)
 
 Notes:
-- `DATABASE_URL` can be `jdbc:postgresql://...` or `postgresql://...` (the app/Flyway normalize to JDBC).
-- `DATABASE_USER` and `DATABASE_PASSWORD` can be omitted if credentials are embedded in the URL.
+- Flyway uses the same `DATABASE_URL`, `DATABASE_USER`, and `DATABASE_PASSWORD`.
+- `DATABASE_URL` should be JDBC format, for example:
+  - `jdbc:postgresql://<host>:5432/postgres?sslmode=require`
+- `DATABASE_DRIVER` is for app runtime, not required by Flyway task.
 
-Flyway connection (optional override):
-- `FLYWAY_URL`
-- `FLYWAY_USER`
-- `FLYWAY_PASSWORD`
-- `SUPABASE_DB_URL`, `SUPABASE_DB_USER`, `SUPABASE_DB_PASSWORD` are also accepted fallbacks.
-
-If `FLYWAY_*` are not provided, Flyway falls back to `DATABASE_*`.
+Optional (instead of env vars):
+- Gradle properties `databaseUrl`, `databaseUser`, `databasePassword`
+- You can set them in:
+  - `~/.gradle/gradle.properties` (recommended)
+  - project `gradle.properties` (not recommended for secrets)
 
 ## Recommended roles
 
@@ -44,7 +44,7 @@ On Supabase free tier, you may start with the default `postgres` user, then spli
 
 ## First-time setup on a new (empty) Supabase DB
 
-1. Set environment variables (`DATABASE_*` and optionally `FLYWAY_*`).
+1. Set connection values (either `DATABASE_*` env vars or Gradle properties).
 2. Ensure `DATABASE_AUTO_CREATE=false`.
 3. Run migration:
    - Windows PowerShell:
@@ -54,6 +54,9 @@ On Supabase free tier, you may start with the default `postgres` user, then spli
 4. Verify applied migrations:
    - `./gradlew.bat flywayInfo` (or `./gradlew flywayInfo`)
 5. Start backend and run tests.
+
+IntelliJ tip:
+- For Gradle task run configs, set env vars in that run config so you don't need terminal exports.
 
 ## Existing DB already created by old runtime auto-create
 

@@ -1,6 +1,7 @@
 # Issues (Priority Ordered)
 
 This list reflects the current state of both repos:
+
 - Backend: `TennisTournamentBackend`
 - Library: `TennisTournamentLib`
 
@@ -9,30 +10,31 @@ This list reflects the current state of both repos:
 - [ ] Finish migration rollout in deployment flow.
   Why: Flyway baseline exists, but deployment still needs strict operational enforcement.
   Missing steps:
-  - run `flywayMigrate` before app startup in deploy pipeline
-  - keep `DATABASE_AUTO_CREATE=false` in hosted environments
-  - baseline any pre-existing non-Flyway environment exactly once
+    - run `flywayMigrate` before app startup in deploy pipeline
+    - keep `DATABASE_AUTO_CREATE=false` in hosted environments
+    - baseline any pre-existing non-Flyway environment exactly once
 
 - [ ] Introduce explicit tournament/match lifecycle rules and enforce them in write endpoints.
   Why: current flow is too permissive after start.
   Missing rules:
-  - lock player/phase mutations after tournament start
-  - define whether tournament metadata is mutable post-start
-  - ensure phase 1 exists and only one phase per `phaseOrder` within a tournament
+    - lock player/phase mutations after tournament start
+    - define whether tournament metadata is mutable post-start
+    - ensure phase 1 exists and only one phase per `phaseOrder` within a tournament
 
 - [ ] Harden match score submission rules.
   Why: scoring is currently permissive and relies on minimal checks.
   Missing rules:
-  - reject scoring matches not in a scoreable state (for example already completed unless overwrite is explicitly allowed)
-  - reject scoring when players are not both present
-  - enforce legal tennis score validation (set/tiebreak consistency), not just greater-than comparisons
+    - reject scoring matches not in a scoreable state (for example already completed unless overwrite is explicitly
+      allowed)
+    - reject scoring when players are not both present
+    - enforce legal tennis score validation (set/tiebreak consistency), not just greater-than comparisons
 
 - [ ] Add concurrency/idempotency guardrails for start/progression.
   Why: duplicate writes are possible under concurrent requests.
   Missing protections:
-  - transactional locking around `startTournament` and progression updates
-  - DB-level uniqueness/integrity constraints to prevent duplicate match/dependency creation
-  - clearly idempotent behavior for repeated `start` and repeated score updates
+    - transactional locking around `startTournament` and progression updates
+    - DB-level uniqueness/integrity constraints to prevent duplicate match/dependency creation
+    - clearly idempotent behavior for repeated `start` and repeated score updates
 
 - [ ] Implement deterministic seeding end-to-end (backend contract + lib behavior).
   Why: `KnockoutService` currently shuffles players randomly, so brackets are non-reproducible.
@@ -44,8 +46,8 @@ This list reflects the current state of both repos:
 
 - [ ] Tighten tournament/phase validation inputs.
   Missing validations:
-  - `startDate <= endDate` for tournament create/update
-  - stronger qualifiers validation messaging against actual player counts and intended product rules
+    - `startDate <= endDate` for tournament create/update
+    - stronger qualifiers validation messaging against actual player counts and intended product rules
 
 - [ ] Expand authorization test coverage for all mutation paths and edge cases.
   Why: auth baseline exists, but coverage is still skewed toward happy paths and a few deny cases.
@@ -56,11 +58,15 @@ This list reflects the current state of both repos:
 
 - [ ] Add operational observability for progression/auth decisions.
   Missing pieces:
-  - structured logs around `startTournament`, progression, and score updates
-  - audit trail for privileged write operations
+    - structured logs around `startTournament`, progression, and score updates
+    - audit trail for privileged write operations
 
 - [ ] Add cross-repo compatibility checks between backend and lib.
   Why: backend behavior depends heavily on lib semantics; compatibility should be validated in CI.
+
+- [ ] Add feature to allow users to create tournaments/leagues without a club.
+  Why: clubs usually create few events, but some users may want to create an event without a club. This would allow
+  users to keep the competitive scene alive without a club.
 
 ## Recently Completed (No Longer Missing)
 

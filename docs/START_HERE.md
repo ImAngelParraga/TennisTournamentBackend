@@ -99,11 +99,9 @@ Auth/CORS:
 - `ALLOWED_ORIGINS` (comma-separated full origins)
 - `AUTH_TEST_JWT_SECRET` (tests only, optional)
 
-Flyway (optional overrides):
-- `FLYWAY_URL`
-- `FLYWAY_USER`
-- `FLYWAY_PASSWORD`
-- if omitted, Flyway uses `DATABASE_*`
+Flyway:
+- uses `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD`
+- optional local alternative: Gradle properties `databaseUrl`, `databaseUser`, `databasePassword`
 
 Behavior without DB env vars:
 - App falls back to in-memory H2.

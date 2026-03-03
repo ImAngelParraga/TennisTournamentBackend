@@ -16,8 +16,7 @@ Include: branch, uncommitted state, what changed, what remains.
 ## Recent Completed Work
 - (uncommitted in current session) Flyway Gradle task robustness fixes:
   - added PostgreSQL Flyway plugin classpath for Flyway v12
-  - added support for `postgresql://` URL normalization to JDBC
-  - added support for URL-embedded DB credentials and `SUPABASE_DB_*` fallbacks
+  - simplified Flyway configuration to use only `DATABASE_*` or Gradle properties
 - (uncommitted in current session) Flyway integration in Gradle + baseline migration `V1__baseline.sql`
 - (uncommitted in current session) Runtime DB auto-create defaults to local fallback only
 - (uncommitted in current session) New migration operations doc: `docs/DB_MIGRATIONS.md`

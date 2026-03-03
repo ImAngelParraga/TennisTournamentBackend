@@ -1,5 +1,3 @@
-import java.net.URI
-
 val kotlin_version: String by project
 val logback_version: String by project
 val exposedVersion = "0.58.0"
@@ -11,16 +9,6 @@ val flywayVersion = "12.0.3"
 
 fun firstNonBlank(vararg candidates: String?): String? =
     candidates.firstOrNull { !it.isNullOrBlank() }
-
-fun toJdbcUrl(rawUrl: String): String {
-    val trimmed = rawUrl.trim()
-    return when {
-        trimmed.startsWith("jdbc:", ignoreCase = true) -> trimmed
-        trimmed.startsWith("postgresql://", ignoreCase = true) -> "jdbc:$trimmed"
-        trimmed.startsWith("postgres://", ignoreCase = true) -> "jdbc:$trimmed"
-        else -> trimmed
-    }
-}
 
 buildscript {
     dependencies {
@@ -104,34 +92,18 @@ ksp {
 flyway {
     configurations = arrayOf("compileClasspath", "runtimeClasspath")
 
-    val rawUrl = firstNonBlank(
-        System.getenv("FLYWAY_URL"),
-        System.getenv("DATABASE_URL"),
-        System.getenv("SUPABASE_DB_URL")
+    val flywayUrl = firstNonBlank(
+        providers.gradleProperty("databaseUrl").orNull,
+        System.getenv("DATABASE_URL")
     )
-    val flywayUrl = rawUrl?.let(::toJdbcUrl)
-
-    val explicitUser = firstNonBlank(
-        System.getenv("FLYWAY_USER"),
-        System.getenv("DATABASE_USER"),
-        System.getenv("SUPABASE_DB_USER")
+    val flywayUser = firstNonBlank(
+        providers.gradleProperty("databaseUser").orNull,
+        System.getenv("DATABASE_USER")
     )
-    val explicitPassword = firstNonBlank(
-        System.getenv("FLYWAY_PASSWORD"),
-        System.getenv("DATABASE_PASSWORD"),
-        System.getenv("SUPABASE_DB_PASSWORD")
+    val flywayPassword = firstNonBlank(
+        providers.gradleProperty("databasePassword").orNull,
+        System.getenv("DATABASE_PASSWORD")
     )
-
-    val userInfoParts = runCatching {
-        flywayUrl
-            ?.removePrefix("jdbc:")
-            ?.let(::URI)
-            ?.userInfo
-            ?.split(":", limit = 2)
-    }.getOrNull()
-
-    val flywayUser = explicitUser ?: userInfoParts?.getOrNull(0)
-    val flywayPassword = explicitPassword ?: userInfoParts?.getOrNull(1)
 
     if (!flywayUrl.isNullOrBlank()) {
         url = flywayUrl
@@ -152,8 +124,8 @@ flyway {
     val runningFlywayTask = gradle.startParameter.taskNames.any { it.contains("flyway", ignoreCase = true) }
     if (runningFlywayTask && (flywayUrl.isNullOrBlank() || flywayUser.isNullOrBlank() || flywayPassword.isNullOrBlank())) {
         logger.lifecycle(
-            "Flyway DB config is incomplete. Set FLYWAY_URL/FLYWAY_USER/FLYWAY_PASSWORD " +
-                "or DATABASE_URL/DATABASE_USER/DATABASE_PASSWORD."
+            "Flyway DB config is incomplete. Set DATABASE_URL/DATABASE_USER/DATABASE_PASSWORD " +
+                "or Gradle properties databaseUrl/databaseUser/databasePassword."
         )
     }
 }
