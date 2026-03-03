@@ -1,15 +1,23 @@
 package bros.parraga.routes
 
-import bros.parraga.domain.Player
 import bros.parraga.services.repositories.player.PlayerRepository
-import io.ktor.http.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import bros.parraga.services.repositories.player.dto.CreatePlayerRequest
+import bros.parraga.services.repositories.player.dto.UpdatePlayerRequest
+import bros.parraga.services.repositories.user.UserRepository
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.auth.authenticate
+import io.ktor.server.request.receive
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.put
+import io.ktor.server.routing.route
 import org.koin.ktor.ext.inject
 
 fun Route.playerRouting() {
     val playerRepository: PlayerRepository by inject()
+    val userRepository: UserRepository by inject()
 
     route("/players") {
         get {
@@ -17,32 +25,32 @@ fun Route.playerRouting() {
         }
 
         get("/{id}") {
-            try {
-                val id = call.requireIntParameter("id")
-                handleRequest(call) { playerRepository.getPlayer(id) }
-            } catch (e: IllegalArgumentException) {
-                call.respond(HttpStatusCode.BadRequest, ApiResponse<Player>(FAILURE, message = e.message))
-            }
+            handleRequest(call) { playerRepository.getPlayer(call.requireIntParameter("id")) }
         }
 
-        post {
-            handleRequest(call, HttpStatusCode.Created) {
-                playerRepository.createPlayer(call.receive())
+        authenticate("clerk-jwt") {
+            post {
+                handleRequest(call, HttpStatusCode.Created) {
+                    val localUser = call.requireLocalUser(userRepository)
+                    val request = call.receive<CreatePlayerRequest>()
+                    playerRepository.createPlayerForUser(localUser.id, request)
+                }
             }
-        }
 
-        put {
-            handleRequest(call) {
-                playerRepository.updatePlayer(call.receive())
+            put {
+                handleRequest(call) {
+                    val localUser = call.requireLocalUser(userRepository)
+                    val request = call.receive<UpdatePlayerRequest>()
+                    playerRepository.updatePlayerForUser(localUser.id, request)
+                }
             }
-        }
 
-        delete("/{id}") {
-            try {
-                val id = call.requireIntParameter("id")
-                handleRequest(call, HttpStatusCode.NoContent) { playerRepository.deletePlayer(id) }
-            } catch (e: IllegalArgumentException) {
-                call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(FAILURE, message = e.message))
+            delete("/{id}") {
+                handleRequest(call, HttpStatusCode.NoContent) {
+                    val localUser = call.requireLocalUser(userRepository)
+                    val id = call.requireIntParameter("id")
+                    playerRepository.deletePlayerForUser(localUser.id, id)
+                }
             }
         }
     }

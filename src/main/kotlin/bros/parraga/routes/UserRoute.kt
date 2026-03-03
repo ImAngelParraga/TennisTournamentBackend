@@ -1,9 +1,14 @@
 package bros.parraga.routes
 
+import bros.parraga.errors.ForbiddenException
 import bros.parraga.services.repositories.user.UserRepository
-import io.ktor.http.*
-import io.ktor.server.request.*
-import io.ktor.server.routing.*
+import io.ktor.server.auth.authenticate
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.put
+import io.ktor.server.routing.route
 import org.koin.ktor.ext.inject
 
 fun Route.userRouting() {
@@ -18,20 +23,27 @@ fun Route.userRouting() {
             handleRequest(call) { userRepository.getUser(call.requireIntParameter("id")) }
         }
 
-        post {
-            handleRequest(call, HttpStatusCode.Created) {
-                userRepository.createUser(call.receive())
+        authenticate("clerk-jwt") {
+            post {
+                handleRequest<Unit>(call) {
+                    call.requireLocalUser(userRepository)
+                    throw ForbiddenException("User write endpoints are disabled")
+                }
             }
-        }
 
-        put {
-            handleRequest(call) {
-                userRepository.updateUser(call.receive())
+            put {
+                handleRequest<Unit>(call) {
+                    call.requireLocalUser(userRepository)
+                    throw ForbiddenException("User write endpoints are disabled")
+                }
             }
-        }
 
-        delete("/{id}") {
-            handleRequest(call, HttpStatusCode.NoContent) { userRepository.deleteUser(call.requireIntParameter("id")) }
+            delete("/{id}") {
+                handleRequest<Unit>(call) {
+                    call.requireLocalUser(userRepository)
+                    throw ForbiddenException("User write endpoints are disabled")
+                }
+            }
         }
     }
 }

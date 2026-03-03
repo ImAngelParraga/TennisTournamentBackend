@@ -1,15 +1,25 @@
 package bros.parraga.routes
 
-import bros.parraga.domain.Club
+import bros.parraga.errors.ForbiddenException
+import bros.parraga.services.auth.AuthorizationService
 import bros.parraga.services.repositories.club.ClubRepository
-import io.ktor.http.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import bros.parraga.services.repositories.club.dto.UpdateClubRequest
+import bros.parraga.services.repositories.user.UserRepository
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.auth.authenticate
+import io.ktor.server.request.receive
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.put
+import io.ktor.server.routing.route
 import org.koin.ktor.ext.inject
 
 fun Route.clubRouting() {
     val clubRepository: ClubRepository by inject()
+    val userRepository: UserRepository by inject()
+    val authorizationService: AuthorizationService by inject()
 
     route("/clubs") {
         get {
@@ -17,32 +27,67 @@ fun Route.clubRouting() {
         }
 
         get("/{id}") {
-            try {
-                val id = call.requireIntParameter("id")
-                handleRequest(call) { clubRepository.getClub(id) }
-            } catch (e: IllegalArgumentException) {
-                call.respond(HttpStatusCode.BadRequest, ApiResponse<Club>(FAILURE, message = e.message))
-            }
-        }
-
-        post {
-            handleRequest(call, HttpStatusCode.Created) {
-                clubRepository.createClub(call.receive())
-            }
-        }
-
-        put {
             handleRequest(call) {
-                clubRepository.updateClub(call.receive())
+                clubRepository.getClub(call.requireIntParameter("id"))
             }
         }
 
-        delete("/{id}") {
-            try {
-                val id = call.requireIntParameter("id")
-                handleRequest(call, HttpStatusCode.NoContent) { clubRepository.deleteClub(id) }
-            } catch (e: IllegalArgumentException) {
-                call.respond(HttpStatusCode.BadRequest, ApiResponse<Unit>(FAILURE, message = e.message))
+        get("/{id}/admins") {
+            handleRequest(call) {
+                clubRepository.getClubAdmins(call.requireIntParameter("id"))
+            }
+        }
+
+        authenticate("clerk-jwt") {
+            post {
+                handleRequest(call, HttpStatusCode.Created) {
+                    val localUser = call.requireLocalUser(userRepository)
+                    clubRepository.createClub(call.receive(), localUser.id)
+                }
+            }
+
+            put {
+                handleRequest(call) {
+                    val localUser = call.requireLocalUser(userRepository)
+                    val request = call.receive<UpdateClubRequest>()
+                    authorizationService.requireClubManager(localUser.id, request.id)
+                    clubRepository.updateClub(request)
+                }
+            }
+
+            delete("/{id}") {
+                handleRequest(call, HttpStatusCode.NoContent) {
+                    val localUser = call.requireLocalUser(userRepository)
+                    val clubId = call.requireIntParameter("id")
+                    authorizationService.requireClubManager(localUser.id, clubId)
+                    clubRepository.deleteClub(clubId)
+                }
+            }
+
+            post("/{id}/admins/{userId}") {
+                handleRequest(call) {
+                    val localUser = call.requireLocalUser(userRepository)
+                    val clubId = call.requireIntParameter("id")
+                    val userId = call.requireIntParameter("userId")
+                    authorizationService.requireClubManager(localUser.id, clubId)
+                    if (authorizationService.isClubOwner(userId, clubId)) {
+                        throw ForbiddenException("Owner cannot be managed via admins endpoint")
+                    }
+                    clubRepository.addClubAdmin(clubId, userId)
+                }
+            }
+
+            delete("/{id}/admins/{userId}") {
+                handleRequest(call) {
+                    val localUser = call.requireLocalUser(userRepository)
+                    val clubId = call.requireIntParameter("id")
+                    val userId = call.requireIntParameter("userId")
+                    authorizationService.requireClubManager(localUser.id, clubId)
+                    if (authorizationService.isClubOwner(userId, clubId)) {
+                        throw ForbiddenException("Owner cannot be managed via admins endpoint")
+                    }
+                    clubRepository.removeClubAdmin(clubId, userId)
+                }
             }
         }
     }

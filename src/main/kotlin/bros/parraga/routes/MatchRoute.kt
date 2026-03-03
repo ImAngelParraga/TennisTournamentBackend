@@ -1,34 +1,38 @@
 package bros.parraga.routes
 
-import bros.parraga.domain.Match
+import bros.parraga.services.auth.AuthorizationService
 import bros.parraga.services.repositories.match.MatchRepository
-import io.ktor.http.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import bros.parraga.services.repositories.match.dto.UpdateMatchScoreRequest
+import bros.parraga.services.repositories.user.UserRepository
+import io.ktor.server.auth.authenticate
+import io.ktor.server.request.receive
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
+import io.ktor.server.routing.put
+import io.ktor.server.routing.route
 import org.koin.ktor.ext.inject
 
 fun Route.matchRouting() {
     val matchRepository: MatchRepository by inject()
+    val userRepository: UserRepository by inject()
+    val authorizationService: AuthorizationService by inject()
 
     route("/matches") {
         get("/{id}") {
-            try {
-                val id = call.requireIntParameter("id")
-                handleRequest(call) { matchRepository.getMatch(id) }
-            } catch (e: IllegalArgumentException) {
-                call.respond(HttpStatusCode.BadRequest, ApiResponse<Match>(FAILURE, message = e.message))
+            handleRequest(call) {
+                matchRepository.getMatch(call.requireIntParameter("id"))
             }
         }
 
-        put("/{id}/score") {
-            try {
-                val id = call.requireIntParameter("id")
+        authenticate("clerk-jwt") {
+            put("/{id}/score") {
                 handleRequest(call) {
-                    matchRepository.updateMatchScore(id, call.receive())
+                    val localUser = call.requireLocalUser(userRepository)
+                    val id = call.requireIntParameter("id")
+                    val request = call.receive<UpdateMatchScoreRequest>()
+                    authorizationService.requireMatchManager(localUser.id, id)
+                    matchRepository.updateMatchScore(id, request)
                 }
-            } catch (e: IllegalArgumentException) {
-                call.respond(HttpStatusCode.BadRequest, ApiResponse<Match>(FAILURE, message = e.message))
             }
         }
     }
