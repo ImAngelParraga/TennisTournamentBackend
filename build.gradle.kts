@@ -1,3 +1,5 @@
+import java.net.URI
+
 val kotlin_version: String by project
 val logback_version: String by project
 val exposedVersion = "0.58.0"
@@ -5,13 +7,32 @@ val koinVersion = "4.1.0-Beta5"
 val ktor_version: String by project
 val koinAnnotationsVersion = "2.0.0-Beta1"
 val postgresqlDriverVersion = "42.7.7"
-val flywayVersion = "10.17.3"
+val flywayVersion = "12.0.3"
+
+fun firstNonBlank(vararg candidates: String?): String? =
+    candidates.firstOrNull { !it.isNullOrBlank() }
+
+fun toJdbcUrl(rawUrl: String): String {
+    val trimmed = rawUrl.trim()
+    return when {
+        trimmed.startsWith("jdbc:", ignoreCase = true) -> trimmed
+        trimmed.startsWith("postgresql://", ignoreCase = true) -> "jdbc:$trimmed"
+        trimmed.startsWith("postgres://", ignoreCase = true) -> "jdbc:$trimmed"
+        else -> trimmed
+    }
+}
+
+buildscript {
+    dependencies {
+        classpath("org.flywaydb:flyway-database-postgresql:12.0.3")
+    }
+}
 
 plugins {
     kotlin("jvm") version "2.0.20"
     id("io.ktor.plugin") version "3.0.3"
     id("org.jetbrains.kotlin.plugin.serialization") version "2.0.20"
-    id("org.flywaydb.flyway") version "10.17.3"
+    id("org.flywaydb.flyway") version "12.0.3"
     application
 
     id("com.google.devtools.ksp") version "2.0.20-1.0.25"
@@ -77,15 +98,41 @@ dependencies {
 }
 
 ksp {
-    arg("KOIN_CONFIG_CHECK","true")
+    arg("KOIN_CONFIG_CHECK", "true")
 }
 
 flyway {
     configurations = arrayOf("compileClasspath", "runtimeClasspath")
 
-    val flywayUrl = System.getenv("FLYWAY_URL") ?: System.getenv("DATABASE_URL")
-    val flywayUser = System.getenv("FLYWAY_USER") ?: System.getenv("DATABASE_USER")
-    val flywayPassword = System.getenv("FLYWAY_PASSWORD") ?: System.getenv("DATABASE_PASSWORD")
+    val rawUrl = firstNonBlank(
+        System.getenv("FLYWAY_URL"),
+        System.getenv("DATABASE_URL"),
+        System.getenv("SUPABASE_DB_URL")
+    )
+    val flywayUrl = rawUrl?.let(::toJdbcUrl)
+
+    val explicitUser = firstNonBlank(
+        System.getenv("FLYWAY_USER"),
+        System.getenv("DATABASE_USER"),
+        System.getenv("SUPABASE_DB_USER")
+    )
+    val explicitPassword = firstNonBlank(
+        System.getenv("FLYWAY_PASSWORD"),
+        System.getenv("DATABASE_PASSWORD"),
+        System.getenv("SUPABASE_DB_PASSWORD")
+    )
+
+    val userInfoParts = runCatching {
+        flywayUrl
+            ?.removePrefix("jdbc:")
+            ?.let(::URI)
+            ?.userInfo
+            ?.split(":", limit = 2)
+    }.getOrNull()
+
+    val flywayUser = explicitUser ?: userInfoParts?.getOrNull(0)
+    val flywayPassword = explicitPassword ?: userInfoParts?.getOrNull(1)
+
     if (!flywayUrl.isNullOrBlank()) {
         url = flywayUrl
     }
@@ -101,4 +148,12 @@ flyway {
     outOfOrder = false
     baselineOnMigrate = false
     cleanDisabled = true
+
+    val runningFlywayTask = gradle.startParameter.taskNames.any { it.contains("flyway", ignoreCase = true) }
+    if (runningFlywayTask && (flywayUrl.isNullOrBlank() || flywayUser.isNullOrBlank() || flywayPassword.isNullOrBlank())) {
+        logger.lifecycle(
+            "Flyway DB config is incomplete. Set FLYWAY_URL/FLYWAY_USER/FLYWAY_PASSWORD " +
+                "or DATABASE_URL/DATABASE_USER/DATABASE_PASSWORD."
+        )
+    }
 }

@@ -22,10 +22,15 @@ Application DB connection:
 - `DATABASE_PASSWORD`
 - `DATABASE_AUTO_CREATE` (set to `false` for Supabase/hosted DB)
 
+Notes:
+- `DATABASE_URL` can be `jdbc:postgresql://...` or `postgresql://...` (the app/Flyway normalize to JDBC).
+- `DATABASE_USER` and `DATABASE_PASSWORD` can be omitted if credentials are embedded in the URL.
+
 Flyway connection (optional override):
 - `FLYWAY_URL`
 - `FLYWAY_USER`
 - `FLYWAY_PASSWORD`
+- `SUPABASE_DB_URL`, `SUPABASE_DB_USER`, `SUPABASE_DB_PASSWORD` are also accepted fallbacks.
 
 If `FLYWAY_*` are not provided, Flyway falls back to `DATABASE_*`.
 
