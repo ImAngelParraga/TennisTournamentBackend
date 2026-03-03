@@ -5,10 +5,17 @@ import bros.parraga.db.schema.UsersTable
 import bros.parraga.domain.User
 import bros.parraga.routes.ApiResponse
 import bros.parraga.services.repositories.user.dto.CreateUserRequest
-import bros.parraga.services.repositories.user.dto.UpdateUserRequest
-import io.ktor.client.call.*
-import io.ktor.client.request.*
-import io.ktor.http.*
+import io.ktor.client.call.body
+import io.ktor.client.request.delete
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import org.jetbrains.exposed.sql.transactions.transaction
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,20 +27,6 @@ class UserTest : BaseIntegrationTest() {
 
     private val testUser1 = CreateUserRequest("testUser1", "password123", "test1@email.com")
     private val testUser2 = CreateUserRequest("testUser2", "password456", "test2@email.com")
-
-    @Test
-    fun `should create a new user`() = testApplicationWithClient { client ->
-        val response = client.post("/users") {
-            contentType(ContentType.Application.Json)
-            setBody(testUser1)
-        }
-
-        assertEquals(HttpStatusCode.Created, response.status)
-
-        val user = response.body<ApiResponse<User>>().data
-        assertEquals(testUser1.username, user?.username)
-        assertEquals(testUser1.email, user?.email)
-    }
 
     @Test
     fun `should return all users`() = testApplicationWithClient { client ->
@@ -77,45 +70,46 @@ class UserTest : BaseIntegrationTest() {
     }
 
     @Test
-    fun `should update an existing user`() = testApplicationWithClient { client ->
-        createTestData()
-
-        val testUserUpdate = UpdateUserRequest(id = 1, username = "testUserUpdated", email = "updated@email.com")
-
-        val response = client.put("/users") {
+    fun `should require auth for user creation`() = testApplicationWithClient { client ->
+        val response = client.post("/users") {
             contentType(ContentType.Application.Json)
-            setBody(testUserUpdate)
+            setBody(testUser1)
         }
 
-        assertEquals(HttpStatusCode.OK, response.status)
-
-        val user = response.body<ApiResponse<User>>().data
-        assertNotNull(user)
-        assertEquals(testUserUpdate.username, user.username)
-        assertEquals(testUserUpdate.email, user.email)
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
 
     @Test
-    fun `should delete an existing user`() = testApplicationWithClient { client ->
-        createTestData()
+    fun `should block user creation even with auth`() = testApplicationWithClient { client ->
+        val token = createAuthToken("clerk-user-1", "user1@email.com", "user1")
+        val response = client.post("/users") {
+            contentType(ContentType.Application.Json)
+            header(HttpHeaders.Authorization, "Bearer $token")
+            setBody(testUser1)
+        }
 
-        val response = client.delete("/users/1")
-        assertEquals(HttpStatusCode.NoContent, response.status)
-
-        val getResponse = client.get("/users/1")
-        assertEquals(HttpStatusCode.NotFound, getResponse.status)
+        assertEquals(HttpStatusCode.Forbidden, response.status)
     }
 
     @Test
-    fun `should return 400 when deleting with invalid id`() = testApplicationWithClient { client ->
-        val response = client.delete("/users/invalid")
-        assertEquals(HttpStatusCode.BadRequest, response.status)
+    fun `should block user update even with auth`() = testApplicationWithClient { client ->
+        val token = createAuthToken("clerk-user-1", "user1@email.com", "user1")
+        val response = client.put("/users") {
+            contentType(ContentType.Application.Json)
+            header(HttpHeaders.Authorization, "Bearer $token")
+            setBody("""{"id":1,"username":"updated"}""")
+        }
+
+        assertEquals(HttpStatusCode.Forbidden, response.status)
     }
 
     @Test
-    fun `should return 404 when deleting a non-existent user`() = testApplicationWithClient { client ->
-        val response = client.delete("/users/999")
-        assertEquals(HttpStatusCode.NotFound, response.status)
+    fun `should block user delete even with auth`() = testApplicationWithClient { client ->
+        val token = createAuthToken("clerk-user-1", "user1@email.com", "user1")
+        val response = client.delete("/users/1") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.Forbidden, response.status)
     }
 
     private fun createTestData() {
@@ -123,11 +117,15 @@ class UserTest : BaseIntegrationTest() {
             UserDAO.new {
                 username = testUser1.username
                 email = testUser1.email
+                authProvider = "local"
+                authSubject = null
             }
 
             UserDAO.new {
                 username = testUser2.username
                 email = testUser2.email
+                authProvider = "local"
+                authSubject = null
             }
         }
     }

@@ -2,9 +2,12 @@ package bros.parraga
 
 import bros.parraga.db.DatabaseFactory
 import bros.parraga.db.DatabaseTables
+import com.auth0.jwt.JWT
+import com.auth0.jwt.algorithms.Algorithm
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.serialization.kotlinx.json.*
+import java.util.Date
 import io.ktor.server.testing.*
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -52,5 +55,22 @@ abstract class BaseIntegrationTest {
         transaction {
             SchemaUtils.drop(*tables.toTypedArray(), inBatch = true)
         }
+    }
+
+    protected fun createAuthToken(
+        subject: String,
+        email: String? = null,
+        name: String? = null
+    ): String {
+        val builder = JWT.create()
+            .withIssuer("http://localhost/test-issuer")
+            .withAudience("test-audience")
+            .withSubject(subject)
+            .withExpiresAt(Date(System.currentTimeMillis() + 3_600_000))
+
+        email?.let { builder.withClaim("email", it) }
+        name?.let { builder.withClaim("name", it) }
+
+        return builder.sign(Algorithm.HMAC256("test-secret"))
     }
 }

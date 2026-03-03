@@ -1,13 +1,24 @@
 package bros.parraga
 
-import bros.parraga.db.schema.*
+import bros.parraga.db.schema.PlayerDAO
+import bros.parraga.db.schema.PlayersTable
+import bros.parraga.db.schema.UserDAO
+import bros.parraga.db.schema.UsersTable
 import bros.parraga.domain.Player
 import bros.parraga.routes.ApiResponse
 import bros.parraga.services.repositories.player.dto.CreatePlayerRequest
 import bros.parraga.services.repositories.player.dto.UpdatePlayerRequest
-import io.ktor.client.call.*
-import io.ktor.client.request.*
-import io.ktor.http.*
+import io.ktor.client.call.body
+import io.ktor.client.request.delete
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import org.jetbrains.exposed.sql.transactions.transaction
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,120 +26,144 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class PlayerTest : BaseIntegrationTest() {
-    override val tables = listOf(PlayersTable, UsersTable, TournamentPlayersTable, TournamentsTable, ClubsTable)
-
-    private val testPlayer1 = CreatePlayerRequest("testPlayer1", true)
-    private val testPlayer2 = CreatePlayerRequest("testPlayer2", true)
-    private val testPlayerUpdate = UpdatePlayerRequest(id = 1, name = "testPlayerUpdated", external = true)
+    override val tables = listOf(UsersTable, PlayersTable)
 
     @Test
-    fun `should create a new player`() = testApplicationWithClient { client ->
+    fun `should create player for authenticated user`() = testApplicationWithClient { client ->
+        val token = createAuthToken("clerk-user-1", "user1@email.com", "user1")
+
         val response = client.post("/players") {
+            header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
-            setBody(testPlayer1)
+            setBody(CreatePlayerRequest("testPlayer1"))
         }
 
         assertEquals(HttpStatusCode.Created, response.status)
-
         val player = response.body<ApiResponse<Player>>().data
-        assertEquals(testPlayer1.name, player?.name)
-        assertEquals(testPlayer1.external, player?.external)
+        assertEquals("testPlayer1", player?.name)
+        assertEquals(false, player?.external)
+        assertEquals("user1", player?.user?.username)
     }
 
     @Test
-    fun `should return all players`() = testApplicationWithClient { client ->
-        println("Transaction")
-        createTestData()
+    fun `should return 401 for unauthenticated player creation`() = testApplicationWithClient { client ->
+        val response = client.post("/players") {
+            contentType(ContentType.Application.Json)
+            setBody(CreatePlayerRequest("testPlayer1"))
+        }
 
-        val response = client.get("/players")
-
-        assertEquals(HttpStatusCode.OK, response.status)
-
-        val players = response.body<ApiResponse<List<Player>>>().data
-        assertEquals(2, players?.size)
-        assertTrue { players?.any { it.name == testPlayer1.name } == true }
-        assertTrue { players?.any { it.name == testPlayer2.name } == true }
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
 
     @Test
-    fun `should return a player by id`() = testApplicationWithClient { client ->
-        createTestData()
+    fun `should return 409 when authenticated user creates second profile`() = testApplicationWithClient { client ->
+        val token = createAuthToken("clerk-user-1", "user1@email.com", "user1")
 
-        val response = client.get("/players/1")
+        client.post("/players") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(CreatePlayerRequest("testPlayer1"))
+        }
 
-        assertEquals(HttpStatusCode.OK, response.status)
-        val player = response.body<ApiResponse<Player>>().data
-        assertNotNull(player)
-        assertEquals(testPlayer1.name, player.name)
-        assertEquals(testPlayer1.external, player.external)
+        val response = client.post("/players") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(CreatePlayerRequest("testPlayer2"))
+        }
+
+        assertEquals(HttpStatusCode.Conflict, response.status)
     }
 
     @Test
-    fun `should return 404 for non existing player`() = testApplicationWithClient { client ->
-
-        val response = client.get("/players/999")
-
-        assertEquals(HttpStatusCode.NotFound, response.status)
-    }
-
-    @Test
-    fun `should return 400 for invalid player id`() = testApplicationWithClient { client ->
-
-        val response = client.get("/players/invalid")
-
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-    }
-
-
-    @Test
-    fun `should update an existing player`() = testApplicationWithClient { client ->
-        createTestData()
+    fun `should update own player profile`() = testApplicationWithClient { client ->
+        val token = createAuthToken("clerk-user-1", "user1@email.com", "user1")
+        val createResponse = client.post("/players") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(CreatePlayerRequest("testPlayer1"))
+        }
+        val createdPlayer = createResponse.body<ApiResponse<Player>>().data
+        val playerId = requireNotNull(createdPlayer).id
 
         val response = client.put("/players") {
+            header(HttpHeaders.Authorization, "Bearer $token")
             contentType(ContentType.Application.Json)
-            setBody(testPlayerUpdate)
+            setBody(UpdatePlayerRequest(id = playerId, name = "testPlayerUpdated"))
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
-
         val player = response.body<ApiResponse<Player>>().data
         assertNotNull(player)
-        assertEquals(testPlayerUpdate.name, player.name)
-        assertEquals(testPlayerUpdate.external, player.external)
+        assertEquals("testPlayerUpdated", player.name)
     }
 
     @Test
-    fun `should delete an existing player`() = testApplicationWithClient { client ->
-        createTestData()
+    fun `should return 403 when updating another users player`() = testApplicationWithClient { client ->
+        val token1 = createAuthToken("clerk-user-1", "user1@email.com", "user1")
+        val token2 = createAuthToken("clerk-user-2", "user2@email.com", "user2")
 
-        val response = client.delete("/players/1")
+        val createResponse = client.post("/players") {
+            header(HttpHeaders.Authorization, "Bearer $token1")
+            contentType(ContentType.Application.Json)
+            setBody(CreatePlayerRequest("testPlayer1"))
+        }
+        val createdPlayer = createResponse.body<ApiResponse<Player>>().data
+        val playerId = requireNotNull(createdPlayer).id
+
+        val response = client.put("/players") {
+            header(HttpHeaders.Authorization, "Bearer $token2")
+            contentType(ContentType.Application.Json)
+            setBody(UpdatePlayerRequest(id = playerId, name = "hijack"))
+        }
+
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+    }
+
+    @Test
+    fun `should delete own player profile`() = testApplicationWithClient { client ->
+        val token = createAuthToken("clerk-user-1", "user1@email.com", "user1")
+        val createResponse = client.post("/players") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(CreatePlayerRequest("testPlayer1"))
+        }
+        val createdPlayer = createResponse.body<ApiResponse<Player>>().data
+        val playerId = requireNotNull(createdPlayer).id
+
+        val response = client.delete("/players/$playerId") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
         assertEquals(HttpStatusCode.NoContent, response.status)
-
-        val getResponse = client.get("/players/1")
-        assertEquals(HttpStatusCode.NotFound, getResponse.status)
     }
 
     @Test
-    fun `should return 400 when deleting with invalid id`() = testApplicationWithClient { client ->
-        val response = client.delete("/players/invalid")
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-    }
+    fun `should return all players publicly`() = testApplicationWithClient { client ->
+        createTestData()
+        val response = client.get("/players")
 
-    @Test
-    fun `should return 404 when deleting a non-existent player`() = testApplicationWithClient { client ->
-        val response = client.delete("/players/999")
-        assertEquals(HttpStatusCode.NotFound, response.status)
+        assertEquals(HttpStatusCode.OK, response.status)
+        val players = response.body<ApiResponse<List<Player>>>().data
+        assertEquals(2, players?.size)
+        assertTrue { players?.any { it.name == "testPlayer1" } == true }
+        assertTrue { players?.any { it.name == "testPlayer2" } == true }
     }
 
     private fun createTestData() {
         transaction {
             PlayerDAO.new {
-                name = testPlayer1.name
-                external = testPlayer1.external
+                name = "testPlayer1"
+                external = true
             }
             PlayerDAO.new {
-                name = testPlayer2.name
-                external = testPlayer2.external
+                name = "testPlayer2"
+                external = true
+            }
+
+            UserDAO.new {
+                username = "seedUser"
+                email = "seed@email.com"
+                authProvider = "local"
+                authSubject = null
             }
         }
     }

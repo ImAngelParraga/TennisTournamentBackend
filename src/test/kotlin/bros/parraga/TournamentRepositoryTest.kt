@@ -7,6 +7,8 @@ import bros.parraga.domain.TournamentPhase
 import bros.parraga.routes.ApiResponse
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import org.jetbrains.exposed.sql.SizedCollection
 import org.jetbrains.exposed.sql.transactions.transaction
 import parraga.bros.tournament.domain.Format
@@ -21,19 +23,25 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
     @Test
     fun `should create and save all matches in a tournament`() = testApplicationWithClient { client ->
         createTestData()
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
 
-        val response = client.post("/tournaments/1/start").body<ApiResponse<TournamentPhase>>()
+        val response = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
 
-        print(response)
-
-        //assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.body<ApiResponse<TournamentPhase>>()
+        assertTrue(body.data?.matches?.isNotEmpty() == true)
     }
 
     @Test
     fun `bracket endpoint groups matches by round`() = testApplicationWithClient { client ->
         createTestData(thirdPlacePlayoff = true)
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
 
-        client.post("/tournaments/1/start").body<ApiResponse<TournamentPhase>>()
+        client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }.body<ApiResponse<TournamentPhase>>()
 
         val response = client.get("/tournaments/1/bracket").body<ApiResponse<TournamentBracket>>()
         val bracket = requireNotNull(response.data)
@@ -50,6 +58,8 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
             val user = UserDAO.new {
                 username = "testUser"
                 email = ""
+                authProvider = "clerk"
+                authSubject = "owner-subject"
             }
 
             val club = ClubDAO.new {

@@ -1,6 +1,5 @@
 package bros.parraga
 
-import bros.parraga.modules.configureRouting
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
@@ -11,7 +10,7 @@ class ApplicationTest {
     @Test
     fun testRoot() = testApplication {
         application {
-            configureRouting()
+            testModule()
         }
         client.get("/").apply {
             assertEquals(HttpStatusCode.NotFound, status)
