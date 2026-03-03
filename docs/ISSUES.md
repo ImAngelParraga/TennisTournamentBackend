@@ -6,8 +6,12 @@ This list reflects the current state of both repos:
 
 ## P0 (Highest Priority)
 
-- [ ] Replace runtime schema mutation with real DB migrations (Flyway/Liquibase) and disable `createMissingTablesAndColumns` in production.
-  Why: current startup migration strategy is not safe for production rollback/recovery.
+- [ ] Finish migration rollout in deployment flow.
+  Why: Flyway baseline exists, but deployment still needs strict operational enforcement.
+  Missing steps:
+  - run `flywayMigrate` before app startup in deploy pipeline
+  - keep `DATABASE_AUTO_CREATE=false` in hosted environments
+  - baseline any pre-existing non-Flyway environment exactly once
 
 - [ ] Introduce explicit tournament/match lifecycle rules and enforce them in write endpoints.
   Why: current flow is too permissive after start.
@@ -64,3 +68,4 @@ This list reflects the current state of both repos:
 - [x] CORS origin allow-list configuration
 - [x] Role-based authorization for write endpoints (owner/admin model)
 - [x] Auth setup and onboarding docs under `docs/`
+- [x] Flyway migration scaffolding + baseline SQL (`V1__baseline.sql`)

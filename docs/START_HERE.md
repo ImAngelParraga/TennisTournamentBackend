@@ -89,13 +89,21 @@ Database:
 - `DATABASE_DRIVER`
 - `DATABASE_USER`
 - `DATABASE_PASSWORD`
-- `DATABASE_AUTO_CREATE` (defaults to `true`)
+- `DATABASE_AUTO_CREATE`
+  - defaults to `true` only when the app falls back to local H2
+  - for hosted DBs (for example Supabase), set this to `false` and run Flyway migrations
 
 Auth/CORS:
 - `CLERK_ISSUER`
 - `CLERK_AUDIENCE`
 - `ALLOWED_ORIGINS` (comma-separated full origins)
 - `AUTH_TEST_JWT_SECRET` (tests only, optional)
+
+Flyway (optional overrides):
+- `FLYWAY_URL`
+- `FLYWAY_USER`
+- `FLYWAY_PASSWORD`
+- if omitted, Flyway uses `DATABASE_*`
 
 Behavior without DB env vars:
 - App falls back to in-memory H2.
@@ -204,6 +212,7 @@ Common error mapping:
 ## 13) Other Documentation in This Folder
 
 - `docs/AUTH_SETUP.md`: auth and env setup details.
+- `docs/DB_MIGRATIONS.md`: Flyway migration workflow and Supabase setup steps.
 - `docs/ISSUES.md`: prioritized backlog/checklist.
 - `docs/SESSION_HANDOFF.md`: session snapshot and context.
 - `docs/SESSION_HANDOFF_CONSOLIDATED.md`: cross-repo consolidated snapshot.

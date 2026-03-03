@@ -5,11 +5,13 @@ val koinVersion = "4.1.0-Beta5"
 val ktor_version: String by project
 val koinAnnotationsVersion = "2.0.0-Beta1"
 val postgresqlDriverVersion = "42.7.7"
+val flywayVersion = "10.17.3"
 
 plugins {
     kotlin("jvm") version "2.0.20"
     id("io.ktor.plugin") version "3.0.3"
     id("org.jetbrains.kotlin.plugin.serialization") version "2.0.20"
+    id("org.flywaydb.flyway") version "10.17.3"
     application
 
     id("com.google.devtools.ksp") version "2.0.20-1.0.25"
@@ -58,6 +60,8 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-json:$exposedVersion")
     implementation("org.postgresql:postgresql:$postgresqlDriverVersion")
     implementation("com.h2database:h2:2.3.232")
+    implementation("org.flywaydb:flyway-core:$flywayVersion")
+    implementation("org.flywaydb:flyway-database-postgresql:$flywayVersion")
 
     implementation("io.insert-koin:koin-ktor3:$koinVersion")
     implementation("io.insert-koin:koin-logger-slf4j:$koinVersion")
@@ -74,4 +78,27 @@ dependencies {
 
 ksp {
     arg("KOIN_CONFIG_CHECK","true")
+}
+
+flyway {
+    configurations = arrayOf("compileClasspath", "runtimeClasspath")
+
+    val flywayUrl = System.getenv("FLYWAY_URL") ?: System.getenv("DATABASE_URL")
+    val flywayUser = System.getenv("FLYWAY_USER") ?: System.getenv("DATABASE_USER")
+    val flywayPassword = System.getenv("FLYWAY_PASSWORD") ?: System.getenv("DATABASE_PASSWORD")
+    if (!flywayUrl.isNullOrBlank()) {
+        url = flywayUrl
+    }
+    if (!flywayUser.isNullOrBlank()) {
+        user = flywayUser
+    }
+    if (!flywayPassword.isNullOrBlank()) {
+        password = flywayPassword
+    }
+
+    locations = arrayOf("filesystem:${projectDir}/src/main/resources/db/migration")
+    validateMigrationNaming = true
+    outOfOrder = false
+    baselineOnMigrate = false
+    cleanDisabled = true
 }

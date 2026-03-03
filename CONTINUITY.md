@@ -14,6 +14,9 @@ Include: branch, uncommitted state, what changed, what remains.
 - Prioritized backlog: `docs/ISSUES.md`
 
 ## Recent Completed Work
+- (uncommitted in current session) Flyway integration in Gradle + baseline migration `V1__baseline.sql`
+- (uncommitted in current session) Runtime DB auto-create defaults to local fallback only
+- (uncommitted in current session) New migration operations doc: `docs/DB_MIGRATIONS.md`
 - `c402534` docs(issues): reprioritize missing work across backend and tournament lib
 - `c06a34e` docs: move postman collection under docs/postman
 - `3448107` docs: move markdown docs under docs and add onboarding guide
@@ -27,10 +30,11 @@ Include: branch, uncommitted state, what changed, what remains.
 - Write endpoints are authorization-gated (club owner/admin model).
 - Knockout flow supports qualifiers, byes, bracket endpoint, progression, and third-place (with constraints).
 - Markdown docs were consolidated under `docs/` and `docs/postman/`.
+- Flyway migration scaffolding is present for Postgres/Supabase.
 
 ## Highest Priority Remaining Work
 (See `docs/ISSUES.md` for ordered list.)
-1. Production migration strategy (replace runtime schema mutation for production).
+1. Migration rollout in deployment flow (`flywayMigrate` gate + hosted env hardening).
 2. Lifecycle/state enforcement for tournaments and matches.
 3. Stronger match scoring validation.
 4. Concurrency/idempotency guardrails for start/progression.
