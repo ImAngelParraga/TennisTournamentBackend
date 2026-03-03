@@ -7,13 +7,6 @@ This list reflects the current state of both repos:
 
 ## P0 (Highest Priority)
 
-- [ ] Finish migration rollout in deployment flow.
-  Why: Flyway baseline exists, but deployment still needs strict operational enforcement.
-  Missing steps:
-    - run `flywayMigrate` before app startup in deploy pipeline
-    - keep `DATABASE_AUTO_CREATE=false` in hosted environments
-    - baseline any pre-existing non-Flyway environment exactly once
-
 - [ ] Introduce explicit tournament/match lifecycle rules and enforce them in write endpoints.
   Why: current flow is too permissive after start.
   Missing rules:
@@ -64,6 +57,13 @@ This list reflects the current state of both repos:
 - [ ] Add cross-repo compatibility checks between backend and lib.
   Why: backend behavior depends heavily on lib semantics; compatibility should be validated in CI.
 
+- [ ] Deployment pipeline (future): run `flywayMigrate` before app startup.
+  Why: this is required once a hosting/deployment target is chosen.
+  Scope:
+    - add a pre-start migration step in deployment/release workflow
+    - ensure hosted env keeps `DATABASE_AUTO_CREATE=false`
+    - fail deployment if migrations fail
+
 - [ ] Add feature to allow users to create tournaments/leagues without a club.
   Why: clubs usually create few events, but some users may want to create an event without a club. This would allow
   users to keep the competitive scene alive without a club.
@@ -75,3 +75,4 @@ This list reflects the current state of both repos:
 - [x] Role-based authorization for write endpoints (owner/admin model)
 - [x] Auth setup and onboarding docs under `docs/`
 - [x] Flyway migration scaffolding + baseline SQL (`V1__baseline.sql`)
+- [x] Baseline migration executed successfully on Supabase and recorded (`docs/DB_BASELINE_STATUS.md`)
