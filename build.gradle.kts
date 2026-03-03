@@ -4,7 +4,7 @@ val exposedVersion = "0.58.0"
 val koinVersion = "4.1.0-Beta5"
 val ktor_version: String by project
 val koinAnnotationsVersion = "2.0.0-Beta1"
-val postgresqlDriverVersion = "42.7.5"
+val postgresqlDriverVersion = "42.7.7"
 
 plugins {
     kotlin("jvm") version "2.0.20"
@@ -39,11 +39,13 @@ dependencies {
 
     implementation("io.ktor:ktor-server-core-jvm")
     implementation("io.ktor:ktor-server-auth-jvm")
+    implementation("io.ktor:ktor-server-auth-jwt-jvm")
     implementation("io.ktor:ktor-server-cors-jvm")
     implementation("io.ktor:ktor-server-content-negotiation:$ktor_version")
     implementation("io.ktor:ktor-serialization-kotlinx-json:$ktor_version")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
     implementation("io.ktor:ktor-server-netty:$ktor_version")
+    implementation("com.auth0:jwks-rsa:0.22.1")
     //implementation("ch.qos.logback:logback-classic:$logback_version")
 
     implementation("com.github.ImAngelParraga:TennisTournamentLib:v0.0.2")

@@ -20,9 +20,9 @@ fun Application.module() {
 }
 
 fun Application.testModule() {
-    configureSecurity()
-    configureHTTP()
+    configureSecurity(isTest = true)
+    configureHTTP(isTest = true)
     configureSerialization()
-    configureRouting()
     configureKoin()
+    configureRouting()
 }
