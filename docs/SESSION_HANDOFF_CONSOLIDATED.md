@@ -97,7 +97,7 @@ High-value missing items:
 - Concurrency/idempotency guardrails for repeated start/progression updates.
 
 Tracked checklist in backend:
-- `C:\Users\ranki\IdeaProjects\TennisTournamentBackend\ISSUES.md`
+- `docs/ISSUES.md`
 
 ## 6) Tests and Manual Validation State
 
@@ -111,7 +111,7 @@ Tracked checklist in backend:
 ### Manual
 - Postman collection and sequences exist in backend:
   - `postman/TennisTournamentBackend.postman_collection.json`
-  - `postman/TEST_SEQUENCES.md`
+  - `docs/postman/TEST_SEQUENCES.md`
 - Includes bracket sequence and assertions.
 
 ## 7) Recent Commits (Context Snapshot)
@@ -141,12 +141,13 @@ Tracked checklist in backend:
 - Ahead of origin by 3 commits.
 - `.aiignore` staged (`A .aiignore`) by user preference.
 - Existing handoff files:
-  - `SESSION_HANDOFF.md` (backend focused)
+  - `docs/SESSION_HANDOFF.md` (backend focused)
 
 ### Lib repo
 - Ahead of origin by 4 commits.
 - `.aiignore` staged (`A .aiignore`) by user preference.
 - Existing handoff files:
-  - `SESSION_HANDOFF.md` (lib focused)
+  - `docs/SESSION_HANDOFF.md` (lib focused)
 
 This file is the single consolidated reference for the next model.
+

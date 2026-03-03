@@ -131,7 +131,7 @@ Missing test depth:
 ## 8) Postman and Manual Testing
 
 - Collection: `postman/TennisTournamentBackend.postman_collection.json`
-- Sequence guide: `postman/TEST_SEQUENCES.md`
+- Sequence guide: `docs/postman/TEST_SEQUENCES.md`
 - Includes bracket sequence and assertions.
 
 ## 9) Important Recent Commits (Backend)
@@ -169,3 +169,4 @@ Missing test depth:
 At this handoff moment:
 - Backend repo is ahead of origin by 3 commits.
 - `.aiignore` is staged (`A .aiignore`) per user choice to keep it.
+
