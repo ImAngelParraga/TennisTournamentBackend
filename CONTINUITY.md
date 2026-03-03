@@ -14,6 +14,7 @@ Include: branch, uncommitted state, what changed, what remains.
 - Prioritized backlog: `docs/ISSUES.md`
 
 ## Recent Completed Work
+- (uncommitted in current session) Recorded initial Flyway baseline snapshot in `docs/DB_BASELINE_STATUS.md`
 - (uncommitted in current session) Flyway Gradle task robustness fixes:
   - added PostgreSQL Flyway plugin classpath for Flyway v12
   - simplified Flyway configuration to use only `DATABASE_*` or Gradle properties
