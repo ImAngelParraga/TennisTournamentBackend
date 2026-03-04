@@ -96,6 +96,15 @@ fun Route.tournamentRouting() {
                 }
             }
 
+            post("/{id}/reset") {
+                handleRequest(call) {
+                    val localUser = call.requireLocalUser(userRepository)
+                    val tournamentId = call.requireIntParameter("id")
+                    authorizationService.requireTournamentManager(localUser.id, tournamentId)
+                    tournamentRepository.resetTournament(tournamentId)
+                }
+            }
+
             post("/{id}/phases") {
                 handleRequest(call, HttpStatusCode.Created) {
                     val localUser = call.requireLocalUser(userRepository)

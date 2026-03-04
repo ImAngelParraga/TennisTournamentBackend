@@ -9,6 +9,7 @@ data class Tournament(
     val name: String,
     val description: String?,
     val surface: SurfaceType?,
+    val status: TournamentStatus,
     val clubId: Int,
     val startDate: Instant,
     val endDate: Instant,
@@ -19,3 +20,5 @@ data class Tournament(
 )
 
 enum class SurfaceType { CLAY, HARD, GRASS }
+
+enum class TournamentStatus { DRAFT, STARTED, COMPLETED, CANCELLED, ABANDONED }

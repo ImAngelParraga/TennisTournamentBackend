@@ -9,6 +9,7 @@ data class TournamentBasic(
     val name: String,
     val description: String?,
     val surface: SurfaceType?,
+    val status: TournamentStatus,
     val clubId: Int,
     val startDate: Instant,
     val endDate: Instant,

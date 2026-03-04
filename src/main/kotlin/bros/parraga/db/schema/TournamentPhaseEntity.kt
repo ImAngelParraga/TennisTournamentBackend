@@ -27,6 +27,10 @@ object TournamentPhasesTable : IntIdTable("tournament_phases") {
     )
     val createdAt = timestamp("created_at").clientDefault { Instant.now() }
     val updatedAt = timestamp("updated_at").nullable()
+
+    init {
+        uniqueIndex(tournamentId, phaseOrder)
+    }
 }
 
 class TournamentPhaseDAO(id: EntityID<Int>) : IntEntity(id) {

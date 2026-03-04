@@ -25,4 +25,5 @@ interface TournamentRepository {
     suspend fun addPlayersToTournament(tournamentId: Int, request: AddPlayersRequest)
     suspend fun removePlayerFromTournament(tournamentId: Int, playerId: Int)
     suspend fun startTournament(id: Int): TournamentPhase
+    suspend fun resetTournament(id: Int): TournamentPhase
 }

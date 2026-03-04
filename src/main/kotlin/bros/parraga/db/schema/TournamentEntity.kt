@@ -3,6 +3,7 @@ package bros.parraga.db.schema
 import bros.parraga.domain.SurfaceType
 import bros.parraga.domain.Tournament
 import bros.parraga.domain.TournamentBasic
+import bros.parraga.domain.TournamentStatus
 import kotlinx.datetime.toKotlinInstant
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
@@ -15,6 +16,7 @@ object TournamentsTable : IntIdTable("tournaments") {
     val name = varchar("name", 255)
     val description = text("description").nullable()
     val surface = varchar("surface", 50).nullable().check { it.inList(SurfaceType.entries.map { it.name }) }
+    val status = varchar("status", 20).check { it.inList(TournamentStatus.entries.map { it.name }) }.default("DRAFT")
     val clubId = reference("club_id", ClubsTable)
     val startDate = timestamp("start_date")
     val endDate = timestamp("end_date")
@@ -28,6 +30,7 @@ class TournamentDAO(id: EntityID<Int>) : IntEntity(id) {
     var name by TournamentsTable.name
     var description by TournamentsTable.description
     var surface by TournamentsTable.surface
+    var status by TournamentsTable.status
     var startDate by TournamentsTable.startDate
     var endDate by TournamentsTable.endDate
     var createdAt by TournamentsTable.createdAt
@@ -42,6 +45,7 @@ class TournamentDAO(id: EntityID<Int>) : IntEntity(id) {
         name = name,
         description = description,
         surface = surface?.let { SurfaceType.valueOf(it) },
+        status = TournamentStatus.valueOf(status),
         clubId = club.id.value,
         startDate = startDate.toKotlinInstant(),
         endDate = endDate.toKotlinInstant(),
@@ -54,6 +58,7 @@ class TournamentDAO(id: EntityID<Int>) : IntEntity(id) {
         name = name,
         description = description,
         surface = surface?.let { SurfaceType.valueOf(it) },
+        status = TournamentStatus.valueOf(status),
         clubId = club.id.value,
         startDate = startDate.toKotlinInstant(),
         endDate = endDate.toKotlinInstant(),

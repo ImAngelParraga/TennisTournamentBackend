@@ -5,10 +5,12 @@ import bros.parraga.db.schema.MatchDependenciesTable
 import bros.parraga.db.schema.MatchDependencyDAO
 import bros.parraga.db.schema.MatchesTable
 import bros.parraga.db.schema.PlayerDAO
+import bros.parraga.db.schema.TournamentPhaseDAO
 import bros.parraga.domain.MatchStatus
 import bros.parraga.domain.Outcome
 import bros.parraga.domain.PhaseConfiguration
 import bros.parraga.domain.PhaseFormat
+import bros.parraga.domain.TournamentStatus
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.and
@@ -49,12 +51,17 @@ object TournamentProgressionService {
 
             dependentMatch.updatedAt = Instant.now()
         }
+
+        maybeMarkTournamentCompleted(match.phase)
     }
 
     private fun progressSwiss(match: MatchDAO) {
         val phase = match.phase
         val currentRound = match.round
-        if (currentRound >= phase.rounds) return
+        if (currentRound >= phase.rounds) {
+            maybeMarkTournamentCompleted(phase)
+            return
+        }
 
         val roundMatches = MatchDAO.find {
             (MatchesTable.phaseId eq phase.id) and (MatchesTable.round eq currentRound)
@@ -69,7 +76,10 @@ object TournamentProgressionService {
         val existingNextRound = MatchDAO.find {
             (MatchesTable.phaseId eq phase.id) and (MatchesTable.round eq nextRound)
         }
-        if (existingNextRound.any()) return
+        if (existingNextRound.any()) {
+            maybeMarkTournamentCompleted(phase)
+            return
+        }
 
         val config = phase.configuration
         val pointsPerWin = (config as? PhaseConfiguration.SwissConfig)?.pointsPerWin ?: 1
@@ -111,5 +121,26 @@ object TournamentProgressionService {
 
             index += 2
         }
+
+        maybeMarkTournamentCompleted(phase)
+    }
+
+    private fun maybeMarkTournamentCompleted(phase: TournamentPhaseDAO) {
+        val tournament = phase.tournament
+        if (TournamentStatus.valueOf(tournament.status) != TournamentStatus.STARTED) return
+
+        val hasLaterPhases = tournament.phases.any { it.phaseOrder > phase.phaseOrder }
+        if (hasLaterPhases) return
+
+        val phaseMatches = phase.matches.toList()
+        if (phaseMatches.isEmpty()) return
+
+        val allFinished = phaseMatches.all {
+            it.status == MatchStatus.COMPLETED.name || it.status == MatchStatus.WALKOVER.name
+        }
+        if (!allFinished) return
+
+        tournament.status = TournamentStatus.COMPLETED.name
+        tournament.updatedAt = Instant.now()
     }
 }

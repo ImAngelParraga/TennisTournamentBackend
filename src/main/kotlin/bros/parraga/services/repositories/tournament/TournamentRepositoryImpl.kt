@@ -3,13 +3,17 @@ package bros.parraga.services.repositories.tournament
 import bros.parraga.db.DatabaseFactory.dbQuery
 import bros.parraga.db.schema.*
 import bros.parraga.domain.*
+import bros.parraga.errors.ConflictException
 import bros.parraga.services.TournamentProgressionService
 import bros.parraga.services.repositories.tournament.dto.*
 import io.ktor.server.plugins.*
 import kotlinx.datetime.toJavaInstant
 import org.jetbrains.exposed.dao.DaoEntityID
 import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.or
 import parraga.bros.tournament.domain.Format
 import parraga.bros.tournament.domain.Phase
 import parraga.bros.tournament.services.TournamentService
@@ -28,6 +32,7 @@ class TournamentRepositoryImpl : TournamentRepository {
             name = request.name
             description = request.description
             surface = request.surface
+            status = TournamentStatus.DRAFT.name
             club = ClubDAO[request.clubId]
             startDate = request.startDate.toJavaInstant()
             endDate = request.endDate.toJavaInstant()
@@ -35,24 +40,30 @@ class TournamentRepositoryImpl : TournamentRepository {
     }
 
     override suspend fun updateTournament(request: UpdateTournamentRequest): TournamentBasic = dbQuery {
-        TournamentDAO.findByIdAndUpdate(request.id) { tournamentDAO ->
-            tournamentDAO.apply {
-                request.name?.let { name = it }
-                request.description?.let { description = it }
-                request.surface?.let { surface = it }
+        val tournament = TournamentDAO.findById(request.id)
+            ?: throw EntityNotFoundException(DaoEntityID(request.id, TournamentsTable), TournamentDAO)
+        val status = TournamentStatus.valueOf(tournament.status)
+        assertUpdateAllowedForStatus(status, request)
+
+        tournament.apply {
+            request.name?.let { name = it }
+            request.description?.let { description = it }
+            request.surface?.let { surface = it }
+            if (status == TournamentStatus.DRAFT) {
                 request.clubId?.let { club = ClubDAO[it] }
                 request.startDate?.let { startDate = it.toJavaInstant() }
                 request.endDate?.let { endDate = it.toJavaInstant() }
-                updatedAt = Instant.now()
             }
-        }?.toBasic()
-            ?: throw EntityNotFoundException(
-                DaoEntityID(request.id, TournamentsTable),
-                TournamentDAO
-            )
+            updatedAt = Instant.now()
+        }
+        tournament.toBasic()
     }
 
-    override suspend fun deleteTournament(id: Int) = dbQuery { TournamentDAO[id].delete() }
+    override suspend fun deleteTournament(id: Int) = dbQuery {
+        val tournament = TournamentDAO[id]
+        assertTournamentMutable(tournament, "deleted")
+        tournament.delete()
+    }
 
     override suspend fun createPhase(tournamentId: Int, request: CreatePhaseRequest): TournamentPhase = dbQuery {
         require(request.phaseOrder > 0) { "phaseOrder must be greater than 0" }
@@ -64,6 +75,16 @@ class TournamentRepositoryImpl : TournamentRepository {
         require(isPowerOfTwo(knockoutConfig.qualifiers)) { "qualifiers must be a power of two" }
 
         val tournament = TournamentDAO[tournamentId]
+        assertTournamentMutable(tournament, "modified")
+        if (tournament.phases.any { it.phaseOrder == request.phaseOrder }) {
+            throw ConflictException("Phase order ${request.phaseOrder} already exists for tournament $tournamentId")
+        }
+        if (request.phaseOrder > 1 && tournament.phases.none { it.phaseOrder == request.phaseOrder - 1 }) {
+            throw ConflictException(
+                "Phase order ${request.phaseOrder} requires previous phase ${request.phaseOrder - 1} to exist"
+            )
+        }
+
         TournamentPhaseDAO.new {
             this.tournament = tournament
             phaseOrder = request.phaseOrder
@@ -133,6 +154,7 @@ class TournamentRepositoryImpl : TournamentRepository {
         request: AddPlayersRequest
     ) = dbQuery {
         val tournament = TournamentDAO[tournamentId]
+        assertTournamentMutable(tournament, "modified")
 
         request.players.forEach { request ->
             val player = getOrCreatePlayer(request)
@@ -147,6 +169,9 @@ class TournamentRepositoryImpl : TournamentRepository {
     }
 
     override suspend fun removePlayerFromTournament(tournamentId: Int, playerId: Int) = dbQuery {
+        val tournament = TournamentDAO[tournamentId]
+        assertTournamentMutable(tournament, "modified")
+
         val association = TournamentPlayerDAO.find {
             TournamentPlayersTable.tournamentId.eq(tournamentId) and TournamentPlayersTable.playerId.eq(playerId)
         }.firstOrNull() ?: throw NotFoundException(
@@ -161,8 +186,17 @@ class TournamentRepositoryImpl : TournamentRepository {
         require(tournament.phases.count() > 0) { "Tournament has no phases" }
         require(tournament.players.count() >= 2) { "Tournament must have at least 2 players" }
 
-        val firstPhase = tournament.phases.first { it.phaseOrder == 1 }
+        val status = TournamentStatus.valueOf(tournament.status)
+        if (status != TournamentStatus.DRAFT && status != TournamentStatus.STARTED) {
+            throw ConflictException("Tournament $id cannot be started from status ${tournament.status}")
+        }
+
+        val firstPhase = getFirstPhase(tournament)
         if (firstPhase.matches.any()) {
+            if (status != TournamentStatus.STARTED) {
+                tournament.status = TournamentStatus.STARTED.name
+                tournament.updatedAt = Instant.now()
+            }
             return@dbQuery firstPhase.toDomain()
         }
 
@@ -198,6 +232,47 @@ class TournamentRepositoryImpl : TournamentRepository {
 
         saveMatchesForPhase(firstPhaseMatches, firstPhase)
         applyWalkovers(firstPhase)
+
+        tournament.status = TournamentStatus.STARTED.name
+        tournament.updatedAt = Instant.now()
+
+        TournamentPhaseDAO[firstPhase.id.value].toDomain()
+    }
+
+    override suspend fun resetTournament(id: Int): TournamentPhase = dbQuery {
+        val tournament = TournamentDAO[id]
+        val status = TournamentStatus.valueOf(tournament.status)
+        if (status != TournamentStatus.STARTED) {
+            throw ConflictException("Tournament $id can only be reset from status STARTED")
+        }
+
+        val phaseIds = tournament.phases.map { it.id }
+        val matches = if (phaseIds.isEmpty()) {
+            emptyList()
+        } else {
+            MatchDAO.find { MatchesTable.phaseId inList phaseIds }.toList()
+        }
+
+        if (matches.any { it.status == MatchStatus.COMPLETED.name }) {
+            throw ConflictException(
+                "Tournament $id has completed matches and cannot be reset. Cancel or abandon it instead."
+            )
+        }
+
+        val matchIds = matches.map { it.id }
+        if (matchIds.isNotEmpty()) {
+            MatchDependenciesTable.deleteWhere {
+                (MatchDependenciesTable.matchId inList matchIds) or (MatchDependenciesTable.requiredMatchId inList matchIds)
+            }
+            MatchesTable.deleteWhere { MatchesTable.id inList matchIds }
+        }
+
+        val firstPhase = getFirstPhase(tournament)
+        firstPhase.rounds = 1
+        firstPhase.updatedAt = Instant.now()
+
+        tournament.status = TournamentStatus.DRAFT.name
+        tournament.updatedAt = Instant.now()
 
         TournamentPhaseDAO[firstPhase.id.value].toDomain()
     }
@@ -273,7 +348,39 @@ class TournamentRepositoryImpl : TournamentRepository {
         return roundsToPlay
     }
 
+    private fun assertUpdateAllowedForStatus(status: TournamentStatus, request: UpdateTournamentRequest) {
+        if (status == TournamentStatus.DRAFT) return
+
+        val requestedCompetitionChanges = request.clubId != null || request.startDate != null || request.endDate != null
+        if (requestedCompetitionChanges) {
+            throw ConflictException(
+                "Tournament ${request.id} is $status and only metadata fields (name, description, surface) can be updated"
+            )
+        }
+    }
+
     private fun isPowerOfTwo(value: Int): Boolean = value > 0 && (value and (value - 1)) == 0
+
+    private fun assertTournamentMutable(tournament: TournamentDAO, operation: String) {
+        val status = TournamentStatus.valueOf(tournament.status)
+        if (status != TournamentStatus.DRAFT) {
+            throw ConflictException("Tournament ${tournament.id.value} is $status and cannot be $operation")
+        }
+        if (tournament.phases.any { phase -> phase.matches.any() }) {
+            throw ConflictException("Tournament ${tournament.id.value} has already started and cannot be $operation")
+        }
+    }
+
+    private fun getFirstPhase(tournament: TournamentDAO): TournamentPhaseDAO {
+        val phaseOne = tournament.phases.filter { it.phaseOrder == 1 }
+        if (phaseOne.isEmpty()) {
+            throw ConflictException("Tournament ${tournament.id.value} must define a phase with phaseOrder=1 before start")
+        }
+        if (phaseOne.size > 1) {
+            throw ConflictException("Tournament ${tournament.id.value} has multiple phases with phaseOrder=1")
+        }
+        return phaseOne.first()
+    }
 
     private fun getOrCreatePlayer(request: TournamentPlayerRequest) = when {
         request.playerId != null -> {
