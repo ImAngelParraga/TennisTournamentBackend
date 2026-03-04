@@ -14,6 +14,17 @@ Include: branch, uncommitted state, what changed, what remains.
 - Prioritized backlog: `docs/ISSUES.md`
 
 ## Recent Completed Work
+- (uncommitted in current session) Tournament lifecycle policy implementation:
+  - added `CANCELLED`/`ABANDONED` tournament statuses (domain + migration `V3__tournament_extended_statuses.sql`)
+  - post-start updates are metadata-only (`name`, `description`, `surface`)
+  - controlled reset endpoint `POST /tournaments/{id}/reset` with guardrails (only `STARTED`, no completed matches)
+  - progression now transitions tournament status to `COMPLETED` when terminal phase finishes
+  - integration tests added for metadata updates, reset rules, and completed transition
+- (uncommitted in current session) Tournament lifecycle enforcement:
+  - draft-only tournament mutations (update/delete/add-remove players/create phase)
+  - phase-order guards (`phaseOrder=1` required to start, unique/order checks)
+  - tournament status persisted (`DRAFT` -> `STARTED`) with DB migration `V2__tournament_lifecycle_constraints.sql`
+- (uncommitted in current session) Applied Flyway migration `V2__tournament_lifecycle_constraints.sql` on Supabase
 - (uncommitted in current session) Recorded initial Flyway baseline snapshot in `docs/DB_BASELINE_STATUS.md`
 - (uncommitted in current session) Flyway Gradle task robustness fixes:
   - added PostgreSQL Flyway plugin classpath for Flyway v12
@@ -39,10 +50,9 @@ Include: branch, uncommitted state, what changed, what remains.
 ## Highest Priority Remaining Work
 (See `docs/ISSUES.md` for ordered list.)
 1. Migration rollout in deployment flow (`flywayMigrate` gate + hosted env hardening).
-2. Lifecycle/state enforcement for tournaments and matches.
-3. Stronger match scoring validation.
-4. Concurrency/idempotency guardrails for start/progression.
-5. Deterministic seeding end-to-end with lib.
+2. Stronger match scoring validation.
+3. Concurrency/idempotency guardrails for start/progression.
+4. Deterministic seeding end-to-end with lib.
 
 ## Cross-Repo Dependency Notes
 - Backend depends on `../TennisTournamentLib` via composite build substitution.

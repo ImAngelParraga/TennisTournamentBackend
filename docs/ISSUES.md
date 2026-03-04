@@ -7,13 +7,6 @@ This list reflects the current state of both repos:
 
 ## P0 (Highest Priority)
 
-- [ ] Introduce explicit tournament/match lifecycle rules and enforce them in write endpoints.
-  Why: current flow is too permissive after start.
-  Missing rules:
-    - lock player/phase mutations after tournament start
-    - define whether tournament metadata is mutable post-start
-    - ensure phase 1 exists and only one phase per `phaseOrder` within a tournament
-
 - [ ] Harden match score submission rules.
   Why: scoring is currently permissive and relies on minimal checks.
   Missing rules:
@@ -76,3 +69,4 @@ This list reflects the current state of both repos:
 - [x] Auth setup and onboarding docs under `docs/`
 - [x] Flyway migration scaffolding + baseline SQL (`V1__baseline.sql`)
 - [x] Baseline migration executed successfully on Supabase and recorded (`docs/DB_BASELINE_STATUS.md`)
+- [x] Tournament lifecycle guards for write operations (draft-only mutations + phase-order constraints)
