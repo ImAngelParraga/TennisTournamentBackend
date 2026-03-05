@@ -12,10 +12,15 @@ sealed interface PhaseConfiguration {
     @SerialName("knockout")
     data class KnockoutConfig(
         val thirdPlacePlayoff: Boolean,
-        val qualifiers: Int = 1
+        val qualifiers: Int = 1,
+        val seedingStrategy: SeedingStrategy = SeedingStrategy.INPUT_ORDER
     ) : PhaseConfiguration {
         override fun toPhaseConfigurationLib(): parraga.bros.tournament.domain.PhaseConfiguration =
-            parraga.bros.tournament.domain.PhaseConfiguration.KnockoutConfig(thirdPlacePlayoff, qualifiers)
+            parraga.bros.tournament.domain.PhaseConfiguration.KnockoutConfig(
+                thirdPlacePlayoff = thirdPlacePlayoff,
+                qualifiers = qualifiers,
+                seedingStrategy = parraga.bros.tournament.domain.SeedingStrategy.valueOf(seedingStrategy.name)
+            )
     }
 
     @Serializable
@@ -37,4 +42,10 @@ sealed interface PhaseConfiguration {
         override fun toPhaseConfigurationLib(): parraga.bros.tournament.domain.PhaseConfiguration =
             parraga.bros.tournament.domain.PhaseConfiguration.SwissConfig(pointsPerWin)
     }
+}
+
+enum class SeedingStrategy {
+    INPUT_ORDER,
+    RANDOM,
+    PARTIAL_SEEDED
 }

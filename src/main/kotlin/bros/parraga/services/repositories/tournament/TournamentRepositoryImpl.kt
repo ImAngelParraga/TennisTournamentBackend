@@ -21,6 +21,7 @@ import java.time.Instant
 import kotlin.math.ceil
 import kotlin.math.log2
 import parraga.bros.tournament.domain.Match as LibMatch
+import parraga.bros.tournament.domain.SeededParticipant as LibSeededParticipant
 
 class TournamentRepositoryImpl : TournamentRepository {
     override suspend fun getTournaments(): List<TournamentBasic> = dbQuery { TournamentDAO.all().map { it.toBasic() } }
@@ -155,15 +156,27 @@ class TournamentRepositoryImpl : TournamentRepository {
     ) = dbQuery {
         val tournament = TournamentDAO[tournamentId]
         assertTournamentMutable(tournament, "modified")
+        assertNoDuplicateSeedInRequest(request)
 
         request.players.forEach { request ->
             val player = getOrCreatePlayer(request)
+            request.seed?.let { seed ->
+                assertSeedAvailable(tournamentId = tournament.id.value, seed = seed, excludePlayerId = player.id.value)
+            }
 
-            if (tournament.players.none { it.id == player.id }) {
+            val association = TournamentPlayerDAO.find {
+                (TournamentPlayersTable.tournamentId eq tournament.id.value) and
+                    (TournamentPlayersTable.playerId eq player.id.value)
+            }.firstOrNull()
+
+            if (association == null) {
                 TournamentPlayerDAO.new {
                     this.tournament = tournament
                     this.player = player
+                    this.seed = request.seed
                 }
+            } else if (request.seed != null && association.seed != request.seed) {
+                association.seed = request.seed
             }
         }
     }
@@ -184,7 +197,11 @@ class TournamentRepositoryImpl : TournamentRepository {
     override suspend fun startTournament(id: Int): TournamentPhase = dbQuery {
         val tournament = TournamentDAO[id]
         require(tournament.phases.count() > 0) { "Tournament has no phases" }
-        require(tournament.players.count() >= 2) { "Tournament must have at least 2 players" }
+
+        val participants = TournamentPlayerDAO.find { TournamentPlayersTable.tournamentId eq id }
+            .map { association -> LibSeededParticipant(association.player.id.value, association.seed) }
+            .sortedWith(compareBy<LibSeededParticipant> { it.seed ?: Int.MAX_VALUE }.thenBy { it.playerId })
+        require(participants.size >= 2) { "Tournament must have at least 2 players" }
 
         val status = TournamentStatus.valueOf(tournament.status)
         if (status != TournamentStatus.DRAFT && status != TournamentStatus.STARTED) {
@@ -200,13 +217,12 @@ class TournamentRepositoryImpl : TournamentRepository {
             return@dbQuery firstPhase.toDomain()
         }
 
-        val playerIds = tournament.players.map { it.id.value }
         val format = PhaseFormat.valueOf(firstPhase.format)
         val roundsToPlay = when (format) {
             PhaseFormat.KNOCKOUT -> {
                 val config = firstPhase.configuration as? PhaseConfiguration.KnockoutConfig
                     ?: throw IllegalArgumentException("Knockout configuration is required")
-                computeKnockoutRounds(playerIds.size, config.qualifiers)
+                computeKnockoutRounds(participants.size, config.qualifiers)
             }
 
             else -> firstPhase.rounds
@@ -223,7 +239,7 @@ class TournamentRepositoryImpl : TournamentRepository {
             emptyList()
         )
 
-        val allMatches = TournamentService.startPhase(phaseLib, playerIds)
+        val allMatches = TournamentService.startPhaseWithParticipants(phaseLib, participants)
         val firstPhaseMatches = if (format == PhaseFormat.KNOCKOUT) {
             allMatches.filter { it.round <= roundsToPlay }
         } else {
@@ -356,6 +372,26 @@ class TournamentRepositoryImpl : TournamentRepository {
             throw ConflictException(
                 "Tournament ${request.id} is $status and only metadata fields (name, description, surface) can be updated"
             )
+        }
+    }
+
+    private fun assertNoDuplicateSeedInRequest(request: AddPlayersRequest) {
+        val nonNullSeeds = request.players.mapNotNull { it.seed }
+        val duplicateSeeds = nonNullSeeds.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
+        if (duplicateSeeds.isNotEmpty()) {
+            throw ConflictException("Duplicate seeds in request: $duplicateSeeds")
+        }
+    }
+
+    private fun assertSeedAvailable(tournamentId: Int, seed: Int, excludePlayerId: Int? = null) {
+        val conflictingAssociation = TournamentPlayerDAO.find {
+            (TournamentPlayersTable.tournamentId eq tournamentId) and (TournamentPlayersTable.seed eq seed)
+        }.firstOrNull {
+            excludePlayerId == null || it.player.id.value != excludePlayerId
+        }
+
+        if (conflictingAssociation != null) {
+            throw ConflictException("Seed $seed is already assigned in tournament $tournamentId")
         }
     }
 

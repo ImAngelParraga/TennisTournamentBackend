@@ -9,6 +9,7 @@ import org.jetbrains.exposed.dao.id.EntityID
 object TournamentPlayersTable : CompositeIdTable("tournament_players") {
     val tournamentId = reference("tournament_id", TournamentsTable)
     val playerId = reference("player_id", PlayersTable.id)
+    val seed = integer("seed").nullable()
 
     init {
         addIdColumn(tournamentId)
@@ -23,4 +24,5 @@ class TournamentPlayerDAO(id: EntityID<CompositeID>) : CompositeEntity(id) {
 
     var player by PlayerDAO referencedOn TournamentPlayersTable.playerId
     var tournament by TournamentDAO referencedOn TournamentPlayersTable.tournamentId
+    var seed by TournamentPlayersTable.seed
 }

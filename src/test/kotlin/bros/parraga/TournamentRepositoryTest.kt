@@ -3,6 +3,7 @@ package bros.parraga
 import bros.parraga.db.schema.*
 import bros.parraga.domain.Match
 import bros.parraga.domain.PhaseConfiguration
+import bros.parraga.domain.SeedingStrategy
 import bros.parraga.domain.SetScore
 import bros.parraga.domain.TennisScore
 import bros.parraga.domain.TournamentBasic
@@ -21,7 +22,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
-import org.jetbrains.exposed.sql.SizedCollection
 import org.jetbrains.exposed.sql.transactions.transaction
 import parraga.bros.tournament.domain.Format
 import java.time.Instant
@@ -80,6 +80,27 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
             contentType(ContentType.Application.Json)
             setBody(AddPlayersRequest(listOf(TournamentPlayerRequest(name = "late-player"))))
         }
+        assertEquals(HttpStatusCode.Conflict, addPlayerResponse.status)
+    }
+
+    @Test
+    fun `should return conflict when adding players with duplicate seeds in same request`() = testApplicationWithClient { client ->
+        createTestData(playerCount = 0)
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val addPlayerResponse = client.post("/tournaments/1/players") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(
+                AddPlayersRequest(
+                    listOf(
+                        TournamentPlayerRequest(name = "seeded-1", seed = 1),
+                        TournamentPlayerRequest(name = "seeded-2", seed = 1)
+                    )
+                )
+            )
+        }
+
         assertEquals(HttpStatusCode.Conflict, addPlayerResponse.status)
     }
 
@@ -249,10 +270,47 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
         assertEquals(TournamentStatus.COMPLETED, tournamentBody.data?.status)
     }
 
+    @Test
+    fun `partial seeded strategy should avoid seeded players facing each other in round 1`() = testApplicationWithClient { client ->
+        createTestData(
+            playerCount = 8,
+            seedingStrategy = SeedingStrategy.PARTIAL_SEEDED,
+            seededPlayerIndices = mapOf(
+                0 to 1,
+                1 to 2
+            )
+        )
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val startResponse = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, startResponse.status)
+
+        val phase = startResponse.body<ApiResponse<TournamentPhase>>().data ?: error("missing started phase")
+        val round1Matches = phase.matches.filter { it.round == 1 }
+
+        val seededIds = transaction {
+            TournamentPlayerDAO.find { TournamentPlayersTable.tournamentId eq 1 }
+                .filter { it.seed == 1 || it.seed == 2 }
+                .map { it.player.id.value }
+                .toSet()
+        }
+
+        val seededMatches = round1Matches.filter { it.player1?.id in seededIds || it.player2?.id in seededIds }
+        assertEquals(2, seededMatches.size)
+        seededMatches.forEach { match ->
+            val bothSeeded = match.player1?.id in seededIds && match.player2?.id in seededIds
+            assertTrue(!bothSeeded)
+        }
+    }
+
     private fun createTestData(
         thirdPlacePlayoff: Boolean = false,
         initialPhaseOrders: List<Int> = listOf(1),
-        playerCount: Int = 5
+        playerCount: Int = 5,
+        seedingStrategy: SeedingStrategy = SeedingStrategy.INPUT_ORDER,
+        seededPlayerIndices: Map<Int, Int> = emptyMap()
     ) {
         transaction {
             val user = UserDAO.new {
@@ -279,14 +337,18 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
                 endDate = date.plus(1, ChronoUnit.DAYS)
             }
 
-            repeat(playerCount) {
+            repeat(playerCount) { index ->
                 val player = PlayerDAO.new {
-                    name = "testPlayer$it"
+                    name = "testPlayer$index"
                     external = true
                     this.user = null
                 }
 
-                tournament.players = SizedCollection(tournament.players + player)
+                TournamentPlayerDAO.new {
+                    this.player = player
+                    this.tournament = tournament
+                    seed = seededPlayerIndices[index]
+                }
             }
 
             initialPhaseOrders.forEach { phaseOrder ->
@@ -295,7 +357,10 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
                     this.phaseOrder = phaseOrder
                     format = Format.KNOCKOUT.name
                     rounds = 3
-                    configuration = PhaseConfiguration.KnockoutConfig(thirdPlacePlayoff)
+                    configuration = PhaseConfiguration.KnockoutConfig(
+                        thirdPlacePlayoff = thirdPlacePlayoff,
+                        seedingStrategy = seedingStrategy
+                    )
                 }
             }
         }
