@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "b7fcb7b6-4a9b-4b50-9b6e-3b7c91b83a5a",
+    "_postman_id": "8e0b2fe5-3b25-4d63-84be-bcaac3c6f0f5",
     "name": "TennisTournamentBackend",
-    "description": "Manual testing collection for TennisTournamentBackend.",
+    "description": "Complete API collection for current TennisTournamentBackend routes. Keep this file updated whenever routes or DTOs change.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -11,8 +11,16 @@
       "value": "http://localhost:8080"
     },
     {
+      "key": "authToken",
+      "value": ""
+    },
+    {
       "key": "userId",
       "value": "1"
+    },
+    {
+      "key": "adminUserId",
+      "value": "2"
     },
     {
       "key": "playerId",
@@ -29,49 +37,12 @@
     {
       "key": "matchId",
       "value": "1"
-    },
-    {
-      "key": "dependentMatchId",
-      "value": "1"
-    },
-    {
-      "key": "matchCount",
-      "value": "0"
     }
   ],
   "item": [
     {
       "name": "Users",
       "item": [
-        {
-          "name": "Create User",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/users",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"club_admin\",\n  \"password\": \"dev-only\",\n  \"email\": \"admin@example.com\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const json = pm.response.json();",
-                  "if (json?.data?.id) pm.collectionVariables.set('userId', json.data.id);"
-                ]
-              }
-            }
-          ]
-        },
         {
           "name": "Get Users",
           "request": {
@@ -87,10 +58,14 @@
           }
         },
         {
-          "name": "Update User",
+          "name": "Create User (Disabled)",
           "request": {
-            "method": "PUT",
+            "method": "POST",
             "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -99,14 +74,41 @@
             "url": "{{baseUrl}}/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": {{userId}},\n  \"username\": \"club_admin_updated\",\n  \"email\": \"admin2@example.com\"\n}"
+              "raw": "{\n  \"username\": \"disabled_user\",\n  \"email\": \"disabled@example.com\"\n}"
             }
           }
         },
         {
-          "name": "Delete User",
+          "name": "Update User (Disabled)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{userId}},\n  \"username\": \"disabled_user_updated\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete User (Disabled)",
           "request": {
             "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/users/{{userId}}"
           }
         }
@@ -115,52 +117,6 @@
     {
       "name": "Players",
       "item": [
-        {
-          "name": "Create Player (external)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/players",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Guest Player\",\n  \"external\": true\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const json = pm.response.json();",
-                  "if (json?.data?.id) pm.collectionVariables.set('playerId', json.data.id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Create Player (linked user)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/players",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Member Player\",\n  \"external\": false,\n  \"userId\": {{userId}}\n}"
-            }
-          }
-        },
         {
           "name": "Get Players",
           "request": {
@@ -176,10 +132,14 @@
           }
         },
         {
-          "name": "Update Player",
+          "name": "Create Player",
           "request": {
-            "method": "PUT",
+            "method": "POST",
             "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -188,7 +148,28 @@
             "url": "{{baseUrl}}/players",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": {{playerId}},\n  \"name\": \"Guest Player Updated\",\n  \"external\": true\n}"
+              "raw": "{\n  \"name\": \"Player A\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Player",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/players",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{playerId}},\n  \"name\": \"Player A Updated\"\n}"
             }
           }
         },
@@ -196,6 +177,12 @@
           "name": "Delete Player",
           "request": {
             "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/players/{{playerId}}"
           }
         }
@@ -204,35 +191,6 @@
     {
       "name": "Clubs",
       "item": [
-        {
-          "name": "Create Club",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/clubs",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Central Club\",\n  \"phoneNumber\": \"555-0100\",\n  \"address\": \"123 Center St\",\n  \"userId\": {{userId}}\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const json = pm.response.json();",
-                  "if (json?.data?.id) pm.collectionVariables.set('clubId', json.data.id);"
-                ]
-              }
-            }
-          ]
-        },
         {
           "name": "Get Clubs",
           "request": {
@@ -248,10 +206,21 @@
           }
         },
         {
-          "name": "Update Club",
+          "name": "Get Club Admins",
           "request": {
-            "method": "PUT",
+            "method": "GET",
+            "url": "{{baseUrl}}/clubs/{{clubId}}/admins"
+          }
+        },
+        {
+          "name": "Create Club",
+          "request": {
+            "method": "POST",
             "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -260,7 +229,28 @@
             "url": "{{baseUrl}}/clubs",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": {{clubId}},\n  \"name\": \"Central Club Updated\",\n  \"phoneNumber\": \"555-0101\"\n}"
+              "raw": "{\n  \"name\": \"Central Club\",\n  \"phoneNumber\": \"555-0100\",\n  \"address\": \"123 Center St\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Club",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/clubs",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{clubId}},\n  \"name\": \"Central Club Updated\",\n  \"phoneNumber\": \"555-0101\",\n  \"address\": \"456 New Ave\"\n}"
             }
           }
         },
@@ -268,7 +258,39 @@
           "name": "Delete Club",
           "request": {
             "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/clubs/{{clubId}}"
+          }
+        },
+        {
+          "name": "Add Club Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/clubs/{{clubId}}/admins/{{adminUserId}}"
+          }
+        },
+        {
+          "name": "Remove Club Admin",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/clubs/{{clubId}}/admins/{{adminUserId}}"
           }
         }
       ]
@@ -276,52 +298,6 @@
     {
       "name": "Tournaments",
       "item": [
-        {
-          "name": "Create Tournament",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/tournaments",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Winter Open\",\n  \"description\": \"Test tournament\",\n  \"surface\": \"HARD\",\n  \"clubId\": {{clubId}},\n  \"startDate\": \"2026-02-01T09:00:00Z\",\n  \"endDate\": \"2026-02-07T18:00:00Z\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const json = pm.response.json();",
-                  "if (json?.data?.id) pm.collectionVariables.set('tournamentId', json.data.id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Create Tournament Phase (Knockout)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/phases",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phaseOrder\": 1,\n  \"format\": \"KNOCKOUT\",\n  \"configuration\": {\n    \"type\": \"knockout\",\n    \"thirdPlacePlayoff\": false,\n    \"qualifiers\": 1\n  }\n}"
-            }
-          }
-        },
         {
           "name": "Get Tournaments",
           "request": {
@@ -337,10 +313,42 @@
           }
         },
         {
-          "name": "Update Tournament",
+          "name": "Get Tournament Phases",
           "request": {
-            "method": "PUT",
+            "method": "GET",
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/phases"
+          }
+        },
+        {
+          "name": "Get Tournament Players",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/players"
+          }
+        },
+        {
+          "name": "Get Tournament Matches",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/matches"
+          }
+        },
+        {
+          "name": "Get Tournament Bracket",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/bracket"
+          }
+        },
+        {
+          "name": "Create Tournament",
+          "request": {
+            "method": "POST",
             "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -349,7 +357,62 @@
             "url": "{{baseUrl}}/tournaments",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": {{tournamentId}},\n  \"name\": \"Winter Open Updated\",\n  \"description\": \"Updated description\"\n}"
+              "raw": "{\n  \"name\": \"Winter Open\",\n  \"description\": \"Test tournament\",\n  \"surface\": \"HARD\",\n  \"clubId\": {{clubId}},\n  \"startDate\": \"2026-03-10T09:00:00Z\",\n  \"endDate\": \"2026-03-15T18:00:00Z\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Tournament",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{tournamentId}},\n  \"name\": \"Winter Open Updated\",\n  \"description\": \"Metadata fix\",\n  \"surface\": \"CLAY\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Tournament",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}"
+          }
+        },
+        {
+          "name": "Create Tournament Phase (Knockout)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/phases",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phaseOrder\": 1,\n  \"format\": \"KNOCKOUT\",\n  \"configuration\": {\n    \"type\": \"knockout\",\n    \"thirdPlacePlayoff\": false,\n    \"qualifiers\": 1,\n    \"seedingStrategy\": \"PARTIAL_SEEDED\"\n  }\n}"
             }
           }
         },
@@ -359,6 +422,10 @@
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -366,7 +433,7 @@
             "url": "{{baseUrl}}/tournaments/{{tournamentId}}/players",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"players\": [\n    { \"playerId\": {{playerId}} },\n    { \"name\": \"New External Player\" }\n  ]\n}"
+              "raw": "{\n  \"players\": [\n    { \"playerId\": {{playerId}}, \"seed\": 1 },\n    { \"name\": \"External Seeded\", \"seed\": 2 },\n    { \"name\": \"External Unseeded\" }\n  ]\n}"
             }
           }
         },
@@ -374,6 +441,12 @@
           "name": "Remove Player From Tournament",
           "request": {
             "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/tournaments/{{tournamentId}}/players/{{playerId}}"
           }
         },
@@ -381,42 +454,26 @@
           "name": "Start Tournament",
           "request": {
             "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/tournaments/{{tournamentId}}/start"
           }
         },
         {
-          "name": "Delete Tournament",
+          "name": "Reset Tournament",
           "request": {
-            "method": "DELETE",
-            "url": "{{baseUrl}}/tournaments/{{tournamentId}}"
-          }
-        },
-        {
-          "name": "Get Tournament Players",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tournaments/{tournamentId}/players"
-          }
-        },
-        {
-          "name": "Get Tournament Phases",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tournaments/{tournamentId}/phases"
-          }
-        },
-        {
-          "name": "Get Tournament Matches",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tournaments/{tournamentId}/matches"
-          }
-        },
-        {
-          "name": "Get Tournament Bracket",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/bracket"
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/reset"
           }
         }
       ]
@@ -437,6 +494,10 @@
             "method": "PUT",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -444,1512 +505,9 @@
             "url": "{{baseUrl}}/matches/{{matchId}}/score",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"score\": {\n    \"sets\": [\n      { \"player1Games\": 6, \"player2Games\": 4, \"tiebreak\": null },\n      { \"player1Games\": 6, \"player2Games\": 2, \"tiebreak\": null }\n    ]\n  }\n}"
+              "raw": "{\n  \"score\": {\n    \"sets\": [\n      { \"player1Games\": 6, \"player2Games\": 4, \"tiebreak\": null },\n      { \"player1Games\": 6, \"player2Games\": 3, \"tiebreak\": null }\n    ]\n  }\n}"
             }
           }
-        }
-      ]
-    },
-    {
-      "name": "Sequences",
-      "item": [
-        {
-          "name": "Sequence 1 - Smoke + CRUD",
-          "item": [
-            {
-              "name": "Create User",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/users",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"username\": \"club_admin\",\n  \"password\": \"dev-only\",\n  \"email\": \"admin@example.com\"\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"userId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('userId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Club",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/clubs",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Central Club\",\n  \"phoneNumber\": \"555-0100\",\n  \"address\": \"123 Center St\",\n  \"userId\": {{userId}}\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"clubId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('clubId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Player",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/players",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Guest Player\",\n  \"external\": true\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"playerId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('playerId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Tournament",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Winter Open\",\n  \"description\": \"Test tournament\",\n  \"surface\": \"HARD\",\n  \"clubId\": {{clubId}},\n  \"startDate\": \"2026-02-01T09:00:00Z\",\n  \"endDate\": \"2026-02-07T18:00:00Z\"\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"tournamentId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('tournamentId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Get Tournament By Id",
-              "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}"
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"tournament id matches\", () => pm.expect(json.data.id).to.eql(parseInt(pm.collectionVariables.get('tournamentId'))));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Update Tournament",
-              "request": {
-                "method": "PUT",
-                "url": "{{baseUrl}}/tournaments",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"id\": {{tournamentId}},\n  \"name\": \"Winter Open Updated\",\n  \"description\": \"Updated description\"\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"updated name\", () => pm.expect(json.data.name).to.eql('Winter Open Updated'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Delete Tournament",
-              "request": {
-                "method": "DELETE",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}"
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 204\", () => pm.response.to.have.status(204));"
-                    ]
-                  }
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "name": "Sequence 2 - Tournament Start Idempotency",
-          "item": [
-            {
-              "name": "Create User",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/users",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"username\": \"club_admin\",\n  \"password\": \"dev-only\",\n  \"email\": \"admin@example.com\"\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"userId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('userId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Club",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/clubs",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Central Club\",\n  \"phoneNumber\": \"555-0100\",\n  \"address\": \"123 Center St\",\n  \"userId\": {{userId}}\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"clubId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('clubId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Player",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/players",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Guest Player\",\n  \"external\": true\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"playerId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('playerId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Tournament",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Winter Open\",\n  \"description\": \"Test tournament\",\n  \"surface\": \"HARD\",\n  \"clubId\": {{clubId}},\n  \"startDate\": \"2026-02-01T09:00:00Z\",\n  \"endDate\": \"2026-02-07T18:00:00Z\"\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"tournamentId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('tournamentId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Tournament Phase (Knockout)",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/phases",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"phaseOrder\": 1,\n  \"format\": \"KNOCKOUT\",\n  \"configuration\": {\n    \"type\": \"knockout\",\n    \"thirdPlacePlayoff\": false,\n    \"qualifiers\": 1\n  }\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Add Players To Tournament",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/players",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"players\": [\n    { \"playerId\": {{playerId}} },\n    { \"name\": \"New External Player\" }\n  ]\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Start Tournament",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/start"
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Get Tournament Matches (count)",
-              "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/matches"
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "const matchCount = json.data ? json.data.length : 0;",
-                      "pm.collectionVariables.set('matchCount', matchCount);",
-                      "pm.test(\"match count set\", () => pm.expect(matchCount).to.be.above(0));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Start Tournament (again)",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/start"
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Get Tournament Matches (count unchanged)",
-              "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/matches"
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "const matchCount = json.data ? json.data.length : 0;",
-                      "const prev = parseInt(pm.collectionVariables.get('matchCount') || '0');",
-                      "pm.test(\"match count unchanged\", () => pm.expect(matchCount).to.eql(prev));"
-                    ]
-                  }
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "name": "Sequence 3 - Knockout Auto-Progress",
-          "item": [
-            {
-              "name": "Create User",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/users",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"username\": \"club_admin\",\n  \"password\": \"dev-only\",\n  \"email\": \"admin@example.com\"\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"userId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('userId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Club",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/clubs",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Central Club\",\n  \"phoneNumber\": \"555-0100\",\n  \"address\": \"123 Center St\",\n  \"userId\": {{userId}}\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"clubId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('clubId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Player",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/players",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Guest Player\",\n  \"external\": true\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"playerId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('playerId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Tournament",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Winter Open\",\n  \"description\": \"Test tournament\",\n  \"surface\": \"HARD\",\n  \"clubId\": {{clubId}},\n  \"startDate\": \"2026-02-01T09:00:00Z\",\n  \"endDate\": \"2026-02-07T18:00:00Z\"\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"tournamentId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('tournamentId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Tournament Phase (Knockout)",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/phases",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"phaseOrder\": 1,\n  \"format\": \"KNOCKOUT\",\n  \"configuration\": {\n    \"type\": \"knockout\",\n    \"thirdPlacePlayoff\": false,\n    \"qualifiers\": 1\n  }\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Add Players To Tournament",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/players",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"players\": [\n    { \"playerId\": {{playerId}} },\n    { \"name\": \"New External Player A\" },\n    { \"name\": \"New External Player B\" },\n    { \"name\": \"New External Player C\" }\n  ]\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Start Tournament",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/start"
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Get Tournament Matches (pick match)",
-              "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/matches"
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "const dependent = json.data.find(m => m.matchDependencies && m.matchDependencies.length > 0);",
-                      "pm.test(\"dependent match found\", () => pm.expect(dependent).to.be.ok);",
-                      "const requiredId = dependent.matchDependencies[0].requiredMatchId;",
-                      "pm.collectionVariables.set('matchId', requiredId);",
-                      "pm.collectionVariables.set('dependentMatchId', dependent.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Update Match Score",
-              "request": {
-                "method": "PUT",
-                "url": "{{baseUrl}}/matches/{matchId}/score",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"score\": {\n    \"sets\": [\n      { \"player1Games\": 6, \"player2Games\": 4, \"tiebreak\": null },\n      { \"player1Games\": 6, \"player2Games\": 2, \"tiebreak\": null }\n    ]\n  }\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Get Dependent Match",
-              "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/matches/{dependentMatchId}"
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "const p1 = json.data.player1;",
-                      "const p2 = json.data.player2;",
-                      "pm.test(\"dependent match has an assigned player\", () => pm.expect(p1 || p2).to.be.ok);"
-                    ]
-                  }
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "name": "Sequence 4 - Swiss (unsupported - expect 400)",
-          "item": [
-            {
-              "name": "Create User",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/users",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"username\": \"club_admin\",\n  \"password\": \"dev-only\",\n  \"email\": \"admin@example.com\"\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "if (json?.data?.id) pm.collectionVariables.set('userId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Club",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/clubs",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Central Club\",\n  \"phoneNumber\": \"555-0100\",\n  \"address\": \"123 Center St\",\n  \"userId\": {{userId}}\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "if (json?.data?.id) pm.collectionVariables.set('clubId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Player",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/players",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Guest Player\",\n  \"external\": true\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "if (json?.data?.id) pm.collectionVariables.set('playerId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Tournament",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Winter Open\",\n  \"description\": \"Test tournament\",\n  \"surface\": \"HARD\",\n  \"clubId\": {{clubId}},\n  \"startDate\": \"2026-02-01T09:00:00Z\",\n  \"endDate\": \"2026-02-07T18:00:00Z\"\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "if (json?.data?.id) pm.collectionVariables.set('tournamentId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Tournament Phase (Swiss) - Unsupported",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/phases",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"phaseOrder\": 1,\n  \"format\": \"SWISS\",\n  \"configuration\": {\n    \"type\": \"swiss\",\n    \"pointsPerWin\": 1\n  }\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 400\", () => pm.response.to.have.status(400));"
-                    ]
-                  }
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "name": "Sequence 5 - Match Winner Validation",
-          "item": [
-            {
-              "name": "Create User",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/users",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"username\": \"club_admin\",\n  \"password\": \"dev-only\",\n  \"email\": \"admin@example.com\"\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"userId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('userId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Club",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/clubs",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Central Club\",\n  \"phoneNumber\": \"555-0100\",\n  \"address\": \"123 Center St\",\n  \"userId\": {{userId}}\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"clubId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('clubId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Player",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/players",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Guest Player\",\n  \"external\": true\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"playerId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('playerId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Tournament",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Winter Open\",\n  \"description\": \"Test tournament\",\n  \"surface\": \"HARD\",\n  \"clubId\": {{clubId}},\n  \"startDate\": \"2026-02-01T09:00:00Z\",\n  \"endDate\": \"2026-02-07T18:00:00Z\"\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"tournamentId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('tournamentId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Tournament Phase (Knockout)",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/phases",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"phaseOrder\": 1,\n  \"format\": \"KNOCKOUT\",\n  \"configuration\": {\n    \"type\": \"knockout\",\n    \"thirdPlacePlayoff\": false,\n    \"qualifiers\": 1\n  }\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Add Players To Tournament",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/players",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"players\": [\n    { \"playerId\": {{playerId}} },\n    { \"name\": \"New External Player\" }\n  ]\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Start Tournament",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/start"
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Get Tournament Matches (pick match)",
-              "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/matches"
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "const match = json.data.find(m => m.status === 'SCHEDULED');",
-                      "pm.test(\"match found\", () => pm.expect(match).to.be.ok);",
-                      "pm.collectionVariables.set('matchId', match.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Update Match Score (tie)",
-              "request": {
-                "method": "PUT",
-                "url": "{{baseUrl}}/matches/{matchId}/score",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"score\": {\n    \"sets\": [\n      { \"player1Games\": 6, \"player2Games\": 6, \"tiebreak\": null },\n      { \"player1Games\": 6, \"player2Games\": 6, \"tiebreak\": null }\n    ]\n  }\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 400\", () => pm.response.to.have.status(400));"
-                    ]
-                  }
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "name": "Sequence 6 - Add/Remove Players Edge Cases",
-          "item": [
-            {
-              "name": "Create User",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/users",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"username\": \"club_admin\",\n  \"password\": \"dev-only\",\n  \"email\": \"admin@example.com\"\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"userId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('userId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Club",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/clubs",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Central Club\",\n  \"phoneNumber\": \"555-0100\",\n  \"address\": \"123 Center St\",\n  \"userId\": {{userId}}\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"clubId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('clubId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Player",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/players",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Guest Player\",\n  \"external\": true\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"playerId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('playerId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Tournament",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Winter Open\",\n  \"description\": \"Test tournament\",\n  \"surface\": \"HARD\",\n  \"clubId\": {{clubId}},\n  \"startDate\": \"2026-02-01T09:00:00Z\",\n  \"endDate\": \"2026-02-07T18:00:00Z\"\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));",
-                      "pm.test(\"tournamentId set\", () => pm.expect(json.data && json.data.id).to.be.ok);",
-                      "if (json?.data?.id) pm.collectionVariables.set('tournamentId', json.data.id);"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Create Tournament Phase (Knockout)",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/phases",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"phaseOrder\": 1,\n  \"format\": \"KNOCKOUT\",\n  \"configuration\": {\n    \"type\": \"knockout\",\n    \"thirdPlacePlayoff\": false,\n    \"qualifiers\": 1\n  }\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Add Players (duplicate playerId)",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/players",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"players\": [\n    { \"playerId\": {{playerId}} },\n    { \"playerId\": {{playerId}} }\n  ]\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Get Tournament Players (ensure duplicates ignored)",
-              "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/players"
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "const count = json.data.length;",
-                      "pm.test(\"only one player added\", () => pm.expect(count).to.eql(1));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Add Players (invalid - both playerId and name)",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/players",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"players\": [\n    { \"playerId\": {{playerId}}, \"name\": \"Bad\" }\n  ]\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 400\", () => pm.response.to.have.status(400));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Add Players (invalid - empty)",
-              "request": {
-                "method": "POST",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/players",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"players\": [ {} ]\n}"
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 400\", () => pm.response.to.have.status(400));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Remove Player From Tournament",
-              "request": {
-                "method": "DELETE",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/players/{playerId}"
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "pm.test(\"response status SUCCESS\", () => pm.expect(json.status).to.eql('SUCCESS'));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Get Tournament Players (player removed)",
-              "request": {
-                "method": "GET",
-                "url": "{{baseUrl}}/tournaments/{tournamentId}/players"
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
-                      "const json = pm.response.json();",
-                      "const count = json.data.length;",
-                      "pm.test(\"player removed\", () => pm.expect(count).to.eql(0));"
-                    ]
-                  }
-                }
-              ]
-            }
-          ]
         }
       ]
     }

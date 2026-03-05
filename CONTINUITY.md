@@ -14,6 +14,9 @@ Include: branch, uncommitted state, what changed, what remains.
 - Prioritized backlog: `docs/ISSUES.md`
 
 ## Recent Completed Work
+- (uncommitted in current session) Refreshed Postman collection to match all current routes:
+  - `docs/postman/TennisTournamentBackend.postman_collection.json`
+  - added missing endpoints (including tournament reset) and aligned payloads with current DTOs
 - (uncommitted in current session) Started explicit seeding contract refactor:
   - added future issue for multi-context ranking sources in `docs/ISSUES.md`
   - added tournament-player seed persistence (`TournamentPlayersTable.seed`) + migration `V4__tournament_player_seeding.sql`
