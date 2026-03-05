@@ -1,6 +1,6 @@
 # CONTINUITY
 
-Last Updated: 2026-03-03
+Last Updated: 2026-03-05
 Repository: TennisTournamentBackend
 
 ## Update Rule
@@ -14,6 +14,15 @@ Include: branch, uncommitted state, what changed, what remains.
 - Prioritized backlog: `docs/ISSUES.md`
 
 ## Recent Completed Work
+- (uncommitted in current session) Started explicit seeding contract refactor:
+  - added future issue for multi-context ranking sources in `docs/ISSUES.md`
+  - added tournament-player seed persistence (`TournamentPlayersTable.seed`) + migration `V4__tournament_player_seeding.sql`
+  - added `seed` to add-players request contract and seed conflict validation
+  - wired tournament start to build `SeededParticipant` entries and call lib `startPhaseWithParticipants`
+  - added tests for duplicate seed conflicts and partial-seeded round-1 behavior
+- (uncommitted in current session) Drafted explicit seeding contract refactor plan:
+  - `docs/SEEDING_CONTRACT_REFACTOR_DRAFT.md`
+  - covers backend DB/API model with explicit seeds + lib participant contract + phased rollout
 - (uncommitted in current session) Tournament lifecycle policy implementation:
   - added `CANCELLED`/`ABANDONED` tournament statuses (domain + migration `V3__tournament_extended_statuses.sql`)
   - post-start updates are metadata-only (`name`, `description`, `surface`)

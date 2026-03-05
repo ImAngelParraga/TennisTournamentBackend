@@ -50,6 +50,14 @@ This list reflects the current state of both repos:
 - [ ] Add cross-repo compatibility checks between backend and lib.
   Why: backend behavior depends heavily on lib semantics; compatibility should be validated in CI.
 
+- [ ] Design and implement multi-context ranking sources for future seeding.
+  Why: future seeding should support rankings beyond a single global list.
+  Missing pieces:
+    - league-scoped ranking points from match/tournament results
+    - users participating in multiple leagues with independent rankings
+    - organizer/club-scoped ranking based only on tournaments they host
+    - seeding policy selection (which ranking source applies per tournament/phase)
+
 - [ ] Deployment pipeline (future): run `flywayMigrate` before app startup.
   Why: this is required once a hosting/deployment target is chosen.
   Scope:
