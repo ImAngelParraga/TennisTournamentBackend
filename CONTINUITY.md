@@ -1,6 +1,6 @@
 # CONTINUITY
 
-Last Updated: 2026-03-05
+Last Updated: 2026-03-06
 Repository: TennisTournamentBackend
 
 ## Update Rule
@@ -14,6 +14,10 @@ Include: branch, uncommitted state, what changed, what remains.
 - Prioritized backlog: `docs/ISSUES.md`
 
 ## Recent Completed Work
+- (uncommitted in current session) Marked deterministic seeding issue as completed in `docs/ISSUES.md`
+- (uncommitted in current session) Added AI operating docs:
+  - `AGENTS.md` with workflow rules (commit/push policy, flyway/postman/update discipline)
+  - `AI_CONTEXT.md` as backend+lib quick-start context for future models
 - (uncommitted in current session) Refreshed Postman collection to match all current routes:
   - `docs/postman/TennisTournamentBackend.postman_collection.json`
   - added missing endpoints (including tournament reset) and aligned payloads with current DTOs
@@ -64,7 +68,7 @@ Include: branch, uncommitted state, what changed, what remains.
 1. Migration rollout in deployment flow (`flywayMigrate` gate + hosted env hardening).
 2. Stronger match scoring validation.
 3. Concurrency/idempotency guardrails for start/progression.
-4. Deterministic seeding end-to-end with lib.
+4. Implement Group and Swiss in lib (or defer/remove formats from exposed contracts).
 
 ## Cross-Repo Dependency Notes
 - Backend depends on `../TennisTournamentLib` via composite build substitution.

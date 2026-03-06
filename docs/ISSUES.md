@@ -22,9 +22,6 @@ This list reflects the current state of both repos:
     - DB-level uniqueness/integrity constraints to prevent duplicate match/dependency creation
     - clearly idempotent behavior for repeated `start` and repeated score updates
 
-- [ ] Implement deterministic seeding end-to-end (backend contract + lib behavior).
-  Why: `KnockoutService` currently shuffles players randomly, so brackets are non-reproducible.
-
 ## P1 (High Priority)
 
 - [ ] Implement Group and Swiss in `TennisTournamentLib` (or remove/defer these formats from contracts).
@@ -78,3 +75,4 @@ This list reflects the current state of both repos:
 - [x] Flyway migration scaffolding + baseline SQL (`V1__baseline.sql`)
 - [x] Baseline migration executed successfully on Supabase and recorded (`docs/DB_BASELINE_STATUS.md`)
 - [x] Tournament lifecycle guards for write operations (draft-only mutations + phase-order constraints)
+- [x] Deterministic seeding end-to-end for knockout (backend seed contract + lib seeded participant behavior)
