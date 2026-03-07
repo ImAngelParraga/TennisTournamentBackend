@@ -2,6 +2,7 @@ package bros.parraga
 
 import bros.parraga.db.schema.*
 import bros.parraga.domain.Match
+import bros.parraga.domain.MatchStatus
 import bros.parraga.domain.PhaseConfiguration
 import bros.parraga.domain.SeedingStrategy
 import bros.parraga.domain.SetScore
@@ -268,6 +269,138 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
         val tournamentBody = tournamentResponse.body<ApiResponse<TournamentBasic>>()
         assertEquals(HttpStatusCode.OK, tournamentResponse.status)
         assertEquals(TournamentStatus.COMPLETED, tournamentBody.data?.status)
+    }
+
+    @Test
+    fun `should return conflict when scoring an already completed match`() = testApplicationWithClient { client ->
+        createTestData(playerCount = 2)
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val startResponse = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, startResponse.status)
+        val phase = startResponse.body<ApiResponse<TournamentPhase>>().data ?: error("missing started phase")
+        val finalMatchId = phase.matches.first().id
+
+        val firstScoreResponse = client.put("/matches/$finalMatchId/score") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(
+                UpdateMatchScoreRequest(
+                    score = TennisScore(
+                        sets = listOf(
+                            SetScore(6, 4, null),
+                            SetScore(6, 3, null)
+                        )
+                    )
+                )
+            )
+        }
+        assertEquals(HttpStatusCode.OK, firstScoreResponse.status)
+
+        val secondScoreResponse = client.put("/matches/$finalMatchId/score") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(
+                UpdateMatchScoreRequest(
+                    score = TennisScore(
+                        sets = listOf(
+                            SetScore(6, 0, null),
+                            SetScore(6, 0, null)
+                        )
+                    )
+                )
+            )
+        }
+        assertEquals(HttpStatusCode.Conflict, secondScoreResponse.status)
+    }
+
+    @Test
+    fun `should return conflict when scoring a match without both players assigned`() = testApplicationWithClient { client ->
+        createTestData(playerCount = 4)
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val startResponse = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, startResponse.status)
+        val phase = startResponse.body<ApiResponse<TournamentPhase>>().data ?: error("missing started phase")
+        val pendingMatch = phase.matches.first {
+            it.round > 1 && (it.player1 == null || it.player2 == null)
+        }
+
+        val scoreResponse = client.put("/matches/${pendingMatch.id}/score") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(
+                UpdateMatchScoreRequest(
+                    score = TennisScore(
+                        sets = listOf(
+                            SetScore(6, 4, null),
+                            SetScore(6, 4, null)
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals(HttpStatusCode.Conflict, scoreResponse.status)
+    }
+
+    @Test
+    fun `should return conflict when scoring a walkover match`() = testApplicationWithClient { client ->
+        createTestData(playerCount = 5)
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val startResponse = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, startResponse.status)
+        val phase = startResponse.body<ApiResponse<TournamentPhase>>().data ?: error("missing started phase")
+        val walkoverMatch = phase.matches.first { it.status == MatchStatus.WALKOVER }
+
+        val scoreResponse = client.put("/matches/${walkoverMatch.id}/score") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(
+                UpdateMatchScoreRequest(
+                    score = TennisScore(
+                        sets = listOf(
+                            SetScore(6, 4, null),
+                            SetScore(6, 4, null)
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals(HttpStatusCode.Conflict, scoreResponse.status)
+    }
+
+    @Test
+    fun `should return bad request when score payload has no sets`() = testApplicationWithClient { client ->
+        createTestData(playerCount = 2)
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val startResponse = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, startResponse.status)
+        val phase = startResponse.body<ApiResponse<TournamentPhase>>().data ?: error("missing started phase")
+        val finalMatchId = phase.matches.first().id
+
+        val scoreResponse = client.put("/matches/$finalMatchId/score") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(
+                UpdateMatchScoreRequest(
+                    score = TennisScore(sets = emptyList())
+                )
+            )
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, scoreResponse.status)
     }
 
     @Test

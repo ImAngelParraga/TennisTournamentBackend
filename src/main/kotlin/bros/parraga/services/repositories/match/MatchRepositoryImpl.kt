@@ -6,6 +6,7 @@ import bros.parraga.db.schema.MatchesTable
 import bros.parraga.db.schema.PlayerDAO
 import bros.parraga.domain.Match
 import bros.parraga.domain.MatchStatus
+import bros.parraga.errors.ConflictException
 import bros.parraga.services.TournamentProgressionService
 import bros.parraga.services.repositories.match.dto.UpdateMatchScoreRequest
 import org.jetbrains.exposed.dao.DaoEntityID
@@ -21,6 +22,8 @@ class MatchRepositoryImpl : MatchRepository {
             DaoEntityID(matchId, MatchesTable),
             MatchDAO
         )
+        assertMatchIsScoreable(matchId, match)
+        request.score.validateForSubmission()
 
         val libMatch = LibMatch(
             id = match.id.value,
@@ -50,5 +53,15 @@ class MatchRepositoryImpl : MatchRepository {
             DaoEntityID(matchId, MatchesTable),
             MatchDAO
         )
+    }
+
+    private fun assertMatchIsScoreable(matchId: Int, match: MatchDAO) {
+        val matchStatus = MatchStatus.valueOf(match.status)
+        if (matchStatus != MatchStatus.SCHEDULED && matchStatus != MatchStatus.LIVE) {
+            throw ConflictException("Match $matchId is $matchStatus and cannot be scored.")
+        }
+        if (match.player1 == null || match.player2 == null) {
+            throw ConflictException("Match $matchId cannot be scored until both players are assigned.")
+        }
     }
 }

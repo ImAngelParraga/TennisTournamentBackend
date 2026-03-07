@@ -7,14 +7,6 @@ This list reflects the current state of both repos:
 
 ## P0 (Highest Priority)
 
-- [ ] Harden match score submission rules.
-  Why: scoring is currently permissive and relies on minimal checks.
-  Missing rules:
-    - reject scoring matches not in a scoreable state (for example already completed unless overwrite is explicitly
-      allowed)
-    - reject scoring when players are not both present
-    - enforce legal tennis score validation (set/tiebreak consistency), not just greater-than comparisons
-
 - [ ] Add concurrency/idempotency guardrails for start/progression.
   Why: duplicate writes are possible under concurrent requests.
   Missing protections:
@@ -76,3 +68,4 @@ This list reflects the current state of both repos:
 - [x] Baseline migration executed successfully on Supabase and recorded (`docs/DB_BASELINE_STATUS.md`)
 - [x] Tournament lifecycle guards for write operations (draft-only mutations + phase-order constraints)
 - [x] Deterministic seeding end-to-end for knockout (backend seed contract + lib seeded participant behavior)
+- [x] Harden match score submission integrity (scoreable state, both players assigned, structural score validation while keeping flexible scoring formats)

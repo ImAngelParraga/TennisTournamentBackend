@@ -14,6 +14,13 @@ Include: branch, uncommitted state, what changed, what remains.
 - Prioritized backlog: `docs/ISSUES.md`
 
 ## Recent Completed Work
+- (uncommitted in current session) Hardened match score submission rules:
+  - reject score updates unless match status is `SCHEDULED` or `LIVE`
+  - reject scoring until both players are assigned
+  - validate structural score payload integrity (non-empty sets, non-negative values, no tied unresolved sets/tiebreaks)
+  - added integration tests for completed/non-ready/walkover/invalid-payload scoring attempts
+  - validated with `./gradlew.bat test --no-daemon` (pass)
+- (uncommitted in current session) Marked score hardening issue as completed in `docs/ISSUES.md`
 - (uncommitted in current session) Marked deterministic seeding issue as completed in `docs/ISSUES.md`
 - (uncommitted in current session) Added AI operating docs:
   - `AGENTS.md` with workflow rules (commit/push policy, flyway/postman/update discipline)
@@ -66,9 +73,9 @@ Include: branch, uncommitted state, what changed, what remains.
 ## Highest Priority Remaining Work
 (See `docs/ISSUES.md` for ordered list.)
 1. Migration rollout in deployment flow (`flywayMigrate` gate + hosted env hardening).
-2. Stronger match scoring validation.
-3. Concurrency/idempotency guardrails for start/progression.
-4. Implement Group and Swiss in lib (or defer/remove formats from exposed contracts).
+2. Concurrency/idempotency guardrails for start/progression.
+3. Implement Group and Swiss in lib (or defer/remove formats from exposed contracts).
+4. Tighten tournament/phase validation inputs.
 
 ## Cross-Repo Dependency Notes
 - Backend depends on `../TennisTournamentLib` via composite build substitution.

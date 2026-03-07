@@ -6,6 +6,40 @@ import kotlinx.serialization.Serializable
 data class TennisScore(
     val sets: List<SetScore>
 ) {
+    fun validateForSubmission() {
+        require(sets.isNotEmpty()) { "Score must include at least one set." }
+
+        sets.forEachIndexed { index, set ->
+            val setNumber = index + 1
+            require(set.player1Games >= 0 && set.player2Games >= 0) {
+                "Set $setNumber has negative game values."
+            }
+
+            set.tiebreak?.let { tiebreak ->
+                require(tiebreak.player1Points >= 0 && tiebreak.player2Points >= 0) {
+                    "Set $setNumber has negative tiebreak points."
+                }
+            }
+
+            val hasSetWinner = when {
+                set.player1Games > set.player2Games -> true
+                set.player2Games > set.player1Games -> true
+                set.tiebreak != null -> {
+                    val p1 = set.tiebreak.player1Points
+                    val p2 = set.tiebreak.player2Points
+                    require(p1 != p2) { "Set $setNumber tiebreak cannot be tied." }
+                    true
+                }
+
+                else -> false
+            }
+
+            require(hasSetWinner) {
+                "Set $setNumber does not define a winner (equal games without tiebreak)."
+            }
+        }
+    }
+
     fun getWinnerId(player1Id: Int?, player2Id: Int?): Int? {
         if (player1Id == null || player2Id == null) return null
         val player1Sets = sets.count { it.player1Games > it.player2Games }
