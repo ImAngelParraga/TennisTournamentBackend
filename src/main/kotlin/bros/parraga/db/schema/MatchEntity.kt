@@ -17,6 +17,7 @@ import java.time.Instant as JavaInstant
 object MatchesTable : IntIdTable("matches") {
     val phaseId = reference("phase_id", TournamentPhasesTable, onDelete = ReferenceOption.CASCADE)
     val round = integer("round").check { it greater 0 }
+    val roundSlot = integer("round_slot").check { it greater 0 }
     val groupId = reference("group_id", GroupsTable, onDelete = ReferenceOption.CASCADE).nullable()
     val player1Id = reference("player1_id", PlayersTable).nullable()
     val player2Id = reference("player2_id", PlayersTable).nullable()
@@ -34,6 +35,10 @@ object MatchesTable : IntIdTable("matches") {
     val court = varchar("court", 100).nullable()
     val createdAt = timestamp("created_at").clientDefault { JavaInstant.now() }
     val updatedAt = timestamp("updated_at").nullable()
+
+    init {
+        uniqueIndex(phaseId, round, roundSlot)
+    }
 }
 
 class MatchDAO(id: EntityID<Int>) : IntEntity(id) {
@@ -41,6 +46,7 @@ class MatchDAO(id: EntityID<Int>) : IntEntity(id) {
 
     var phase by TournamentPhaseDAO referencedOn MatchesTable.phaseId
     var round by MatchesTable.round
+    var roundSlot by MatchesTable.roundSlot
     var group by GroupDAO optionalReferencedOn MatchesTable.groupId
     var player1 by PlayerDAO optionalReferencedOn MatchesTable.player1Id
     var player2 by PlayerDAO optionalReferencedOn MatchesTable.player2Id

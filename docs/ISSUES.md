@@ -7,12 +7,7 @@ This list reflects the current state of both repos:
 
 ## P0 (Highest Priority)
 
-- [ ] Add concurrency/idempotency guardrails for start/progression.
-  Why: duplicate writes are possible under concurrent requests.
-  Missing protections:
-    - transactional locking around `startTournament` and progression updates
-    - DB-level uniqueness/integrity constraints to prevent duplicate match/dependency creation
-    - clearly idempotent behavior for repeated `start` and repeated score updates
+- No open P0 items.
 
 ## P1 (High Priority)
 
@@ -69,3 +64,4 @@ This list reflects the current state of both repos:
 - [x] Tournament lifecycle guards for write operations (draft-only mutations + phase-order constraints)
 - [x] Deterministic seeding end-to-end for knockout (backend seed contract + lib seeded participant behavior)
 - [x] Harden match score submission integrity (scoreable state, both players assigned, structural score validation while keeping flexible scoring formats)
+- [x] Add concurrency/idempotency guardrails for start/progression (row-level locking, round-slot uniqueness, idempotent repeated start and score replay behavior)

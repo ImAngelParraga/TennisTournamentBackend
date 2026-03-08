@@ -1,6 +1,8 @@
 package bros.parraga.services.repositories.tournament
 
 import bros.parraga.db.DatabaseFactory.dbQuery
+import bros.parraga.db.lockPhaseRow
+import bros.parraga.db.lockTournamentRow
 import bros.parraga.db.schema.*
 import bros.parraga.domain.*
 import bros.parraga.errors.ConflictException
@@ -195,6 +197,7 @@ class TournamentRepositoryImpl : TournamentRepository {
     }
 
     override suspend fun startTournament(id: Int): TournamentPhase = dbQuery {
+        lockTournamentRow(id)
         val tournament = TournamentDAO[id]
         require(tournament.phases.count() > 0) { "Tournament has no phases" }
 
@@ -209,6 +212,7 @@ class TournamentRepositoryImpl : TournamentRepository {
         }
 
         val firstPhase = getFirstPhase(tournament)
+        lockPhaseRow(firstPhase.id.value)
         if (firstPhase.matches.any()) {
             if (status != TournamentStatus.STARTED) {
                 tournament.status = TournamentStatus.STARTED.name
@@ -298,6 +302,7 @@ class TournamentRepositoryImpl : TournamentRepository {
         phaseDao: TournamentPhaseDAO
     ) {
         val fakeIdsToRealMatches = mutableMapOf<Int, MatchDAO>()
+        val roundSlotsByMatchId = computeRoundSlotsByMatchId(matches)
 
         matches.forEach { match ->
             val player1Dao = match.player1Id?.let { PlayerDAO[it] }
@@ -310,6 +315,7 @@ class TournamentRepositoryImpl : TournamentRepository {
             val matchDao = MatchDAO.new {
                 phase = phaseDao
                 round = match.round
+                roundSlot = roundSlotsByMatchId.getValue(match.id)
                 player1 = player1Dao
                 player2 = player2Dao
                 winner = winnerDao
@@ -327,6 +333,9 @@ class TournamentRepositoryImpl : TournamentRepository {
             match.dependencies.forEach { dependency ->
                 val requiredMatch = fakeIdsToRealMatches[dependency.requiredMatchId]
                     ?: throw IllegalStateException("Missing dependency match id ${dependency.requiredMatchId}")
+                require(match.id != dependency.requiredMatchId) {
+                    "Match ${match.id} cannot depend on itself."
+                }
 
                 MatchDependencyDAO.new {
                     matchId = matchDao.id
@@ -335,6 +344,17 @@ class TournamentRepositoryImpl : TournamentRepository {
                 }
             }
         }
+    }
+
+    private fun computeRoundSlotsByMatchId(matches: List<LibMatch>): Map<Int, Int> {
+        return matches
+            .groupBy { it.round }
+            .flatMap { (_, roundMatches) ->
+                roundMatches
+                    .sortedBy { it.id }
+                    .mapIndexed { index, match -> match.id to index + 1 }
+            }
+            .toMap()
     }
 
     private fun applyWalkovers(phaseDao: TournamentPhaseDAO) {

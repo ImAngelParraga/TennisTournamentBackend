@@ -1,6 +1,6 @@
 # CONTINUITY
 
-Last Updated: 2026-03-06
+Last Updated: 2026-03-07
 Repository: TennisTournamentBackend
 
 ## Update Rule
@@ -14,6 +14,16 @@ Include: branch, uncommitted state, what changed, what remains.
 - Prioritized backlog: `docs/ISSUES.md`
 
 ## Recent Completed Work
+- (uncommitted in current session) Implemented P0 concurrency/idempotency guardrails for start/progression:
+  - added row-level locking helpers (`RowLocking.kt`) and applied locks in tournament start, match scoring, and progression paths
+  - added idempotent replay behavior for completed match scoring when payload matches existing score
+  - added deterministic `round_slot` assignment and unique round-slot DB integrity guardrail
+  - added migration `V5__match_progression_guardrails.sql` with round-slot backfill/constraints and dependency self-reference check
+  - added integration tests for repeated/concurrent start and same-payload score replay
+  - validated with:
+    - `./gradlew.bat test --no-daemon --tests "bros.parraga.TournamentRepositoryTest"` (pass)
+    - `./gradlew.bat test --no-daemon` (pass)
+- (uncommitted in current session) Marked start/progression concurrency-idempotency issue as completed in `docs/ISSUES.md`
 - (uncommitted in current session) Hardened match score submission rules:
   - reject score updates unless match status is `SCHEDULED` or `LIVE`
   - reject scoring until both players are assigned
@@ -73,9 +83,9 @@ Include: branch, uncommitted state, what changed, what remains.
 ## Highest Priority Remaining Work
 (See `docs/ISSUES.md` for ordered list.)
 1. Migration rollout in deployment flow (`flywayMigrate` gate + hosted env hardening).
-2. Concurrency/idempotency guardrails for start/progression.
-3. Implement Group and Swiss in lib (or defer/remove formats from exposed contracts).
-4. Tighten tournament/phase validation inputs.
+2. Implement Group and Swiss in lib (or defer/remove formats from exposed contracts).
+3. Tighten tournament/phase validation inputs.
+4. Expand authorization test coverage for all mutation paths and edge cases.
 
 ## Cross-Repo Dependency Notes
 - Backend depends on `../TennisTournamentLib` via composite build substitution.

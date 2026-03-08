@@ -23,6 +23,9 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import org.jetbrains.exposed.sql.transactions.transaction
 import parraga.bros.tournament.domain.Format
 import java.time.Instant
@@ -45,6 +48,57 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.body<ApiResponse<TournamentPhase>>()
         assertTrue(body.data?.matches?.isNotEmpty() == true)
+    }
+
+    @Test
+    fun `should treat repeated start as idempotent and avoid duplicate matches`() = testApplicationWithClient { client ->
+        createTestData(playerCount = 8)
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val firstStart = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, firstStart.status)
+        val firstPhase = firstStart.body<ApiResponse<TournamentPhase>>().data ?: error("missing first started phase")
+
+        val secondStart = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, secondStart.status)
+        val secondPhase = secondStart.body<ApiResponse<TournamentPhase>>().data ?: error("missing second started phase")
+
+        assertEquals(firstPhase.id, secondPhase.id)
+        assertEquals(
+            firstPhase.matches.map { it.id }.toSet(),
+            secondPhase.matches.map { it.id }.toSet()
+        )
+
+        val matches = client.get("/tournaments/1/matches")
+            .body<ApiResponse<List<Match>>>()
+            .data ?: error("missing tournament matches")
+        assertEquals(firstPhase.matches.size, matches.size)
+    }
+
+    @Test
+    fun `concurrent start requests should not create duplicate bracket matches`() = testApplicationWithClient { client ->
+        createTestData(playerCount = 8)
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val statuses = coroutineScope {
+            (1..5).map {
+                async {
+                    client.post("/tournaments/1/start") {
+                        header(HttpHeaders.Authorization, "Bearer $token")
+                    }.status
+                }
+            }.awaitAll()
+        }
+        statuses.forEach { status -> assertEquals(HttpStatusCode.OK, status) }
+
+        val matches = client.get("/tournaments/1/matches")
+            .body<ApiResponse<List<Match>>>()
+            .data ?: error("missing tournament matches")
+        assertEquals(7, matches.size)
     }
 
     @Test
@@ -314,6 +368,44 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
             )
         }
         assertEquals(HttpStatusCode.Conflict, secondScoreResponse.status)
+    }
+
+    @Test
+    fun `should allow idempotent replay when scoring completed match with same payload`() = testApplicationWithClient { client ->
+        createTestData(playerCount = 2)
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val startResponse = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, startResponse.status)
+        val phase = startResponse.body<ApiResponse<TournamentPhase>>().data ?: error("missing started phase")
+        val finalMatchId = phase.matches.first().id
+        val request = UpdateMatchScoreRequest(
+            score = TennisScore(
+                sets = listOf(
+                    SetScore(6, 4, null),
+                    SetScore(6, 3, null)
+                )
+            )
+        )
+
+        val firstScoreResponse = client.put("/matches/$finalMatchId/score") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        assertEquals(HttpStatusCode.OK, firstScoreResponse.status)
+
+        val secondScoreResponse = client.put("/matches/$finalMatchId/score") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        assertEquals(HttpStatusCode.OK, secondScoreResponse.status)
+        val secondScoreBody = secondScoreResponse.body<ApiResponse<Match>>()
+        assertEquals(MatchStatus.COMPLETED, secondScoreBody.data?.status)
+        assertEquals(request.score, secondScoreBody.data?.score)
     }
 
     @Test

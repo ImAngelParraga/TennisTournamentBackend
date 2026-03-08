@@ -1,6 +1,7 @@
 package bros.parraga.services.repositories.match
 
 import bros.parraga.db.DatabaseFactory.dbQuery
+import bros.parraga.db.lockMatchRow
 import bros.parraga.db.schema.MatchDAO
 import bros.parraga.db.schema.MatchesTable
 import bros.parraga.db.schema.PlayerDAO
@@ -18,12 +19,22 @@ import java.time.Instant
 class MatchRepositoryImpl : MatchRepository {
 
     override suspend fun updateMatchScore(matchId: Int, request: UpdateMatchScoreRequest): Match = dbQuery {
+        lockMatchRow(matchId)
         val match = MatchDAO.findById(matchId) ?: throw EntityNotFoundException(
             DaoEntityID(matchId, MatchesTable),
             MatchDAO
         )
-        assertMatchIsScoreable(matchId, match)
         request.score.validateForSubmission()
+
+        val matchStatus = MatchStatus.valueOf(match.status)
+        if (matchStatus == MatchStatus.COMPLETED) {
+            return@dbQuery when {
+                match.score == request.score -> match.toDomain()
+                else -> throw ConflictException("Match $matchId is COMPLETED and cannot be rescored with a different payload.")
+            }
+        }
+
+        assertMatchIsScoreable(matchId, match)
 
         val libMatch = LibMatch(
             id = match.id.value,

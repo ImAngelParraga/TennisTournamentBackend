@@ -1,5 +1,7 @@
 package bros.parraga.services
 
+import bros.parraga.db.lockMatchRowInCurrentTransaction
+import bros.parraga.db.lockPhaseRowInCurrentTransaction
 import bros.parraga.db.schema.MatchDAO
 import bros.parraga.db.schema.MatchDependenciesTable
 import bros.parraga.db.schema.MatchDependencyDAO
@@ -26,6 +28,7 @@ object TournamentProgressionService {
     }
 
     private fun progressKnockout(match: MatchDAO) {
+        lockPhaseRowInCurrentTransaction(match.phase.id.value)
         val winner = match.winner ?: return
         val loser = when {
             match.player1?.id == winner.id -> match.player2
@@ -34,6 +37,7 @@ object TournamentProgressionService {
         }
 
         MatchDependencyDAO.find { MatchDependenciesTable.requiredMatchId eq match.id }.forEach { dependency ->
+            lockMatchRowInCurrentTransaction(dependency.matchId.value)
             val dependentMatch = MatchDAO[dependency.matchId]
             val outcome = Outcome.valueOf(dependency.requiredOutcome)
             val player = when (outcome) {
@@ -57,6 +61,7 @@ object TournamentProgressionService {
 
     private fun progressSwiss(match: MatchDAO) {
         val phase = match.phase
+        lockPhaseRowInCurrentTransaction(phase.id.value)
         val currentRound = match.round
         if (currentRound >= phase.rounds) {
             maybeMarkTournamentCompleted(phase)
@@ -101,6 +106,7 @@ object TournamentProgressionService {
         )
 
         var index = 0
+        var roundSlot = 1
         while (index < orderedPlayers.size) {
             val player1 = orderedPlayers[index]
             val player2 = orderedPlayers.getOrNull(index + 1)
@@ -109,6 +115,7 @@ object TournamentProgressionService {
             MatchDAO.new {
                 this.phase = phase
                 round = nextRound
+                this.roundSlot = roundSlot
                 this.player1 = player1
                 this.player2 = player2
                 if (isBye) {
@@ -120,6 +127,7 @@ object TournamentProgressionService {
             }
 
             index += 2
+            roundSlot += 1
         }
 
         maybeMarkTournamentCompleted(phase)
