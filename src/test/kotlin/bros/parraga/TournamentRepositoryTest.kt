@@ -4,6 +4,7 @@ import bros.parraga.db.schema.*
 import bros.parraga.domain.Match
 import bros.parraga.domain.MatchStatus
 import bros.parraga.domain.PhaseConfiguration
+import bros.parraga.domain.PhaseFormat
 import bros.parraga.domain.SeedingStrategy
 import bros.parraga.domain.SetScore
 import bros.parraga.domain.TennisScore
@@ -26,13 +27,15 @@ import io.ktor.http.contentType
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.transactions.transaction
-import parraga.bros.tournament.domain.Format
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.selectAll
 
 class TournamentRepositoryTest : BaseIntegrationTest() {
 
@@ -221,6 +224,32 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
     }
 
     @Test
+    fun `should create a group phase through the API`() = testApplicationWithClient { client ->
+        createTestData(initialPhaseOrders = emptyList(), playerCount = 4)
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val response = client.post("/tournaments/1/phases") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(
+                CreatePhaseRequest(
+                    phaseOrder = 1,
+                    format = PhaseFormat.GROUP,
+                    configuration = PhaseConfiguration.GroupConfig(
+                        groupCount = 2,
+                        teamsPerGroup = 2,
+                        advancingPerGroup = 1
+                    )
+                )
+            )
+        }
+
+        assertEquals(HttpStatusCode.Created, response.status)
+        val body = response.body<ApiResponse<TournamentPhase>>()
+        assertEquals(PhaseFormat.GROUP, body.data?.format)
+    }
+
+    @Test
     fun `should return conflict when starting tournament without phase order one`() = testApplicationWithClient { client ->
         createTestData(initialPhaseOrders = listOf(2))
         val token = createAuthToken("owner-subject", "owner@email.com", "owner")
@@ -230,6 +259,216 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
         }
 
         assertEquals(HttpStatusCode.Conflict, response.status)
+    }
+
+    @Test
+    fun `starting a swiss tournament should create only round one and generate the next round after results`() =
+        testApplicationWithClient { client ->
+            createTestData(
+                playerCount = 5,
+                phaseSpecs = listOf(
+                    PhaseSpec(
+                        order = 1,
+                        format = PhaseFormat.SWISS,
+                        configuration = PhaseConfiguration.SwissConfig(pointsPerWin = 1, advancingCount = null)
+                    )
+                )
+            )
+            val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+            val startResponse = client.post("/tournaments/1/start") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+            }
+            assertEquals(HttpStatusCode.OK, startResponse.status)
+            val phase = startResponse.body<ApiResponse<TournamentPhase>>().data ?: error("missing started phase")
+
+            assertTrue(phase.matches.all { it.round == 1 })
+            assertEquals(1, phase.matches.count { it.status == MatchStatus.WALKOVER })
+
+            phase.matches
+                .filter { it.status == MatchStatus.SCHEDULED }
+                .forEach { match ->
+                    val scoreResponse = client.put("/matches/${match.id}/score") {
+                        header(HttpHeaders.Authorization, "Bearer $token")
+                        contentType(ContentType.Application.Json)
+                        setBody(twoSetWin())
+                    }
+                    assertEquals(HttpStatusCode.OK, scoreResponse.status)
+                }
+
+            val allMatches = client.get("/tournaments/1/matches")
+                .body<ApiResponse<List<Match>>>()
+                .data ?: error("missing tournament matches")
+
+            assertTrue(allMatches.any { it.round == 2 })
+
+            transaction {
+                val rankings = SwissRankingsTable
+                    .selectAll()
+                    .where {
+                        (SwissRankingsTable.phaseId eq phase.id) and (SwissRankingsTable.round eq 1)
+                    }
+                    .count()
+                assertEquals(5, rankings.toInt())
+            }
+        }
+
+    @Test
+    fun `swiss phase should use advancingCount when starting the next knockout phase`() = testApplicationWithClient { client ->
+        createTestData(
+            playerCount = 5,
+            phaseSpecs = listOf(
+                PhaseSpec(
+                    order = 1,
+                    format = PhaseFormat.SWISS,
+                    configuration = PhaseConfiguration.SwissConfig(pointsPerWin = 1, advancingCount = 4)
+                ),
+                PhaseSpec(
+                    order = 2,
+                    format = PhaseFormat.KNOCKOUT,
+                    configuration = PhaseConfiguration.KnockoutConfig(thirdPlacePlayoff = false)
+                )
+            )
+        )
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val startResponse = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, startResponse.status)
+        val swissPhaseId = startResponse.body<ApiResponse<TournamentPhase>>().data?.id ?: error("missing swiss phase")
+
+        while (true) {
+            val swissMatches = client.get("/tournaments/1/matches")
+                .body<ApiResponse<List<Match>>>()
+                .data
+                ?.filter { it.phaseId == swissPhaseId && it.status == MatchStatus.SCHEDULED }
+                .orEmpty()
+
+            if (swissMatches.isEmpty()) break
+
+            swissMatches.forEach { match ->
+                val scoreResponse = client.put("/matches/${match.id}/score") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(twoSetWin())
+                }
+                assertEquals(HttpStatusCode.OK, scoreResponse.status)
+            }
+        }
+
+        val allMatches = client.get("/tournaments/1/matches")
+            .body<ApiResponse<List<Match>>>()
+            .data ?: error("missing tournament matches")
+
+        val knockoutMatches = allMatches.filter { it.phaseId != swissPhaseId }
+        assertEquals(3, knockoutMatches.size)
+    }
+
+    @Test
+    fun `swiss phase should advance all players by default when advancingCount is not provided`() = testApplicationWithClient { client ->
+        createTestData(
+            playerCount = 5,
+            phaseSpecs = listOf(
+                PhaseSpec(
+                    order = 1,
+                    format = PhaseFormat.SWISS,
+                    configuration = PhaseConfiguration.SwissConfig(pointsPerWin = 1, advancingCount = null)
+                ),
+                PhaseSpec(
+                    order = 2,
+                    format = PhaseFormat.KNOCKOUT,
+                    configuration = PhaseConfiguration.KnockoutConfig(thirdPlacePlayoff = false)
+                )
+            )
+        )
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val startResponse = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, startResponse.status)
+        val swissPhaseId = startResponse.body<ApiResponse<TournamentPhase>>().data?.id ?: error("missing swiss phase")
+
+        while (true) {
+            val swissMatches = client.get("/tournaments/1/matches")
+                .body<ApiResponse<List<Match>>>()
+                .data
+                ?.filter { it.phaseId == swissPhaseId && it.status == MatchStatus.SCHEDULED }
+                .orEmpty()
+
+            if (swissMatches.isEmpty()) break
+
+            swissMatches.forEach { match ->
+                val scoreResponse = client.put("/matches/${match.id}/score") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(twoSetWin())
+                }
+                assertEquals(HttpStatusCode.OK, scoreResponse.status)
+            }
+        }
+
+        val allMatches = client.get("/tournaments/1/matches")
+            .body<ApiResponse<List<Match>>>()
+            .data ?: error("missing tournament matches")
+
+        val knockoutMatches = allMatches.filter { it.phaseId != swissPhaseId }
+        assertEquals(7, knockoutMatches.size)
+    }
+
+    @Test
+    fun `completing a group phase should advance winners into the next knockout phase`() = testApplicationWithClient { client ->
+        createTestData(
+            playerCount = 4,
+            phaseSpecs = listOf(
+                PhaseSpec(
+                    order = 1,
+                    format = PhaseFormat.GROUP,
+                    configuration = PhaseConfiguration.GroupConfig(
+                        groupCount = 2,
+                        teamsPerGroup = 2,
+                        advancingPerGroup = 1
+                    )
+                ),
+                PhaseSpec(
+                    order = 2,
+                    format = PhaseFormat.KNOCKOUT,
+                    configuration = PhaseConfiguration.KnockoutConfig(thirdPlacePlayoff = false)
+                )
+            )
+        )
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val startResponse = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, startResponse.status)
+        val phaseOne = startResponse.body<ApiResponse<TournamentPhase>>().data ?: error("missing started phase")
+        assertEquals(PhaseFormat.GROUP, phaseOne.format)
+        assertTrue(phaseOne.matches.all { it.groupId != null })
+
+        phaseOne.matches.forEach { match ->
+            val scoreResponse = client.put("/matches/${match.id}/score") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                contentType(ContentType.Application.Json)
+                setBody(twoSetWin())
+            }
+            assertEquals(HttpStatusCode.OK, scoreResponse.status)
+        }
+
+        val allMatches = client.get("/tournaments/1/matches")
+            .body<ApiResponse<List<Match>>>()
+            .data ?: error("missing tournament matches")
+        val knockoutMatches = allMatches.filter { it.phaseId != phaseOne.id }
+        assertEquals(1, knockoutMatches.size)
+        assertTrue(knockoutMatches.single().player1 != null)
+        assertTrue(knockoutMatches.single().player2 != null)
+
+        transaction {
+            val standings = GroupStandingDAO.all().toList()
+            assertEquals(4, standings.size)
+        }
     }
 
     @Test
@@ -535,7 +774,8 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
         initialPhaseOrders: List<Int> = listOf(1),
         playerCount: Int = 5,
         seedingStrategy: SeedingStrategy = SeedingStrategy.INPUT_ORDER,
-        seededPlayerIndices: Map<Int, Int> = emptyMap()
+        seededPlayerIndices: Map<Int, Int> = emptyMap(),
+        phaseSpecs: List<PhaseSpec>? = null
     ) {
         transaction {
             val user = UserDAO.new {
@@ -576,20 +816,43 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
                 }
             }
 
-            initialPhaseOrders.forEach { phaseOrder ->
-                TournamentPhaseDAO.new {
-                    this.tournament = tournament
-                    this.phaseOrder = phaseOrder
-                    format = Format.KNOCKOUT.name
-                    rounds = 3
+            val effectivePhaseSpecs = phaseSpecs ?: initialPhaseOrders.map { phaseOrder ->
+                PhaseSpec(
+                    order = phaseOrder,
+                    format = PhaseFormat.KNOCKOUT,
                     configuration = PhaseConfiguration.KnockoutConfig(
                         thirdPlacePlayoff = thirdPlacePlayoff,
                         seedingStrategy = seedingStrategy
                     )
+                )
+            }
+
+            effectivePhaseSpecs.forEach { phaseSpec ->
+                TournamentPhaseDAO.new {
+                    this.tournament = tournament
+                    this.phaseOrder = phaseSpec.order
+                    format = phaseSpec.format.name
+                    rounds = 3
+                    configuration = phaseSpec.configuration
                 }
             }
         }
     }
+
+    private fun twoSetWin() = UpdateMatchScoreRequest(
+        score = TennisScore(
+            sets = listOf(
+                SetScore(6, 4, null),
+                SetScore(6, 4, null)
+            )
+        )
+    )
+
+    private data class PhaseSpec(
+        val order: Int,
+        val format: PhaseFormat,
+        val configuration: PhaseConfiguration
+    )
 }
 
 

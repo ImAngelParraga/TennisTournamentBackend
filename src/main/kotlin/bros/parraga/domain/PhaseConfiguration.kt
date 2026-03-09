@@ -37,10 +37,14 @@ sealed interface PhaseConfiguration {
     @Serializable
     @SerialName("swiss")
     data class SwissConfig(
-        val pointsPerWin: Int
+        val pointsPerWin: Int,
+        val advancingCount: Int? = null
     ) : PhaseConfiguration {
         override fun toPhaseConfigurationLib(): parraga.bros.tournament.domain.PhaseConfiguration =
-            parraga.bros.tournament.domain.PhaseConfiguration.SwissConfig(pointsPerWin)
+            parraga.bros.tournament.domain.PhaseConfiguration.SwissConfig(
+                pointsPerWin = pointsPerWin,
+                advancingCount = advancingCount
+            )
     }
 }
 

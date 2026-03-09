@@ -37,6 +37,54 @@
     {
       "key": "matchId",
       "value": "1"
+    },
+    {
+      "key": "scenarioTournamentId",
+      "value": ""
+    },
+    {
+      "key": "scenarioMatchId",
+      "value": ""
+    },
+    {
+      "key": "scenarioTournamentName",
+      "value": ""
+    },
+    {
+      "key": "scenarioClubId",
+      "value": ""
+    },
+    {
+      "key": "scenarioClubName",
+      "value": ""
+    },
+    {
+      "key": "scenarioScorePayload",
+      "value": ""
+    },
+    {
+      "key": "scenarioOwnerSubject",
+      "value": "owner-subject"
+    },
+    {
+      "key": "scenarioOwnerEmail",
+      "value": "owner@email.com"
+    },
+    {
+      "key": "scenarioOwnerName",
+      "value": "owner"
+    },
+    {
+      "key": "scenarioTestIssuer",
+      "value": "http://localhost/test-issuer"
+    },
+    {
+      "key": "scenarioTestAudience",
+      "value": "test-audience"
+    },
+    {
+      "key": "scenarioTestJwtSecret",
+      "value": "test-secret"
     }
   ],
   "item": [
@@ -399,6 +447,7 @@
           "name": "Create Tournament Phase (Knockout)",
           "request": {
             "method": "POST",
+            "description": "Create a knockout phase using the current phase configuration contract.",
             "header": [
               {
                 "key": "Authorization",
@@ -413,6 +462,72 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"phaseOrder\": 1,\n  \"format\": \"KNOCKOUT\",\n  \"configuration\": {\n    \"type\": \"knockout\",\n    \"thirdPlacePlayoff\": false,\n    \"qualifiers\": 1,\n    \"seedingStrategy\": \"PARTIAL_SEEDED\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Tournament Phase (Group)",
+          "request": {
+            "method": "POST",
+            "description": "Create a single round-robin group phase. Each player faces every other player in the same group once.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/phases",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phaseOrder\": 1,\n  \"format\": \"GROUP\",\n  \"configuration\": {\n    \"type\": \"group\",\n    \"groupCount\": 2,\n    \"teamsPerGroup\": 4,\n    \"advancingPerGroup\": 2\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Tournament Phase (Swiss - Advance All)",
+          "request": {
+            "method": "POST",
+            "description": "Create a Swiss phase and omit advancingCount. The backend will default advancingCount to the full player count, so every player advances to the next phase.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/phases",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phaseOrder\": 1,\n  \"format\": \"SWISS\",\n  \"configuration\": {\n    \"type\": \"swiss\",\n    \"pointsPerWin\": 1\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Tournament Phase (Swiss - Top N)",
+          "request": {
+            "method": "POST",
+            "description": "Create a Swiss phase with an explicit advancingCount. Only the top ranked players advance to the next phase.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/phases",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phaseOrder\": 1,\n  \"format\": \"SWISS\",\n  \"configuration\": {\n    \"type\": \"swiss\",\n    \"pointsPerWin\": 1,\n    \"advancingCount\": 4\n  }\n}"
             }
           }
         },
@@ -508,6 +623,937 @@
               "raw": "{\n  \"score\": {\n    \"sets\": [\n      { \"player1Games\": 6, \"player2Games\": 4, \"tiebreak\": null },\n      { \"player1Games\": 6, \"player2Games\": 3, \"tiebreak\": null }\n    ]\n  }\n}"
             }
           }
+        }
+      ]
+    },
+    {
+      "name": "Scenarios",
+      "description": "Runnable collection-runner scenarios. `Complex Tournament - Initialize` starts an end-to-end zero-state flow that generates a test JWT, creates the club owner and club implicitly, creates a GROUP -> SWISS -> KNOCKOUT tournament, adds 8 players, scores each scheduled match, and stops when the tournament reaches COMPLETED. `Swiss Knockout With Bye - Initialize` does the same for a `SWISS -> KNOCKOUT` flow with 5 players so round 1 includes a bye and Swiss advances the top 4. This assumes the backend is running with the test JWT settings from `AuthConfig` (`issuer=http://localhost/test-issuer`, `audience=test-audience`, `secret=test-secret`) or equivalent environment overrides.",
+      "item": [
+        {
+          "name": "Complex Tournament - Initialize",
+          "request": {
+            "method": "GET",
+            "description": "Initializes collection variables and generates a test JWT for the complex tournament flow. Run this request in the Collection Runner to kick off the full zero-state scenario.",
+            "url": "{{baseUrl}}/tournaments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Initialization request succeeded\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.unset(\"scenarioTournamentId\");",
+                  "pm.collectionVariables.unset(\"scenarioClubId\");",
+                  "pm.collectionVariables.unset(\"scenarioMatchId\");",
+                  "pm.collectionVariables.unset(\"scenarioCurrentPhaseId\");",
+                  "pm.collectionVariables.unset(\"scenarioCurrentRound\");",
+                  "pm.collectionVariables.unset(\"scenarioCurrentPlayer1\");",
+                  "pm.collectionVariables.unset(\"scenarioCurrentPlayer2\");",
+                  "pm.collectionVariables.unset(\"scenarioPendingMatchCount\");",
+                  "pm.collectionVariables.set(\"clubId\", \"\");",
+                  "pm.collectionVariables.set(\"scenarioTournamentName\", \"Complex Multi-Phase Flow \" + Date.now());",
+                  "pm.collectionVariables.set(\"scenarioClubName\", \"Scenario Club \" + Date.now());",
+                  "pm.collectionVariables.set(\"scenarioScorePayload\", JSON.stringify({",
+                  "  score: {",
+                  "    sets: [",
+                  "      { player1Games: 6, player2Games: 4, tiebreak: null },",
+                  "      { player1Games: 6, player2Games: 3, tiebreak: null }",
+                  "    ]",
+                  "  }",
+                  "}));",
+                  "",
+                  "function base64Url(wordArray) {",
+                  "  return CryptoJS.enc.Base64.stringify(wordArray)",
+                  "    .replace(/=+$/g, \"\")",
+                  "    .replace(/\\+/g, \"-\")",
+                  "    .replace(/\\//g, \"_\");",
+                  "}",
+                  "",
+                  "const header = { alg: \"HS256\", typ: \"JWT\" };",
+                  "const payload = {",
+                  "  iss: pm.collectionVariables.get(\"scenarioTestIssuer\"),",
+                  "  aud: pm.collectionVariables.get(\"scenarioTestAudience\"),",
+                  "  sub: pm.collectionVariables.get(\"scenarioOwnerSubject\"),",
+                  "  email: pm.collectionVariables.get(\"scenarioOwnerEmail\"),",
+                  "  name: pm.collectionVariables.get(\"scenarioOwnerName\"),",
+                  "  exp: Math.floor(Date.now() / 1000) + 3600",
+                  "};",
+                  "",
+                  "const encodedHeader = base64Url(CryptoJS.enc.Utf8.parse(JSON.stringify(header)));",
+                  "const encodedPayload = base64Url(CryptoJS.enc.Utf8.parse(JSON.stringify(payload)));",
+                  "const signingInput = encodedHeader + \".\" + encodedPayload;",
+                  "const signature = base64Url(CryptoJS.HmacSHA256(signingInput, pm.collectionVariables.get(\"scenarioTestJwtSecret\")));",
+                  "",
+                  "pm.collectionVariables.set(\"authToken\", signingInput + \".\" + signature);",
+                  "",
+                  "postman.setNextRequest(\"Complex Tournament - Create Club\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complex Tournament - Create Club",
+          "request": {
+            "method": "POST",
+            "description": "Creates the owner club. The first authenticated request auto-creates the local user from the JWT subject.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/clubs",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{scenarioClubName}}\",\n  \"phoneNumber\": \"555-0100\",\n  \"address\": \"Scenario Club Address\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Club created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set(\"scenarioClubId\", body.data.id);",
+                  "pm.collectionVariables.set(\"clubId\", body.data.id);",
+                  "",
+                  "postman.setNextRequest(\"Complex Tournament - Create Tournament\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complex Tournament - Create Tournament",
+          "request": {
+            "method": "POST",
+            "description": "Creates the tournament shell for the multi-phase scenario using the scenario club created earlier in the run.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{scenarioTournamentName}}\",\n  \"description\": \"Postman complex tournament scenario\",\n  \"surface\": \"HARD\",\n  \"clubId\": {{scenarioClubId}},\n  \"startDate\": \"2026-03-20T09:00:00Z\",\n  \"endDate\": \"2026-03-23T18:00:00Z\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Tournament created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set(\"scenarioTournamentId\", body.data.id);",
+                  "pm.collectionVariables.set(\"tournamentId\", body.data.id);",
+                  "",
+                  "postman.setNextRequest(\"Complex Tournament - Create Phase 1 (Group)\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complex Tournament - Create Phase 1 (Group)",
+          "request": {
+            "method": "POST",
+            "description": "Phase 1 is a single round-robin group stage with 2 groups of 4 players and the top 2 from each group advancing.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}/phases",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phaseOrder\": 1,\n  \"format\": \"GROUP\",\n  \"configuration\": {\n    \"type\": \"group\",\n    \"groupCount\": 2,\n    \"teamsPerGroup\": 4,\n    \"advancingPerGroup\": 2\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Group phase created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.format).to.eql(\"GROUP\");",
+                  "});",
+                  "",
+                  "postman.setNextRequest(\"Complex Tournament - Create Phase 2 (Swiss)\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complex Tournament - Create Phase 2 (Swiss)",
+          "request": {
+            "method": "POST",
+            "description": "Phase 2 is Swiss with 4 advancers, so every player who reaches Swiss also advances into the knockout phase after Swiss standings are resolved.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}/phases",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phaseOrder\": 2,\n  \"format\": \"SWISS\",\n  \"configuration\": {\n    \"type\": \"swiss\",\n    \"pointsPerWin\": 1,\n    \"advancingCount\": 4\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Swiss phase created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.format).to.eql(\"SWISS\");",
+                  "});",
+                  "",
+                  "postman.setNextRequest(\"Complex Tournament - Create Phase 3 (Knockout)\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complex Tournament - Create Phase 3 (Knockout)",
+          "request": {
+            "method": "POST",
+            "description": "Phase 3 is a knockout bracket for the 4 Swiss advancers.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}/phases",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phaseOrder\": 3,\n  \"format\": \"KNOCKOUT\",\n  \"configuration\": {\n    \"type\": \"knockout\",\n    \"thirdPlacePlayoff\": false,\n    \"qualifiers\": 1,\n    \"seedingStrategy\": \"INPUT_ORDER\"\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Knockout phase created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.format).to.eql(\"KNOCKOUT\");",
+                  "});",
+                  "",
+                  "postman.setNextRequest(\"Complex Tournament - Add Players\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complex Tournament - Add Players",
+          "request": {
+            "method": "POST",
+            "description": "Adds 8 external players so the group stage fills exactly 2 groups of 4.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}/players",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"players\": [\n    { \"name\": \"Scenario Player 1\" },\n    { \"name\": \"Scenario Player 2\" },\n    { \"name\": \"Scenario Player 3\" },\n    { \"name\": \"Scenario Player 4\" },\n    { \"name\": \"Scenario Player 5\" },\n    { \"name\": \"Scenario Player 6\" },\n    { \"name\": \"Scenario Player 7\" },\n    { \"name\": \"Scenario Player 8\" }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Players added\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "postman.setNextRequest(\"Complex Tournament - Start\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complex Tournament - Start",
+          "request": {
+            "method": "POST",
+            "description": "Starts the tournament. The first generated matches should belong to the group phase.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}/start"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Tournament started\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.format).to.eql(\"GROUP\");",
+                  "  pm.expect(body.data.matches.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "postman.setNextRequest(\"Complex Tournament - Load Next Match\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complex Tournament - Load Next Match",
+          "request": {
+            "method": "GET",
+            "description": "Loads all tournament matches, finds the next scheduled match in deterministic order, and loops until no scheduled matches remain.",
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}/matches"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Tournament matches fetched\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const matches = body.data || [];",
+                  "const pending = matches",
+                  "  .filter(function (match) { return match.status === \"SCHEDULED\"; })",
+                  "  .sort(function (left, right) {",
+                  "    return (left.phaseId - right.phaseId) || (left.round - right.round) || (left.id - right.id);",
+                  "  });",
+                  "",
+                  "pm.collectionVariables.set(\"scenarioPendingMatchCount\", String(pending.length));",
+                  "",
+                  "if (pending.length === 0) {",
+                  "  postman.setNextRequest(\"Complex Tournament - Verify Completion\");",
+                  "  return;",
+                  "}",
+                  "",
+                  "const nextMatch = pending[0];",
+                  "pm.test(\"Next scheduled match is ready to score\", function () {",
+                  "  pm.expect(nextMatch.player1, \"player1 should be assigned\").to.not.eql(null);",
+                  "  pm.expect(nextMatch.player2, \"player2 should be assigned\").to.not.eql(null);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set(\"scenarioMatchId\", String(nextMatch.id));",
+                  "pm.collectionVariables.set(\"matchId\", String(nextMatch.id));",
+                  "pm.collectionVariables.set(\"scenarioCurrentPhaseId\", String(nextMatch.phaseId));",
+                  "pm.collectionVariables.set(\"scenarioCurrentRound\", String(nextMatch.round));",
+                  "pm.collectionVariables.set(\"scenarioCurrentPlayer1\", nextMatch.player1.name);",
+                  "pm.collectionVariables.set(\"scenarioCurrentPlayer2\", nextMatch.player2.name);",
+                  "",
+                  "postman.setNextRequest(\"Complex Tournament - Score Next Match\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complex Tournament - Score Next Match",
+          "request": {
+            "method": "PUT",
+            "description": "Scores the scheduled match selected by the previous request using a deterministic straight-sets win for player1.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/matches/{{scenarioMatchId}}/score",
+            "body": {
+              "mode": "raw",
+              "raw": "{{scenarioScorePayload}}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Selected match scored\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(String(body.data.id)).to.eql(pm.collectionVariables.get(\"scenarioMatchId\"));",
+                  "  pm.expect(body.data.status).to.eql(\"COMPLETED\");",
+                  "});",
+                  "",
+                  "postman.setNextRequest(\"Complex Tournament - Load Next Match\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complex Tournament - Verify Completion",
+          "request": {
+            "method": "GET",
+            "description": "Confirms that the tournament reached COMPLETED after the scoring loop finished.",
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Tournament completed\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.status).to.eql(\"COMPLETED\");",
+                  "});",
+                  "",
+                  "postman.setNextRequest(\"Complex Tournament - Verify Bracket\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complex Tournament - Verify Bracket",
+          "request": {
+            "method": "GET",
+            "description": "Fetches the final bracket and verifies that all three configured phases were played.",
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}/bracket"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Final bracket includes all configured phases\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  const phases = body.data.phases || [];",
+                  "  pm.expect(phases.length).to.eql(3);",
+                  "  pm.expect(phases[0].format).to.eql(\"GROUP\");",
+                  "  pm.expect(phases[1].format).to.eql(\"SWISS\");",
+                  "  pm.expect(phases[2].format).to.eql(\"KNOCKOUT\");",
+                  "});",
+                  "",
+                  "postman.setNextRequest(null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swiss Knockout With Bye - Initialize",
+          "request": {
+            "method": "GET",
+            "description": "Initializes collection variables and generates a test JWT for the zero-state Swiss plus knockout scenario with an odd player count.",
+            "url": "{{baseUrl}}/tournaments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Initialization request succeeded\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.unset(\"scenarioTournamentId\");",
+                  "pm.collectionVariables.unset(\"scenarioClubId\");",
+                  "pm.collectionVariables.unset(\"scenarioMatchId\");",
+                  "pm.collectionVariables.unset(\"scenarioCurrentPhaseId\");",
+                  "pm.collectionVariables.unset(\"scenarioCurrentRound\");",
+                  "pm.collectionVariables.unset(\"scenarioCurrentPlayer1\");",
+                  "pm.collectionVariables.unset(\"scenarioCurrentPlayer2\");",
+                  "pm.collectionVariables.unset(\"scenarioPendingMatchCount\");",
+                  "pm.collectionVariables.set(\"clubId\", \"\");",
+                  "pm.collectionVariables.set(\"scenarioTournamentName\", \"Swiss Bye Flow \" + Date.now());",
+                  "pm.collectionVariables.set(\"scenarioClubName\", \"Swiss Bye Club \" + Date.now());",
+                  "pm.collectionVariables.set(\"scenarioScorePayload\", JSON.stringify({",
+                  "  score: {",
+                  "    sets: [",
+                  "      { player1Games: 6, player2Games: 2, tiebreak: null },",
+                  "      { player1Games: 6, player2Games: 3, tiebreak: null }",
+                  "    ]",
+                  "  }",
+                  "}));",
+                  "",
+                  "function base64Url(wordArray) {",
+                  "  return CryptoJS.enc.Base64.stringify(wordArray)",
+                  "    .replace(/=+$/g, \"\")",
+                  "    .replace(/\\+/g, \"-\")",
+                  "    .replace(/\\//g, \"_\");",
+                  "}",
+                  "",
+                  "const header = { alg: \"HS256\", typ: \"JWT\" };",
+                  "const payload = {",
+                  "  iss: pm.collectionVariables.get(\"scenarioTestIssuer\"),",
+                  "  aud: pm.collectionVariables.get(\"scenarioTestAudience\"),",
+                  "  sub: pm.collectionVariables.get(\"scenarioOwnerSubject\"),",
+                  "  email: pm.collectionVariables.get(\"scenarioOwnerEmail\"),",
+                  "  name: pm.collectionVariables.get(\"scenarioOwnerName\"),",
+                  "  exp: Math.floor(Date.now() / 1000) + 3600",
+                  "};",
+                  "",
+                  "const encodedHeader = base64Url(CryptoJS.enc.Utf8.parse(JSON.stringify(header)));",
+                  "const encodedPayload = base64Url(CryptoJS.enc.Utf8.parse(JSON.stringify(payload)));",
+                  "const signingInput = encodedHeader + \".\" + encodedPayload;",
+                  "const signature = base64Url(CryptoJS.HmacSHA256(signingInput, pm.collectionVariables.get(\"scenarioTestJwtSecret\")));",
+                  "",
+                  "pm.collectionVariables.set(\"authToken\", signingInput + \".\" + signature);",
+                  "",
+                  "postman.setNextRequest(\"Swiss Knockout With Bye - Create Club\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swiss Knockout With Bye - Create Club",
+          "request": {
+            "method": "POST",
+            "description": "Creates the owner club for the zero-state Swiss plus knockout scenario.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/clubs",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{scenarioClubName}}\",\n  \"phoneNumber\": \"555-0200\",\n  \"address\": \"Swiss Bye Club Address\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Club created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set(\"scenarioClubId\", body.data.id);",
+                  "pm.collectionVariables.set(\"clubId\", body.data.id);",
+                  "",
+                  "postman.setNextRequest(\"Swiss Knockout With Bye - Create Tournament\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swiss Knockout With Bye - Create Tournament",
+          "request": {
+            "method": "POST",
+            "description": "Creates the tournament shell for the Swiss plus knockout scenario.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{scenarioTournamentName}}\",\n  \"description\": \"Postman Swiss bye scenario\",\n  \"surface\": \"CLAY\",\n  \"clubId\": {{scenarioClubId}},\n  \"startDate\": \"2026-03-24T09:00:00Z\",\n  \"endDate\": \"2026-03-25T18:00:00Z\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Tournament created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set(\"scenarioTournamentId\", body.data.id);",
+                  "pm.collectionVariables.set(\"tournamentId\", body.data.id);",
+                  "",
+                  "postman.setNextRequest(\"Swiss Knockout With Bye - Create Phase 1 (Swiss)\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swiss Knockout With Bye - Create Phase 1 (Swiss)",
+          "request": {
+            "method": "POST",
+            "description": "Phase 1 is Swiss with 5 players and `advancingCount = 4`, which should create a round 1 bye and send the top 4 to knockout.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}/phases",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phaseOrder\": 1,\n  \"format\": \"SWISS\",\n  \"configuration\": {\n    \"type\": \"swiss\",\n    \"pointsPerWin\": 1,\n    \"advancingCount\": 4\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Swiss phase created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.format).to.eql(\"SWISS\");",
+                  "});",
+                  "",
+                  "postman.setNextRequest(\"Swiss Knockout With Bye - Create Phase 2 (Knockout)\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swiss Knockout With Bye - Create Phase 2 (Knockout)",
+          "request": {
+            "method": "POST",
+            "description": "Phase 2 is a knockout bracket for the top 4 Swiss players.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}/phases",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phaseOrder\": 2,\n  \"format\": \"KNOCKOUT\",\n  \"configuration\": {\n    \"type\": \"knockout\",\n    \"thirdPlacePlayoff\": false,\n    \"qualifiers\": 1,\n    \"seedingStrategy\": \"INPUT_ORDER\"\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Knockout phase created\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.format).to.eql(\"KNOCKOUT\");",
+                  "});",
+                  "",
+                  "postman.setNextRequest(\"Swiss Knockout With Bye - Add Players\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swiss Knockout With Bye - Add Players",
+          "request": {
+            "method": "POST",
+            "description": "Adds 5 external players to force a Swiss round 1 bye.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}/players",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"players\": [\n    { \"name\": \"Bye Flow Player 1\" },\n    { \"name\": \"Bye Flow Player 2\" },\n    { \"name\": \"Bye Flow Player 3\" },\n    { \"name\": \"Bye Flow Player 4\" },\n    { \"name\": \"Bye Flow Player 5\" }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Players added\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "postman.setNextRequest(\"Swiss Knockout With Bye - Start\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swiss Knockout With Bye - Start",
+          "request": {
+            "method": "POST",
+            "description": "Starts the tournament and verifies that the Swiss phase was created with at least one walkover in round 1.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}/start"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Tournament started\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.format).to.eql(\"SWISS\");",
+                  "  pm.expect(body.data.matches.length).to.be.above(0);",
+                  "  pm.expect(body.data.matches.some(function (match) { return match.status === \"WALKOVER\"; })).to.eql(true);",
+                  "});",
+                  "",
+                  "postman.setNextRequest(\"Swiss Knockout With Bye - Load Next Match\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swiss Knockout With Bye - Load Next Match",
+          "request": {
+            "method": "GET",
+            "description": "Loads all tournament matches, finds the next scheduled match in deterministic order, and loops until the Swiss plus knockout flow is fully completed.",
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}/matches"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Tournament matches fetched\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const matches = body.data || [];",
+                  "const pending = matches",
+                  "  .filter(function (match) { return match.status === \"SCHEDULED\"; })",
+                  "  .sort(function (left, right) {",
+                  "    return (left.phaseId - right.phaseId) || (left.round - right.round) || (left.id - right.id);",
+                  "  });",
+                  "",
+                  "pm.collectionVariables.set(\"scenarioPendingMatchCount\", String(pending.length));",
+                  "",
+                  "if (pending.length === 0) {",
+                  "  postman.setNextRequest(\"Swiss Knockout With Bye - Verify Completion\");",
+                  "  return;",
+                  "}",
+                  "",
+                  "const nextMatch = pending[0];",
+                  "pm.test(\"Next scheduled match is ready to score\", function () {",
+                  "  pm.expect(nextMatch.player1, \"player1 should be assigned\").to.not.eql(null);",
+                  "  pm.expect(nextMatch.player2, \"player2 should be assigned\").to.not.eql(null);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set(\"scenarioMatchId\", String(nextMatch.id));",
+                  "pm.collectionVariables.set(\"matchId\", String(nextMatch.id));",
+                  "pm.collectionVariables.set(\"scenarioCurrentPhaseId\", String(nextMatch.phaseId));",
+                  "pm.collectionVariables.set(\"scenarioCurrentRound\", String(nextMatch.round));",
+                  "pm.collectionVariables.set(\"scenarioCurrentPlayer1\", nextMatch.player1.name);",
+                  "pm.collectionVariables.set(\"scenarioCurrentPlayer2\", nextMatch.player2.name);",
+                  "",
+                  "postman.setNextRequest(\"Swiss Knockout With Bye - Score Next Match\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swiss Knockout With Bye - Score Next Match",
+          "request": {
+            "method": "PUT",
+            "description": "Scores the selected scheduled match with a deterministic straight-sets win for player1.",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/matches/{{scenarioMatchId}}/score",
+            "body": {
+              "mode": "raw",
+              "raw": "{{scenarioScorePayload}}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Selected match scored\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(String(body.data.id)).to.eql(pm.collectionVariables.get(\"scenarioMatchId\"));",
+                  "  pm.expect(body.data.status).to.eql(\"COMPLETED\");",
+                  "});",
+                  "",
+                  "postman.setNextRequest(\"Swiss Knockout With Bye - Load Next Match\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swiss Knockout With Bye - Verify Completion",
+          "request": {
+            "method": "GET",
+            "description": "Confirms that the tournament reached COMPLETED after Swiss and knockout progression finished.",
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Tournament completed\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.status).to.eql(\"COMPLETED\");",
+                  "});",
+                  "",
+                  "postman.setNextRequest(\"Swiss Knockout With Bye - Verify Bracket\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swiss Knockout With Bye - Verify Bracket",
+          "request": {
+            "method": "GET",
+            "description": "Fetches the final bracket and verifies that Swiss and knockout phases both ran and that the Swiss phase contains a walkover.",
+            "url": "{{baseUrl}}/tournaments/{{scenarioTournamentId}}/bracket"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Final bracket includes Swiss and knockout phases\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  const phases = body.data.phases || [];",
+                  "  pm.expect(phases.length).to.eql(2);",
+                  "  pm.expect(phases[0].format).to.eql(\"SWISS\");",
+                  "  pm.expect(phases[1].format).to.eql(\"KNOCKOUT\");",
+                  "  const swissWalkovers = phases[0].rounds",
+                  "    .flatMap(function (round) { return round.matches || []; })",
+                  "    .filter(function (match) { return match.status === \"WALKOVER\"; });",
+                  "  pm.expect(swissWalkovers.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "postman.setNextRequest(null);"
+                ]
+              }
+            }
+          ]
         }
       ]
     }

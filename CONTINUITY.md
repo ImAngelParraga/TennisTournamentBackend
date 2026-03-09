@@ -1,6 +1,6 @@
 # CONTINUITY
 
-Last Updated: 2026-03-07
+Last Updated: 2026-03-09
 Repository: TennisTournamentBackend
 
 ## Update Rule
@@ -14,6 +14,18 @@ Include: branch, uncommitted state, what changed, what remains.
 - Prioritized backlog: `docs/ISSUES.md`
 
 ## Recent Completed Work
+- (uncommitted in current session) Implemented Group and Swiss end-to-end support across lib-backed backend flow:
+  - phase creation now accepts `GROUP` and `SWISS` configs
+  - added shared phase execution service for phase start and next-phase auto-start
+  - added group persistence (`groups`, `group_standings`) and Swiss ranking snapshots
+  - group completion can advance qualified players into later phases
+  - Swiss completion creates later rounds automatically
+  - Swiss cross-phase advancement is controlled by `advancingCount`; omitted means all players advance
+  - reset now clears generated groups and Swiss rankings
+  - added backend integration tests for group phase creation, Swiss round progression, and group-to-knockout advancement
+  - validated with:
+    - `./gradlew.bat test --no-daemon --tests "bros.parraga.TournamentRepositoryTest"` (pass)
+    - `./gradlew.bat test --no-daemon` (pass)
 - (uncommitted in current session) Implemented P0 concurrency/idempotency guardrails for start/progression:
   - added row-level locking helpers (`RowLocking.kt`) and applied locks in tournament start, match scoring, and progression paths
   - added idempotent replay behavior for completed match scoring when payload matches existing score
@@ -38,6 +50,16 @@ Include: branch, uncommitted state, what changed, what remains.
 - (uncommitted in current session) Refreshed Postman collection to match all current routes:
   - `docs/postman/TennisTournamentBackend.postman_collection.json`
   - added missing endpoints (including tournament reset) and aligned payloads with current DTOs
+- (uncommitted in current session) Extended Postman phase examples for the new tournament formats:
+  - documented `GROUP` phase creation as single round-robin
+  - documented `SWISS` phase creation with both default "advance everyone" behavior and explicit `advancingCount`
+- (uncommitted in current session) Added a runnable Postman multi-phase tournament scenario:
+  - new `Scenarios` folder in `docs/postman/TennisTournamentBackend.postman_collection.json`
+  - automates a zero-state `GROUP -> SWISS -> KNOCKOUT` tournament flow
+  - generates a test JWT, creates the club, creates the tournament, registers players, runs the scoring loop, and verifies completion
+- (uncommitted in current session) Added a second zero-state Postman scenario for odd-player Swiss:
+  - `SWISS -> KNOCKOUT` with 5 players, round-1 bye coverage, and explicit `advancingCount = 4`
+  - verifies Swiss walkover generation and tournament completion end-to-end
 - (uncommitted in current session) Started explicit seeding contract refactor:
   - added future issue for multi-context ranking sources in `docs/ISSUES.md`
   - added tournament-player seed persistence (`TournamentPlayersTable.seed`) + migration `V4__tournament_player_seeding.sql`
@@ -83,9 +105,9 @@ Include: branch, uncommitted state, what changed, what remains.
 ## Highest Priority Remaining Work
 (See `docs/ISSUES.md` for ordered list.)
 1. Migration rollout in deployment flow (`flywayMigrate` gate + hosted env hardening).
-2. Implement Group and Swiss in lib (or defer/remove formats from exposed contracts).
-3. Tighten tournament/phase validation inputs.
-4. Expand authorization test coverage for all mutation paths and edge cases.
+2. Tighten tournament/phase validation inputs.
+3. Expand authorization test coverage for all mutation paths and edge cases.
+4. Add API contract documentation (OpenAPI/Swagger).
 
 ## Cross-Repo Dependency Notes
 - Backend depends on `../TennisTournamentLib` via composite build substitution.

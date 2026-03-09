@@ -6,6 +6,7 @@ import bros.parraga.db.lockTournamentRow
 import bros.parraga.db.schema.*
 import bros.parraga.domain.*
 import bros.parraga.errors.ConflictException
+import bros.parraga.services.PhaseExecutionService
 import bros.parraga.services.TournamentProgressionService
 import bros.parraga.services.repositories.tournament.dto.*
 import io.ktor.server.plugins.*
@@ -20,9 +21,6 @@ import parraga.bros.tournament.domain.Format
 import parraga.bros.tournament.domain.Phase
 import parraga.bros.tournament.services.TournamentService
 import java.time.Instant
-import kotlin.math.ceil
-import kotlin.math.log2
-import parraga.bros.tournament.domain.Match as LibMatch
 import parraga.bros.tournament.domain.SeededParticipant as LibSeededParticipant
 
 class TournamentRepositoryImpl : TournamentRepository {
@@ -70,12 +68,7 @@ class TournamentRepositoryImpl : TournamentRepository {
 
     override suspend fun createPhase(tournamentId: Int, request: CreatePhaseRequest): TournamentPhase = dbQuery {
         require(request.phaseOrder > 0) { "phaseOrder must be greater than 0" }
-        require(request.format == PhaseFormat.KNOCKOUT) { "Only KNOCKOUT phases are supported without rounds" }
-
-        val knockoutConfig = request.configuration as? PhaseConfiguration.KnockoutConfig
-            ?: throw IllegalArgumentException("Knockout configuration is required")
-        require(knockoutConfig.qualifiers >= 1) { "qualifiers must be greater than 0" }
-        require(isPowerOfTwo(knockoutConfig.qualifiers)) { "qualifiers must be a power of two" }
+        val rounds = validateAndComputeInitialRounds(request)
 
         val tournament = TournamentDAO[tournamentId]
         assertTournamentMutable(tournament, "modified")
@@ -92,8 +85,8 @@ class TournamentRepositoryImpl : TournamentRepository {
             this.tournament = tournament
             phaseOrder = request.phaseOrder
             format = request.format.name
-            rounds = 1 // computed at start based on qualifiers and player count
-            configuration = knockoutConfig
+            this.rounds = rounds
+            configuration = request.configuration
         }.toDomain()
     }
 
@@ -210,6 +203,7 @@ class TournamentRepositoryImpl : TournamentRepository {
         if (status != TournamentStatus.DRAFT && status != TournamentStatus.STARTED) {
             throw ConflictException("Tournament $id cannot be started from status ${tournament.status}")
         }
+        assertConfiguredPhaseProgression(tournament)
 
         val firstPhase = getFirstPhase(tournament)
         lockPhaseRow(firstPhase.id.value)
@@ -220,38 +214,7 @@ class TournamentRepositoryImpl : TournamentRepository {
             }
             return@dbQuery firstPhase.toDomain()
         }
-
-        val format = PhaseFormat.valueOf(firstPhase.format)
-        val roundsToPlay = when (format) {
-            PhaseFormat.KNOCKOUT -> {
-                val config = firstPhase.configuration as? PhaseConfiguration.KnockoutConfig
-                    ?: throw IllegalArgumentException("Knockout configuration is required")
-                computeKnockoutRounds(participants.size, config.qualifiers)
-            }
-
-            else -> firstPhase.rounds
-        }
-
-        firstPhase.rounds = roundsToPlay
-        firstPhase.updatedAt = Instant.now()
-
-        val phaseLib = Phase(
-            firstPhase.phaseOrder,
-            Format.valueOf(firstPhase.format),
-            roundsToPlay,
-            firstPhase.configuration.toPhaseConfigurationLib(),
-            emptyList()
-        )
-
-        val allMatches = TournamentService.startPhaseWithParticipants(phaseLib, participants)
-        val firstPhaseMatches = if (format == PhaseFormat.KNOCKOUT) {
-            allMatches.filter { it.round <= roundsToPlay }
-        } else {
-            allMatches
-        }
-
-        saveMatchesForPhase(firstPhaseMatches, firstPhase)
-        applyWalkovers(firstPhase)
+        PhaseExecutionService.startPhase(firstPhase, participants)
 
         tournament.status = TournamentStatus.STARTED.name
         tournament.updatedAt = Instant.now()
@@ -286,102 +249,20 @@ class TournamentRepositoryImpl : TournamentRepository {
             }
             MatchesTable.deleteWhere { MatchesTable.id inList matchIds }
         }
+        if (phaseIds.isNotEmpty()) {
+            SwissRankingsTable.deleteWhere { SwissRankingsTable.phaseId inList phaseIds }
+            GroupsTable.deleteWhere { GroupsTable.phaseId inList phaseIds }
+        }
 
-        val firstPhase = getFirstPhase(tournament)
-        firstPhase.rounds = 1
-        firstPhase.updatedAt = Instant.now()
+        tournament.phases.forEach { phase ->
+            phase.rounds = initialRoundsFor(phase)
+            phase.updatedAt = Instant.now()
+        }
 
         tournament.status = TournamentStatus.DRAFT.name
         tournament.updatedAt = Instant.now()
 
-        TournamentPhaseDAO[firstPhase.id.value].toDomain()
-    }
-
-    fun saveMatchesForPhase(
-        matches: List<LibMatch>,
-        phaseDao: TournamentPhaseDAO
-    ) {
-        val fakeIdsToRealMatches = mutableMapOf<Int, MatchDAO>()
-        val roundSlotsByMatchId = computeRoundSlotsByMatchId(matches)
-
-        matches.forEach { match ->
-            val player1Dao = match.player1Id?.let { PlayerDAO[it] }
-            val player2Dao = match.player2Id?.let { PlayerDAO[it] }
-            val winnerDao = match.winnerId?.let {
-                if (match.winnerId == match.player1Id) player1Dao else player2Dao
-            }
-            val tennisScore = TennisScore.fromLib(match.score)
-
-            val matchDao = MatchDAO.new {
-                phase = phaseDao
-                round = match.round
-                roundSlot = roundSlotsByMatchId.getValue(match.id)
-                player1 = player1Dao
-                player2 = player2Dao
-                winner = winnerDao
-                score = tennisScore
-                status = match.status.name
-            }
-
-            fakeIdsToRealMatches[match.id] = matchDao
-        }
-
-        matches.forEach { match ->
-            val matchDao = fakeIdsToRealMatches[match.id]
-                ?: throw IllegalStateException("Missing match mapping for id ${match.id}")
-
-            match.dependencies.forEach { dependency ->
-                val requiredMatch = fakeIdsToRealMatches[dependency.requiredMatchId]
-                    ?: throw IllegalStateException("Missing dependency match id ${dependency.requiredMatchId}")
-                require(match.id != dependency.requiredMatchId) {
-                    "Match ${match.id} cannot depend on itself."
-                }
-
-                MatchDependencyDAO.new {
-                    matchId = matchDao.id
-                    this.requiredMatch = requiredMatch
-                    requiredOutcome = dependency.requiredOutcome.name
-                }
-            }
-        }
-    }
-
-    private fun computeRoundSlotsByMatchId(matches: List<LibMatch>): Map<Int, Int> {
-        return matches
-            .groupBy { it.round }
-            .flatMap { (_, roundMatches) ->
-                roundMatches
-                    .sortedBy { it.id }
-                    .mapIndexed { index, match -> match.id to index + 1 }
-            }
-            .toMap()
-    }
-
-    private fun applyWalkovers(phaseDao: TournamentPhaseDAO) {
-        val walkovers = MatchDAO.find {
-            (MatchesTable.phaseId eq phaseDao.id) and (MatchesTable.status eq MatchStatus.WALKOVER.name)
-        }.toList()
-
-        walkovers.forEach { match ->
-            if (match.winner == null) {
-                match.winner = match.player1 ?: match.player2
-                match.updatedAt = Instant.now()
-            }
-            TournamentProgressionService.onMatchCompleted(match)
-        }
-    }
-
-    private fun computeKnockoutRounds(playerCount: Int, qualifiers: Int): Int {
-        require(playerCount >= 2) { "Tournament must have at least 2 players" }
-        require(qualifiers >= 1) { "qualifiers must be greater than 0" }
-        require(isPowerOfTwo(qualifiers)) { "qualifiers must be a power of two" }
-        require(qualifiers < playerCount) { "qualifiers must be less than player count" }
-
-        val totalRounds = ceil(log2(playerCount.toDouble())).toInt()
-        val targetRounds = log2(qualifiers.toDouble()).toInt()
-        val roundsToPlay = totalRounds - targetRounds
-        require(roundsToPlay > 0) { "Computed rounds must be greater than 0" }
-        return roundsToPlay
+        getFirstPhase(tournament).toDomain()
     }
 
     private fun assertUpdateAllowedForStatus(status: TournamentStatus, request: UpdateTournamentRequest) {
@@ -416,6 +297,72 @@ class TournamentRepositoryImpl : TournamentRepository {
     }
 
     private fun isPowerOfTwo(value: Int): Boolean = value > 0 && (value and (value - 1)) == 0
+
+    private fun validateAndComputeInitialRounds(request: CreatePhaseRequest): Int {
+        return when (request.format) {
+            PhaseFormat.KNOCKOUT -> {
+                val knockoutConfig = request.configuration as? PhaseConfiguration.KnockoutConfig
+                    ?: throw IllegalArgumentException("Knockout configuration is required")
+                require(knockoutConfig.qualifiers >= 1) { "qualifiers must be greater than 0" }
+                require(isPowerOfTwo(knockoutConfig.qualifiers)) { "qualifiers must be a power of two" }
+                1
+            }
+
+            PhaseFormat.GROUP -> {
+                val groupConfig = request.configuration as? PhaseConfiguration.GroupConfig
+                    ?: throw IllegalArgumentException("Group configuration is required")
+                require(groupConfig.groupCount > 0) { "groupCount must be greater than 0" }
+                require(groupConfig.teamsPerGroup > 1) { "teamsPerGroup must be greater than 1" }
+                require(groupConfig.advancingPerGroup in 1..groupConfig.teamsPerGroup) {
+                    "advancingPerGroup must be between 1 and teamsPerGroup"
+                }
+                if (groupConfig.teamsPerGroup % 2 == 0) groupConfig.teamsPerGroup - 1 else groupConfig.teamsPerGroup
+            }
+
+            PhaseFormat.SWISS -> {
+                val swissConfig = request.configuration as? PhaseConfiguration.SwissConfig
+                    ?: throw IllegalArgumentException("Swiss configuration is required")
+                require(swissConfig.pointsPerWin > 0) { "pointsPerWin must be greater than 0" }
+                require(swissConfig.advancingCount == null || swissConfig.advancingCount >= 2) {
+                    "advancingCount must be at least 2 when provided"
+                }
+                1
+            }
+        }
+    }
+
+    private fun initialRoundsFor(phase: TournamentPhaseDAO): Int {
+        return when (PhaseFormat.valueOf(phase.format)) {
+            PhaseFormat.KNOCKOUT -> 1
+            PhaseFormat.GROUP -> {
+                val config = phase.configuration as? PhaseConfiguration.GroupConfig
+                    ?: throw IllegalArgumentException("Group configuration is required")
+                if (config.teamsPerGroup % 2 == 0) config.teamsPerGroup - 1 else config.teamsPerGroup
+            }
+
+            PhaseFormat.SWISS -> 1
+        }
+    }
+
+    private fun assertConfiguredPhaseProgression(tournament: TournamentDAO) {
+        val phases = tournament.phases.sortedBy { it.phaseOrder }
+        phases.forEachIndexed { index, phase ->
+            val hasLaterPhase = index < phases.lastIndex
+            if (!hasLaterPhase) return@forEachIndexed
+
+            when (PhaseFormat.valueOf(phase.format)) {
+                PhaseFormat.SWISS -> {
+                    val config = phase.configuration as? PhaseConfiguration.SwissConfig
+                        ?: throw IllegalArgumentException("Swiss configuration is required")
+                    require(config.advancingCount == null || config.advancingCount >= 2) {
+                        "Swiss phase ${phase.id.value} advancingCount must be at least 2"
+                    }
+                }
+
+                else -> Unit
+            }
+        }
+    }
 
     private fun assertTournamentMutable(tournament: TournamentDAO, operation: String) {
         val status = TournamentStatus.valueOf(tournament.status)

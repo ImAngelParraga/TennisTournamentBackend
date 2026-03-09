@@ -11,7 +11,7 @@ This list reflects the current state of both repos:
 
 ## P1 (High Priority)
 
-- [ ] Implement Group and Swiss in `TennisTournamentLib` (or remove/defer these formats from contracts).
+- [x] Implement Group and Swiss in `TennisTournamentLib` and backend start/progression support.
   Why: `GroupService` and `SwissService` are still TODO in the lib while format types exist in shared models.
 
 - [ ] Tighten tournament/phase validation inputs.

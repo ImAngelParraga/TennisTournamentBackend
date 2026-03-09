@@ -5,7 +5,8 @@
 This backend manages clubs, players, tournaments, phases, and matches for tennis competitions.
 
 Current product scope:
-- Knockout tournaments are the primary supported format.
+- Knockout, Group, and Swiss phases are supported.
+- Knockout remains the most battle-tested format.
 - Public read APIs are open.
 - Write APIs require JWT auth and role checks.
 - Tournament bracket generation/progression logic is delegated to `TennisTournamentLib`.
@@ -52,6 +53,8 @@ The backend consumes tournament engine functionality from `TennisTournamentLib`.
 
 What is expected from the lib:
 - Knockout bracket generation
+- Group single round-robin generation
+- Swiss round generation and standings-based round progression
 - Qualifier round computation
 - Score to winner resolution (`Match.applyScore`)
 - Dependency-based progression and third-place support
@@ -193,8 +196,11 @@ Common error mapping:
 
 ## 11) Known Constraints and Risks
 
-- Knockout is the only actively supported phase flow right now.
-- Group/Swiss paths are incomplete.
+- Knockout is still the most mature path, but Group and Swiss are now available.
+- Group uses single round robin.
+- Swiss currently uses simple standings-based pairing with no rematch-avoidance rule.
+- Swiss cross-phase advancement is controlled by `advancingCount` in phase config.
+- If `advancingCount` is omitted, Swiss advances all players to the next phase.
 - Deterministic seeding is not fully implemented.
 - Tournament lifecycle/state machine is still permissive.
 - Auto schema mutation is enabled by default and not a long-term production migration strategy.

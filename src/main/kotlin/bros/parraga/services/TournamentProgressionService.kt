@@ -2,6 +2,7 @@ package bros.parraga.services
 
 import bros.parraga.db.lockMatchRowInCurrentTransaction
 import bros.parraga.db.lockPhaseRowInCurrentTransaction
+import bros.parraga.db.schema.GroupStandingDAO
 import bros.parraga.db.schema.MatchDAO
 import bros.parraga.db.schema.MatchDependenciesTable
 import bros.parraga.db.schema.MatchDependencyDAO
@@ -23,7 +24,7 @@ object TournamentProgressionService {
         when (PhaseFormat.valueOf(match.phase.format)) {
             PhaseFormat.KNOCKOUT -> progressKnockout(match)
             PhaseFormat.SWISS -> progressSwiss(match)
-            PhaseFormat.GROUP -> Unit
+            PhaseFormat.GROUP -> progressGroup(match)
         }
     }
 
@@ -56,17 +57,20 @@ object TournamentProgressionService {
             dependentMatch.updatedAt = Instant.now()
         }
 
-        maybeMarkTournamentCompleted(match.phase)
+        maybeAdvanceOrCompletePhase(match.phase)
+    }
+
+    private fun progressGroup(match: MatchDAO) {
+        val phase = match.phase
+        lockPhaseRowInCurrentTransaction(phase.id.value)
+        updateGroupStandings(match)
+        maybeAdvanceOrCompletePhase(phase)
     }
 
     private fun progressSwiss(match: MatchDAO) {
         val phase = match.phase
         lockPhaseRowInCurrentTransaction(phase.id.value)
         val currentRound = match.round
-        if (currentRound >= phase.rounds) {
-            maybeMarkTournamentCompleted(phase)
-            return
-        }
 
         val roundMatches = MatchDAO.find {
             (MatchesTable.phaseId eq phase.id) and (MatchesTable.round eq currentRound)
@@ -77,68 +81,25 @@ object TournamentProgressionService {
         }
         if (!roundComplete) return
 
-        val nextRound = currentRound + 1
-        val existingNextRound = MatchDAO.find {
-            (MatchesTable.phaseId eq phase.id) and (MatchesTable.round eq nextRound)
-        }
-        if (existingNextRound.any()) {
-            maybeMarkTournamentCompleted(phase)
-            return
-        }
+        val pointsByPlayer = computeSwissPoints(phase, currentRound)
+        PhaseExecutionService.recordSwissRankings(phase, currentRound, pointsByPlayer)
 
-        val config = phase.configuration
-        val pointsPerWin = (config as? PhaseConfiguration.SwissConfig)?.pointsPerWin ?: 1
-
-        val matchesSoFar = MatchDAO.find {
-            (MatchesTable.phaseId eq phase.id) and (MatchesTable.round lessEq currentRound)
-        }.toList()
-
-        val pointsByPlayer = mutableMapOf<Int, Int>().withDefault { 0 }
-        matchesSoFar.forEach { roundMatch ->
-            val winnerId = roundMatch.winner?.id?.value ?: return@forEach
-            pointsByPlayer[winnerId] = (pointsByPlayer[winnerId] ?: 0) + pointsPerWin
-        }
-
-        val players = phase.tournament.players.toList()
-        val orderedPlayers = players.sortedWith(
-            compareByDescending<PlayerDAO> { pointsByPlayer[it.id.value] ?: 0 }
-                .thenBy { it.id.value }
-        )
-
-        var index = 0
-        var roundSlot = 1
-        while (index < orderedPlayers.size) {
-            val player1 = orderedPlayers[index]
-            val player2 = orderedPlayers.getOrNull(index + 1)
-            val isBye = player2 == null
-
-            MatchDAO.new {
-                this.phase = phase
-                round = nextRound
-                this.roundSlot = roundSlot
-                this.player1 = player1
-                this.player2 = player2
-                if (isBye) {
-                    winner = player1
-                    status = MatchStatus.WALKOVER.name
-                } else {
-                    status = MatchStatus.SCHEDULED.name
-                }
+        if (currentRound < phase.rounds) {
+            val nextRound = currentRound + 1
+            val existingNextRound = MatchDAO.find {
+                (MatchesTable.phaseId eq phase.id) and (MatchesTable.round eq nextRound)
             }
-
-            index += 2
-            roundSlot += 1
+            if (!existingNextRound.any()) {
+                PhaseExecutionService.createNextSwissRound(phase)
+            }
         }
 
-        maybeMarkTournamentCompleted(phase)
+        maybeAdvanceOrCompletePhase(phase)
     }
 
-    private fun maybeMarkTournamentCompleted(phase: TournamentPhaseDAO) {
+    private fun maybeAdvanceOrCompletePhase(phase: TournamentPhaseDAO) {
         val tournament = phase.tournament
         if (TournamentStatus.valueOf(tournament.status) != TournamentStatus.STARTED) return
-
-        val hasLaterPhases = tournament.phases.any { it.phaseOrder > phase.phaseOrder }
-        if (hasLaterPhases) return
 
         val phaseMatches = phase.matches.toList()
         if (phaseMatches.isEmpty()) return
@@ -148,7 +109,57 @@ object TournamentProgressionService {
         }
         if (!allFinished) return
 
+        val hasLaterPhases = tournament.phases.any { it.phaseOrder > phase.phaseOrder }
+        if (hasLaterPhases) {
+            PhaseExecutionService.startNextPhaseIfNeeded(phase)
+            return
+        }
+
         tournament.status = TournamentStatus.COMPLETED.name
         tournament.updatedAt = Instant.now()
+    }
+
+    private fun updateGroupStandings(match: MatchDAO) {
+        val group = match.group ?: return
+        val winner = match.winner ?: return
+        val player1 = match.player1 ?: return
+        val player2 = match.player2 ?: return
+
+        val player1Standing = GroupStandingDAO.find {
+            (bros.parraga.db.schema.GroupStandingsTable.groupId eq group.id) and
+                (bros.parraga.db.schema.GroupStandingsTable.playerId eq player1.id)
+        }.first()
+        val player2Standing = GroupStandingDAO.find {
+            (bros.parraga.db.schema.GroupStandingsTable.groupId eq group.id) and
+                (bros.parraga.db.schema.GroupStandingsTable.playerId eq player2.id)
+        }.first()
+
+        player1Standing.matchesPlayed += 1
+        player2Standing.matchesPlayed += 1
+        player1Standing.updatedAt = Instant.now()
+        player2Standing.updatedAt = Instant.now()
+
+        val winnerStanding = when (winner.id) {
+            player1.id -> player1Standing
+            player2.id -> player2Standing
+            else -> return
+        }
+        winnerStanding.wins += 1
+        winnerStanding.points += 1
+        winnerStanding.updatedAt = Instant.now()
+    }
+
+    private fun computeSwissPoints(phase: TournamentPhaseDAO, throughRound: Int): Map<Int, Int> {
+        val pointsPerWin = (phase.configuration as? PhaseConfiguration.SwissConfig)?.pointsPerWin ?: 1
+        val matchesSoFar = MatchDAO.find {
+            (MatchesTable.phaseId eq phase.id) and (MatchesTable.round lessEq throughRound)
+        }.toList()
+
+        val pointsByPlayer = mutableMapOf<Int, Int>().withDefault { 0 }
+        matchesSoFar.forEach { roundMatch ->
+            val winnerId = roundMatch.winner?.id?.value ?: return@forEach
+            pointsByPlayer[winnerId] = (pointsByPlayer[winnerId] ?: 0) + pointsPerWin
+        }
+        return pointsByPlayer
     }
 }
