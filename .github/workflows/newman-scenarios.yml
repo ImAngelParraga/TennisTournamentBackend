@@ -1,0 +1,81 @@
+name: Newman Scenarios
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  run-newman-scenario:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scenario_name: Complex Tournament Scenario
+          - scenario_name: Swiss Knockout With Bye Scenario
+
+    steps:
+      - name: Checkout backend
+        uses: actions/checkout@v4
+        with:
+          path: TennisTournamentBackend
+
+      - name: Checkout lib sibling
+        uses: actions/checkout@v4
+        with:
+          repository: ImAngelParraga/TennisTournamentLib
+          path: TennisTournamentLib
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run Newman scenario
+        working-directory: TennisTournamentBackend
+        env:
+          AUTH_TEST_MODE: "true"
+          AUTH_TEST_JWT_SECRET: test-secret
+          CLERK_ISSUER: http://localhost/test-issuer
+          CLERK_AUDIENCE: test-audience
+          GRADLE_OPTS: -Dkotlin.compiler.execution.strategy=in-process
+        run: |
+          set -euo pipefail
+
+          chmod +x ./gradlew
+          ./gradlew run > backend.log 2>&1 &
+          app_pid=$!
+
+          cleanup() {
+            if kill -0 "$app_pid" 2>/dev/null; then
+              kill "$app_pid" || true
+              wait "$app_pid" || true
+            fi
+          }
+          trap cleanup EXIT
+
+          for attempt in {1..60}; do
+            if curl -sf http://127.0.0.1:8080/tournaments >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+
+          if ! curl -sf http://127.0.0.1:8080/tournaments >/dev/null; then
+            cat backend.log
+            exit 1
+          fi
+
+          npx newman@6 run docs/postman/TennisTournamentBackend.postman_collection.json \
+            --folder "${{ matrix.scenario_name }}" \
+            --env-var baseUrl=http://127.0.0.1:8080 \
+            --bail

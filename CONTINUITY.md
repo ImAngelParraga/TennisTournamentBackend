@@ -60,6 +60,10 @@ Include: branch, uncommitted state, what changed, what remains.
 - (uncommitted in current session) Added a second zero-state Postman scenario for odd-player Swiss:
   - `SWISS -> KNOCKOUT` with 5 players, round-1 bye coverage, and explicit `advancingCount = 4`
   - verifies Swiss walkover generation and tournament completion end-to-end
+- (uncommitted in current session) Added Newman CI support for the Postman end-to-end scenarios:
+  - application runtime now supports `AUTH_TEST_MODE=true` to accept HMAC test JWTs outside `testModule()`
+  - `Scenarios` in the Postman collection were split into two runnable subfolders so Newman can target them independently
+  - added GitHub Actions workflow `.github/workflows/newman-scenarios.yml` to boot the backend with H2 + test auth and run both scenario folders
 - (uncommitted in current session) Started explicit seeding contract refactor:
   - added future issue for multi-context ranking sources in `docs/ISSUES.md`
   - added tournament-player seed persistence (`TournamentPlayersTable.seed`) + migration `V4__tournament_player_seeding.sql`

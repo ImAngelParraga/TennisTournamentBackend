@@ -11,9 +11,11 @@ fun main() {
 }
 
 fun Application.module() {
+    val authTestMode = System.getenv("AUTH_TEST_MODE")?.toBooleanStrictOrNull() ?: false
+
     configureKoin()
-    configureSecurity()
-    configureHTTP()
+    configureSecurity(isTest = authTestMode)
+    configureHTTP(isTest = authTestMode)
     configureSerialization()
     configureRouting()
     configureDatabase()
