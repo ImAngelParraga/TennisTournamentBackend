@@ -16,6 +16,7 @@ import bros.parraga.routes.ApiResponse
 import bros.parraga.services.repositories.match.dto.UpdateMatchScoreRequest
 import bros.parraga.services.repositories.tournament.dto.AddPlayersRequest
 import bros.parraga.services.repositories.tournament.dto.CreatePhaseRequest
+import bros.parraga.services.repositories.tournament.dto.CreateTournamentRequest
 import bros.parraga.services.repositories.tournament.dto.TournamentPlayerRequest
 import bros.parraga.services.repositories.tournament.dto.UpdateTournamentRequest
 import io.ktor.client.call.*
@@ -27,6 +28,7 @@ import io.ktor.http.contentType
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.datetime.Instant as KotlinInstant
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Instant
@@ -163,6 +165,53 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
     }
 
     @Test
+    fun `should return bad request when creating tournament with start date after end date`() = testApplicationWithClient { client ->
+        createTestData(playerCount = 0, initialPhaseOrders = emptyList())
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val response = client.post("/tournaments") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(
+                CreateTournamentRequest(
+                    name = "invalid-dates",
+                    description = null,
+                    surface = null,
+                    clubId = 1,
+                    startDate = KotlinInstant.parse("2026-03-20T10:00:00Z"),
+                    endDate = KotlinInstant.parse("2026-03-19T10:00:00Z")
+                )
+            )
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val body = response.body<ApiResponse<TournamentBasic>>()
+        assertTrue(body.message!!.contains("startDate must be on or before endDate"))
+    }
+
+    @Test
+    fun `should return bad request when updating tournament with start date after end date`() = testApplicationWithClient { client ->
+        createTestData(playerCount = 0, initialPhaseOrders = emptyList())
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val response = client.put("/tournaments") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(
+                UpdateTournamentRequest(
+                    id = 1,
+                    startDate = KotlinInstant.parse("2026-03-21T10:00:00Z"),
+                    endDate = KotlinInstant.parse("2026-03-20T10:00:00Z")
+                )
+            )
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val body = response.body<ApiResponse<TournamentBasic>>()
+        assertTrue(body.message!!.contains("startDate must be on or before endDate"))
+    }
+
+    @Test
     fun `should allow metadata update when tournament already started`() = testApplicationWithClient { client ->
         createTestData()
         val token = createAuthToken("owner-subject", "owner@email.com", "owner")
@@ -248,6 +297,74 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
         val body = response.body<ApiResponse<TournamentPhase>>()
         assertEquals(PhaseFormat.GROUP, body.data?.format)
     }
+
+    @Test
+    fun `should return bad request when creating phase with entrant count that does not match group configuration`() =
+        testApplicationWithClient { client ->
+            createTestData(initialPhaseOrders = emptyList(), playerCount = 5)
+            val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+            val response = client.post("/tournaments/1/phases") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                contentType(ContentType.Application.Json)
+                setBody(
+                    CreatePhaseRequest(
+                        phaseOrder = 1,
+                        format = PhaseFormat.GROUP,
+                        configuration = PhaseConfiguration.GroupConfig(
+                            groupCount = 2,
+                            teamsPerGroup = 2,
+                            advancingPerGroup = 1
+                        )
+                    )
+                )
+            }
+
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+            val body = response.body<ApiResponse<TournamentPhase>>()
+            assertTrue(body.message!!.contains("requires exactly 4 entrants"))
+            assertTrue(body.message!!.contains("projected entrants are 5"))
+        }
+
+    @Test
+    fun `should return bad request when knockout qualifiers do not fit projected entrants from previous phase`() =
+        testApplicationWithClient { client ->
+            createTestData(initialPhaseOrders = emptyList(), playerCount = 5)
+            val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+            val swissResponse = client.post("/tournaments/1/phases") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                contentType(ContentType.Application.Json)
+                setBody(
+                    CreatePhaseRequest(
+                        phaseOrder = 1,
+                        format = PhaseFormat.SWISS,
+                        configuration = PhaseConfiguration.SwissConfig(pointsPerWin = 1, advancingCount = 4)
+                    )
+                )
+            }
+            assertEquals(HttpStatusCode.Created, swissResponse.status)
+
+            val knockoutResponse = client.post("/tournaments/1/phases") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                contentType(ContentType.Application.Json)
+                setBody(
+                    CreatePhaseRequest(
+                        phaseOrder = 2,
+                        format = PhaseFormat.KNOCKOUT,
+                        configuration = PhaseConfiguration.KnockoutConfig(
+                            thirdPlacePlayoff = false,
+                            qualifiers = 4
+                        )
+                    )
+                )
+            }
+
+            assertEquals(HttpStatusCode.BadRequest, knockoutResponse.status)
+            val body = knockoutResponse.body<ApiResponse<TournamentPhase>>()
+            assertTrue(body.message!!.contains("qualifiers=4"))
+            assertTrue(body.message!!.contains("allowed values are 1, 2"))
+        }
 
     @Test
     fun `should return conflict when starting tournament without phase order one`() = testApplicationWithClient { client ->
@@ -470,6 +587,39 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
             assertEquals(4, standings.size)
         }
     }
+
+    @Test
+    fun `should return bad request when adding players would invalidate existing phase configuration`() =
+        testApplicationWithClient { client ->
+            createTestData(
+                playerCount = 4,
+                phaseSpecs = listOf(
+                    PhaseSpec(
+                        order = 1,
+                        format = PhaseFormat.GROUP,
+                        configuration = PhaseConfiguration.GroupConfig(
+                            groupCount = 2,
+                            teamsPerGroup = 2,
+                            advancingPerGroup = 1
+                        )
+                    )
+                )
+            )
+            val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+            val response = client.post("/tournaments/1/players") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                contentType(ContentType.Application.Json)
+                setBody(AddPlayersRequest(listOf(TournamentPlayerRequest(name = "extra-player"))))
+            }
+
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+            val body = response.body<ApiResponse<String>>()
+            assertTrue(body.message!!.contains("requires exactly 4 entrants"))
+
+            val players = client.get("/tournaments/1/players").body<ApiResponse<List<bros.parraga.domain.Player>>>()
+            assertEquals(4, players.data?.size)
+        }
 
     @Test
     fun `should reset started tournament when no match was completed`() = testApplicationWithClient { client ->

@@ -29,14 +29,18 @@ class TournamentRepositoryImpl : TournamentRepository {
     override suspend fun getTournament(id: Int): TournamentBasic = dbQuery { TournamentDAO[id].toBasic() }
 
     override suspend fun createTournament(request: CreateTournamentRequest): TournamentBasic = dbQuery {
+        val requestedStartDate = request.startDate.toJavaInstant()
+        val requestedEndDate = request.endDate.toJavaInstant()
+        assertTournamentDatesValid(requestedStartDate, requestedEndDate)
+
         TournamentDAO.new {
             name = request.name
             description = request.description
             surface = request.surface
             status = TournamentStatus.DRAFT.name
             club = ClubDAO[request.clubId]
-            startDate = request.startDate.toJavaInstant()
-            endDate = request.endDate.toJavaInstant()
+            startDate = requestedStartDate
+            endDate = requestedEndDate
         }.toBasic()
     }
 
@@ -45,6 +49,11 @@ class TournamentRepositoryImpl : TournamentRepository {
             ?: throw EntityNotFoundException(DaoEntityID(request.id, TournamentsTable), TournamentDAO)
         val status = TournamentStatus.valueOf(tournament.status)
         assertUpdateAllowedForStatus(status, request)
+        if (status == TournamentStatus.DRAFT) {
+            val requestedStartDate = request.startDate?.toJavaInstant() ?: tournament.startDate
+            val requestedEndDate = request.endDate?.toJavaInstant() ?: tournament.endDate
+            assertTournamentDatesValid(requestedStartDate, requestedEndDate)
+        }
 
         tournament.apply {
             request.name?.let { name = it }
@@ -68,7 +77,6 @@ class TournamentRepositoryImpl : TournamentRepository {
 
     override suspend fun createPhase(tournamentId: Int, request: CreatePhaseRequest): TournamentPhase = dbQuery {
         require(request.phaseOrder > 0) { "phaseOrder must be greater than 0" }
-        val rounds = validateAndComputeInitialRounds(request)
 
         val tournament = TournamentDAO[tournamentId]
         assertTournamentMutable(tournament, "modified")
@@ -80,6 +88,11 @@ class TournamentRepositoryImpl : TournamentRepository {
                 "Phase order ${request.phaseOrder} requires previous phase ${request.phaseOrder - 1} to exist"
             )
         }
+        assertPhaseConfigurationValid(
+            phases = tournament.phases.map { it.toPlannedPhaseDefinition() } + request.toPlannedPhaseDefinition(),
+            initialEntrantCount = tournament.players.count().toInt()
+        )
+        val rounds = computeInitialRounds(request)
 
         TournamentPhaseDAO.new {
             this.tournament = tournament
@@ -174,6 +187,8 @@ class TournamentRepositoryImpl : TournamentRepository {
                 association.seed = request.seed
             }
         }
+
+        assertDraftTournamentPhaseConfigurationValid(tournament)
     }
 
     override suspend fun removePlayerFromTournament(tournamentId: Int, playerId: Int) = dbQuery {
@@ -187,6 +202,7 @@ class TournamentRepositoryImpl : TournamentRepository {
         )
 
         association.delete()
+        assertDraftTournamentPhaseConfigurationValid(tournament)
     }
 
     override suspend fun startTournament(id: Int): TournamentPhase = dbQuery {
@@ -203,7 +219,10 @@ class TournamentRepositoryImpl : TournamentRepository {
         if (status != TournamentStatus.DRAFT && status != TournamentStatus.STARTED) {
             throw ConflictException("Tournament $id cannot be started from status ${tournament.status}")
         }
-        assertConfiguredPhaseProgression(tournament)
+        assertPhaseConfigurationValid(
+            phases = tournament.phases.map { it.toPlannedPhaseDefinition() },
+            initialEntrantCount = participants.size
+        )
 
         val firstPhase = getFirstPhase(tournament)
         lockPhaseRow(firstPhase.id.value)
@@ -298,34 +317,23 @@ class TournamentRepositoryImpl : TournamentRepository {
 
     private fun isPowerOfTwo(value: Int): Boolean = value > 0 && (value and (value - 1)) == 0
 
-    private fun validateAndComputeInitialRounds(request: CreatePhaseRequest): Int {
+    private fun computeInitialRounds(request: CreatePhaseRequest): Int {
         return when (request.format) {
             PhaseFormat.KNOCKOUT -> {
-                val knockoutConfig = request.configuration as? PhaseConfiguration.KnockoutConfig
+                request.configuration as? PhaseConfiguration.KnockoutConfig
                     ?: throw IllegalArgumentException("Knockout configuration is required")
-                require(knockoutConfig.qualifiers >= 1) { "qualifiers must be greater than 0" }
-                require(isPowerOfTwo(knockoutConfig.qualifiers)) { "qualifiers must be a power of two" }
                 1
             }
 
             PhaseFormat.GROUP -> {
                 val groupConfig = request.configuration as? PhaseConfiguration.GroupConfig
                     ?: throw IllegalArgumentException("Group configuration is required")
-                require(groupConfig.groupCount > 0) { "groupCount must be greater than 0" }
-                require(groupConfig.teamsPerGroup > 1) { "teamsPerGroup must be greater than 1" }
-                require(groupConfig.advancingPerGroup in 1..groupConfig.teamsPerGroup) {
-                    "advancingPerGroup must be between 1 and teamsPerGroup"
-                }
                 if (groupConfig.teamsPerGroup % 2 == 0) groupConfig.teamsPerGroup - 1 else groupConfig.teamsPerGroup
             }
 
             PhaseFormat.SWISS -> {
-                val swissConfig = request.configuration as? PhaseConfiguration.SwissConfig
+                request.configuration as? PhaseConfiguration.SwissConfig
                     ?: throw IllegalArgumentException("Swiss configuration is required")
-                require(swissConfig.pointsPerWin > 0) { "pointsPerWin must be greater than 0" }
-                require(swissConfig.advancingCount == null || swissConfig.advancingCount >= 2) {
-                    "advancingCount must be at least 2 when provided"
-                }
                 1
             }
         }
@@ -344,23 +352,94 @@ class TournamentRepositoryImpl : TournamentRepository {
         }
     }
 
-    private fun assertConfiguredPhaseProgression(tournament: TournamentDAO) {
-        val phases = tournament.phases.sortedBy { it.phaseOrder }
-        phases.forEachIndexed { index, phase ->
-            val hasLaterPhase = index < phases.lastIndex
-            if (!hasLaterPhase) return@forEachIndexed
+    private fun assertDraftTournamentPhaseConfigurationValid(tournament: TournamentDAO) {
+        assertPhaseConfigurationValid(
+            phases = tournament.phases.map { it.toPlannedPhaseDefinition() },
+            initialEntrantCount = tournament.players.count().toInt()
+        )
+    }
 
-            when (PhaseFormat.valueOf(phase.format)) {
-                PhaseFormat.SWISS -> {
-                    val config = phase.configuration as? PhaseConfiguration.SwissConfig
-                        ?: throw IllegalArgumentException("Swiss configuration is required")
-                    require(config.advancingCount == null || config.advancingCount >= 2) {
-                        "Swiss phase ${phase.id.value} advancingCount must be at least 2"
+    private fun assertPhaseConfigurationValid(
+        phases: List<PlannedPhaseDefinition>,
+        initialEntrantCount: Int
+    ) {
+        var projectedEntrants = initialEntrantCount
+        phases.sortedBy { it.phaseOrder }.forEach { phase ->
+            projectedEntrants = validatePhaseAndComputeAdvancers(phase, projectedEntrants)
+        }
+    }
+
+    private fun validatePhaseAndComputeAdvancers(
+        phase: PlannedPhaseDefinition,
+        projectedEntrants: Int
+    ): Int {
+        require(projectedEntrants >= 2) {
+            "Phase ${phase.phaseOrder} ${phase.format.name.lowercase()} requires at least 2 entrants but projected entrants are $projectedEntrants"
+        }
+
+        return when (phase.format) {
+            PhaseFormat.KNOCKOUT -> {
+                val config = phase.configuration as? PhaseConfiguration.KnockoutConfig
+                    ?: throw IllegalArgumentException("Knockout configuration is required")
+                val allowedQualifiers = allowedKnockoutQualifiers(projectedEntrants)
+                require(config.qualifiers in allowedQualifiers) {
+                    "Phase ${phase.phaseOrder} knockout qualifiers=${config.qualifiers} are invalid for projected entrants $projectedEntrants; allowed values are ${allowedQualifiers.joinToString()}"
+                }
+                if (config.thirdPlacePlayoff) {
+                    require(config.qualifiers == 1) {
+                        "Phase ${phase.phaseOrder} knockout thirdPlacePlayoff requires qualifiers=1 but got ${config.qualifiers}"
+                    }
+                    require(projectedEntrants >= 4) {
+                        "Phase ${phase.phaseOrder} knockout thirdPlacePlayoff requires at least 4 entrants but projected entrants are $projectedEntrants"
                     }
                 }
-
-                else -> Unit
+                config.qualifiers
             }
+
+            PhaseFormat.GROUP -> {
+                val config = phase.configuration as? PhaseConfiguration.GroupConfig
+                    ?: throw IllegalArgumentException("Group configuration is required")
+                require(config.groupCount > 0) { "Phase ${phase.phaseOrder} groupCount must be greater than 0" }
+                require(config.teamsPerGroup > 1) { "Phase ${phase.phaseOrder} teamsPerGroup must be greater than 1" }
+                require(config.advancingPerGroup in 1..config.teamsPerGroup) {
+                    "Phase ${phase.phaseOrder} advancingPerGroup must be between 1 and teamsPerGroup"
+                }
+
+                val requiredEntrants = config.groupCount * config.teamsPerGroup
+                require(projectedEntrants == requiredEntrants) {
+                    "Phase ${phase.phaseOrder} group configuration requires exactly $requiredEntrants entrants but projected entrants are $projectedEntrants"
+                }
+                config.groupCount * config.advancingPerGroup
+            }
+
+            PhaseFormat.SWISS -> {
+                val config = phase.configuration as? PhaseConfiguration.SwissConfig
+                    ?: throw IllegalArgumentException("Swiss configuration is required")
+                require(config.pointsPerWin > 0) { "Phase ${phase.phaseOrder} pointsPerWin must be greater than 0" }
+                require(config.advancingCount == null || config.advancingCount >= 2) {
+                    "Phase ${phase.phaseOrder} advancingCount must be at least 2 when provided"
+                }
+                require(config.advancingCount == null || config.advancingCount <= projectedEntrants) {
+                    "Phase ${phase.phaseOrder} swiss advancingCount=${config.advancingCount} cannot exceed projected entrants $projectedEntrants"
+                }
+                config.advancingCount ?: projectedEntrants
+            }
+        }
+    }
+
+    private fun allowedKnockoutQualifiers(projectedEntrants: Int): List<Int> {
+        val qualifiers = mutableListOf<Int>()
+        var value = 1
+        while (value < projectedEntrants) {
+            if (isPowerOfTwo(value)) qualifiers += value
+            value *= 2
+        }
+        return qualifiers
+    }
+
+    private fun assertTournamentDatesValid(startDate: Instant, endDate: Instant) {
+        require(!startDate.isAfter(endDate)) {
+            "Tournament startDate must be on or before endDate"
         }
     }
 
@@ -403,5 +482,23 @@ class TournamentRepositoryImpl : TournamentRepository {
 
         else -> throw IllegalArgumentException("Invalid player request")
     }
+
+    private fun TournamentPhaseDAO.toPlannedPhaseDefinition() = PlannedPhaseDefinition(
+        phaseOrder = phaseOrder,
+        format = PhaseFormat.valueOf(format),
+        configuration = configuration
+    )
+
+    private fun CreatePhaseRequest.toPlannedPhaseDefinition() = PlannedPhaseDefinition(
+        phaseOrder = phaseOrder,
+        format = format,
+        configuration = configuration
+    )
+
+    private data class PlannedPhaseDefinition(
+        val phaseOrder: Int,
+        val format: PhaseFormat,
+        val configuration: PhaseConfiguration
+    )
 }
 

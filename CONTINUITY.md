@@ -1,6 +1,6 @@
 # CONTINUITY
 
-Last Updated: 2026-03-09
+Last Updated: 2026-03-15
 Repository: TennisTournamentBackend
 
 ## Update Rule
@@ -12,8 +12,26 @@ Include: branch, uncommitted state, what changed, what remains.
 - Local note: keep working tree clean between tasks; this file may appear as a local change until committed.
 - Main documentation entrypoint: `docs/START_HERE.md`
 - Prioritized backlog: `docs/ISSUES.md`
+- Local implementation changes (not committed yet):
+  - modified: `CONTINUITY.md`
+  - modified: `docs/ISSUES.md`
+  - modified: `docs/postman/TEST_SEQUENCES.md`
+  - modified: `src/main/kotlin/bros/parraga/services/PhaseExecutionService.kt`
+  - modified: `src/main/kotlin/bros/parraga/services/repositories/tournament/TournamentRepositoryImpl.kt`
+  - modified: `src/test/kotlin/bros/parraga/TournamentRepositoryTest.kt`
 
 ## Recent Completed Work
+- (uncommitted in current session) Tightened tournament and phase validation inputs:
+  - enforce `startDate <= endDate` on tournament create/update
+  - validate draft phase definitions against projected entrant counts derived from current players and earlier phase configs
+  - reject draft player add/remove operations when they would invalidate existing phase setup
+  - improve knockout qualifier error messaging to show projected/player counts and allowed values
+  - documented that entrant-count-sensitive phases should be created after players are registered
+  - added backend integration coverage for invalid dates, invalid phase entrant counts, projected knockout qualifier failures, and draft player changes that break phase config
+  - validated with:
+    - `./gradlew.bat test --no-daemon --tests "bros.parraga.TournamentRepositoryTest"` (pass)
+    - `./gradlew.bat test --no-daemon` (pass)
+    - `../TennisTournamentLib/gradlew.bat test --no-daemon` (pass; Kotlin daemon fell back but build succeeded)
 - (uncommitted in current session) Implemented Group and Swiss end-to-end support across lib-backed backend flow:
   - phase creation now accepts `GROUP` and `SWISS` configs
   - added shared phase execution service for phase start and next-phase auto-start
@@ -108,9 +126,9 @@ Include: branch, uncommitted state, what changed, what remains.
 ## Highest Priority Remaining Work
 (See `docs/ISSUES.md` for ordered list.)
 1. Migration rollout in deployment flow (`flywayMigrate` gate + hosted env hardening).
-2. Tighten tournament/phase validation inputs.
-3. Expand authorization test coverage for all mutation paths and edge cases.
-4. Add API contract documentation (OpenAPI/Swagger).
+2. Expand authorization test coverage for all mutation paths and edge cases.
+3. Add API contract documentation (OpenAPI/Swagger).
+4. Add operational observability for progression/auth decisions.
 
 ## Cross-Repo Dependency Notes
 - Backend depends on `../TennisTournamentLib` via composite build substitution.

@@ -304,14 +304,26 @@ object PhaseExecutionService {
 
     private fun computeKnockoutRounds(playerCount: Int, qualifiers: Int): Int {
         require(playerCount >= 2) { "Tournament must have at least 2 players" }
-        require(qualifiers >= 1) { "qualifiers must be greater than 0" }
-        require(qualifiers < playerCount) { "qualifiers must be less than player count" }
+        val allowedQualifiers = allowedKnockoutQualifiers(playerCount)
+        require(qualifiers in allowedQualifiers) {
+            "Knockout qualifiers=$qualifiers are invalid for $playerCount players; allowed values are ${allowedQualifiers.joinToString()}"
+        }
 
         val totalRounds = ceil(log2(playerCount.toDouble())).toInt()
         val targetRounds = log2(qualifiers.toDouble()).toInt()
         val roundsToPlay = totalRounds - targetRounds
         require(roundsToPlay > 0) { "Computed rounds must be greater than 0" }
         return roundsToPlay
+    }
+
+    private fun allowedKnockoutQualifiers(playerCount: Int): List<Int> {
+        val qualifiers = mutableListOf<Int>()
+        var value = 1
+        while (value < playerCount) {
+            qualifiers += value
+            value *= 2
+        }
+        return qualifiers
     }
 
     private fun TournamentPhaseDAO.toLibPhase(): Phase = Phase(

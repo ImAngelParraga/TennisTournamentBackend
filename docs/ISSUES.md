@@ -14,7 +14,7 @@ This list reflects the current state of both repos:
 - [x] Implement Group and Swiss in `TennisTournamentLib` and backend start/progression support.
   Why: `GroupService` and `SwissService` are still TODO in the lib while format types exist in shared models.
 
-- [ ] Tighten tournament/phase validation inputs.
+- [x] Tighten tournament/phase validation inputs.
   Missing validations:
     - `startDate <= endDate` for tournament create/update
     - stronger qualifiers validation messaging against actual player counts and intended product rules

@@ -3,7 +3,8 @@
 Below are useful call sequences to exercise internal logic. Use the Postman collection variables (baseUrl, userId, playerId, clubId, tournamentId, matchId).
 
 Prerequisites
-- Create a phase before starting a tournament: `POST /tournaments/{id}/phases` with a knockout configuration (include `qualifiers` inside `configuration`).
+- Register players before creating entrant-count-sensitive phases.
+- Create a phase before starting a tournament: `POST /tournaments/{id}/phases` with a valid configuration for the current/projected entrant count (for knockout, include `qualifiers` inside `configuration`).
 - To verify match creation/advancement, use `GET /tournaments/{id}/matches`.
 
 Sequence 1: Smoke + CRUD
