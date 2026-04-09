@@ -53,8 +53,21 @@ This list reflects the current state of both repos:
   Why: clubs usually create few events, but some users may want to create an event without a club. This would allow
   users to keep the competitive scene alive without a club.
 
+- [ ] Add authenticated racket listing and management endpoints.
+  Why: once racket QR history exists, stringers and owners will need a private way to list and manage their rackets
+  without relying only on the public QR URL.
+
+- [ ] Design safe racket ownership claim/link workflow.
+  Why: rackets can start without a registered owner, but later should be claimable by the correct user without allowing
+  incorrect self-linking.
+  Missing pieces:
+    - ownership invitation/approval model
+    - who can initiate and approve the link
+    - how claim links/tokens expire and are audited
+
 ## Recently Completed (No Longer Missing)
 
+- [x] Add racket stringing QR history service
 - [x] JWT authentication baseline (Clerk-compatible verifier + test verifier)
 - [x] CORS origin allow-list configuration
 - [x] Role-based authorization for write endpoints (owner/admin model)

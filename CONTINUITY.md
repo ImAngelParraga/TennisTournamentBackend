@@ -1,6 +1,6 @@
 # CONTINUITY
 
-Last Updated: 2026-03-15
+Last Updated: 2026-04-10
 Repository: TennisTournamentBackend
 
 ## Update Rule
@@ -8,19 +8,56 @@ Update this file after each meaningful implementation/review/change in this repo
 Include: branch, uncommitted state, what changed, what remains.
 
 ## Current State
-- Branch: `master`
+- Branch: `feat/racket-stringing-qr-history`
 - Local note: keep working tree clean between tasks; this file may appear as a local change until committed.
 - Main documentation entrypoint: `docs/START_HERE.md`
 - Prioritized backlog: `docs/ISSUES.md`
 - Local implementation changes (not committed yet):
   - modified: `CONTINUITY.md`
   - modified: `docs/ISSUES.md`
-  - modified: `docs/postman/TEST_SEQUENCES.md`
-  - modified: `src/main/kotlin/bros/parraga/services/PhaseExecutionService.kt`
-  - modified: `src/main/kotlin/bros/parraga/services/repositories/tournament/TournamentRepositoryImpl.kt`
-  - modified: `src/test/kotlin/bros/parraga/TournamentRepositoryTest.kt`
+  - modified: `docs/START_HERE.md`
+  - modified: `docs/postman/TennisTournamentBackend.postman_collection.json`
+  - modified: `src/main/kotlin/bros/parraga/db/DatabaseTables.kt`
+  - modified: `src/main/kotlin/bros/parraga/modules/Koin.kt`
+  - modified: `src/main/kotlin/bros/parraga/modules/Routing.kt`
+  - added: `src/main/kotlin/bros/parraga/db/schema/RacketEntity.kt`
+  - added: `src/main/kotlin/bros/parraga/domain/RacketDtos.kt`
+  - added: `src/main/kotlin/bros/parraga/routes/RacketRoute.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/RacketRepository.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/RacketRepositoryImpl.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/dto/CreateRacketStringingRequest.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/dto/UpdateRacketRequest.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/dto/UpdateRacketStringingRequest.kt`
+  - added: `src/main/resources/db/migration/V6__racket_stringing_qr_history.sql`
+  - added: `src/test/kotlin/bros/parraga/RacketRepositoryTest.kt`
 
 ## Recent Completed Work
+- (uncommitted in current session) Implemented racket QR/stringing history support end-to-end:
+  - added standalone `rackets`, `racket_stringings`, and `racket_stringing_audits` persistence model plus Flyway migration `V6__racket_stringing_qr_history.sql`
+  - added public lookup endpoint `GET /public/rackets/{publicToken}` for frontend QR pages
+  - added authenticated create/update/delete flow for stringing history and racket metadata
+  - implicit racket creation now happens on first stringing registration
+  - stored main/cross tensions in kg and derived lb values, with hybrid string metadata and public notes
+  - enforced edit permissions for original racket-creating stringer and optional linked owner user
+  - implemented logical delete and audit trail for stringing create/update/delete events
+  - added integration coverage for implicit creation, public lookup, owner permissions, logical delete, and audit records
+  - updated `docs/START_HERE.md`, `docs/postman/TennisTournamentBackend.postman_collection.json`, and marked the P0 issue as completed in `docs/ISSUES.md`
+  - validated with:
+    - `./gradlew.bat compileKotlin --no-daemon` (pass)
+    - `./gradlew.bat compileTestKotlin --no-daemon` (pass)
+    - `./gradlew.bat test --no-daemon --tests "bros.parraga.RacketRepositoryTest"` (pass)
+- (uncommitted in current session) Added a runnable Postman racket QR scenario:
+  - new `Racket QR History Scenario` under `docs/postman/TennisTournamentBackend.postman_collection.json`
+  - generates a local test JWT when the backend runs with `AUTH_TEST_MODE=true`
+  - executes create -> public lookup -> racket update -> stringing update -> second stringing -> delete -> final public verification
+- (uncommitted in current session) Added a new P0 issue for racket stringing QR/history support in `docs/ISSUES.md`:
+  - track per-racket stringing history
+  - expose latest stringing date/tension and full history through a QR-targeted public view
+  - note required backend concerns: racket identity, stringing records, authenticated writes, and non-sequential public QR ids
+- (uncommitted in current session) Refined the racket stringing backlog definition in `docs/ISSUES.md`:
+  - locked scope around frontend-owned QR page + backend public API
+  - clarified owner/stringer permission model, implicit racket creation, kg->lb storage, hybrid strings, logical delete, and auditability
+  - added future issues for authenticated racket listings and safe ownership-claim workflow
 - (uncommitted in current session) Tightened tournament and phase validation inputs:
   - enforce `startDate <= endDate` on tournament create/update
   - validate draft phase definitions against projected entrant counts derived from current players and earlier phase configs
@@ -119,16 +156,17 @@ Include: branch, uncommitted state, what changed, what remains.
 ## Current Functional Baseline
 - JWT authentication is wired (`clerk-jwt`) with test-mode verifier support.
 - Write endpoints are authorization-gated (club owner/admin model).
+- Standalone racket QR history APIs now support public reads plus authenticated stringing/racket mutation.
 - Knockout flow supports qualifiers, byes, bracket endpoint, progression, and third-place (with constraints).
 - Markdown docs were consolidated under `docs/` and `docs/postman/`.
 - Flyway migration scaffolding is present for Postgres/Supabase.
 
 ## Highest Priority Remaining Work
 (See `docs/ISSUES.md` for ordered list.)
-1. Migration rollout in deployment flow (`flywayMigrate` gate + hosted env hardening).
-2. Expand authorization test coverage for all mutation paths and edge cases.
-3. Add API contract documentation (OpenAPI/Swagger).
-4. Add operational observability for progression/auth decisions.
+1. Expand authorization test coverage for all mutation paths and edge cases.
+2. Add API contract documentation (OpenAPI/Swagger).
+3. Add operational observability for progression/auth decisions.
+4. Add authenticated racket listing and management endpoints, then a safer ownership-claim workflow.
 
 ## Cross-Repo Dependency Notes
 - Backend depends on `../TennisTournamentLib` via composite build substitution.
@@ -141,6 +179,6 @@ Include: branch, uncommitted state, what changed, what remains.
   - If lock/caching issues appear, run `./gradlew --stop` and retry with `--no-daemon`.
 
 ## Next Suggested Actions
-1. Pick first P0 from `docs/ISSUES.md` and implement with tests.
-2. Add API contract docs (OpenAPI) after lifecycle rules stabilize.
-3. Add CI cross-repo compatibility checks with TennisTournamentLib.
+1. Add authenticated racket listing/management endpoints for stringers and owners.
+2. Design the safe racket ownership claim/link workflow.
+3. Add API contract docs (OpenAPI) after the racket/tournament API surface stabilizes.

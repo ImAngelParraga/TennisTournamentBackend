@@ -39,6 +39,14 @@
       "value": "1"
     },
     {
+      "key": "racketPublicToken",
+      "value": ""
+    },
+    {
+      "key": "racketStringingId",
+      "value": ""
+    },
+    {
       "key": "scenarioTournamentId",
       "value": ""
     },
@@ -344,6 +352,115 @@
       ]
     },
     {
+      "name": "Rackets",
+      "item": [
+        {
+          "name": "Get Public Racket By Token",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/public/rackets/{{racketPublicToken}}"
+          }
+        },
+        {
+          "name": "Create Racket First Stringing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/rackets/stringings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newRacket\": {\n    \"displayName\": \"Blade 98\",\n    \"brand\": \"Wilson\",\n    \"model\": \"V9\",\n    \"stringPattern\": \"16x19\",\n    \"ownerName\": \"Carlos\"\n  },\n  \"stringingDate\": \"2026-04-10\",\n  \"mainsKg\": 24.0,\n  \"crossesKg\": 23.5,\n  \"mainStringBrand\": \"Luxilon\",\n  \"mainStringModel\": \"Alu Power\",\n  \"mainStringGauge\": \"1.25\",\n  \"crossStringBrand\": \"Wilson\",\n  \"crossStringModel\": \"Sensation\",\n  \"crossStringGauge\": \"1.30\",\n  \"notes\": \"Fresh hybrid setup\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Add Stringing To Existing Racket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/rackets/stringings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"racketPublicToken\": \"{{racketPublicToken}}\",\n  \"stringingDate\": \"2026-04-17\",\n  \"mainsKg\": 23.0,\n  \"crossesKg\": 22.5,\n  \"mainStringBrand\": \"Yonex\",\n  \"mainStringModel\": \"Poly Tour Rev\",\n  \"mainStringGauge\": \"1.25\",\n  \"crossStringBrand\": \"Yonex\",\n  \"crossStringModel\": \"Poly Tour Pro\",\n  \"crossStringGauge\": \"1.20\",\n  \"notes\": \"Second setup\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Racket Metadata",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/rackets/{{racketPublicToken}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brand\": \"Yonex\",\n  \"model\": \"2025\",\n  \"stringPattern\": \"16x19\",\n  \"ownerName\": \"Carlos Parraga\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Stringing",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/rackets/stringings/{{racketStringingId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mainsKg\": 24.5,\n  \"crossesKg\": 24.0,\n  \"notes\": \"Adjusted after player feedback\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Stringing",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/rackets/stringings/{{racketStringingId}}"
+          }
+        }
+      ]
+    },
+    {
       "name": "Tournaments",
       "item": [
         {
@@ -628,7 +745,7 @@
     },
     {
       "name": "Scenarios",
-      "description": "Runnable collection-runner scenarios. `Complex Tournament - Initialize` starts an end-to-end zero-state flow that generates a test JWT, creates the club owner and club implicitly, creates a GROUP -> SWISS -> KNOCKOUT tournament, adds 8 players, scores each scheduled match, and stops when the tournament reaches COMPLETED. `Swiss Knockout With Bye - Initialize` does the same for a `SWISS -> KNOCKOUT` flow with 5 players so round 1 includes a bye and Swiss advances the top 4. This assumes the backend is running with the test JWT settings from `AuthConfig` (`issuer=http://localhost/test-issuer`, `audience=test-audience`, `secret=test-secret`) or equivalent environment overrides.",
+      "description": "Runnable collection-runner scenarios. `Complex Tournament - Initialize` starts an end-to-end zero-state flow that generates a test JWT, creates the club owner and club implicitly, creates a GROUP -> SWISS -> KNOCKOUT tournament, adds 8 players, scores each scheduled match, and stops when the tournament reaches COMPLETED. `Swiss Knockout With Bye - Initialize` does the same for a `SWISS -> KNOCKOUT` flow with 5 players so round 1 includes a bye and Swiss advances the top 4. `Racket QR History - Initialize` exercises the racket QR APIs end-to-end with create, public lookup, metadata update, stringing update, second stringing, delete, and final public verification. This assumes the backend is running with the test JWT settings from `AuthConfig` (`issuer=http://localhost/test-issuer`, `audience=test-audience`, `secret=test-secret`) or equivalent environment overrides.",
       "item": [
         {
           "name": "Complex Tournament Scenario",
@@ -1557,6 +1674,311 @@
                       "    .flatMap(function (round) { return round.matches || []; })",
                       "    .filter(function (match) { return match.status === \"WALKOVER\"; });",
                       "  pm.expect(swissWalkovers.length).to.be.above(0);",
+                      "});",
+                      "",
+                      "postman.setNextRequest(null);"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Racket QR History Scenario",
+          "description": "Zero-state racket QR scenario. Generates a test JWT, creates a racket on first stringing, verifies the public QR view, updates racket metadata and stringing details, adds a second stringing, deletes it, and verifies the public history again.",
+          "item": [
+            {
+              "name": "Racket QR History - Initialize",
+              "request": {
+                "method": "GET",
+                "description": "Initializes collection variables and generates a test JWT for the racket QR history flow. Run this request in the Collection Runner to kick off the full scenario.",
+                "url": "{{baseUrl}}/players"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Initialization request succeeded\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.collectionVariables.unset(\"racketPublicToken\");",
+                      "pm.collectionVariables.unset(\"racketStringingId\");",
+                      "",
+                      "function base64Url(wordArray) {",
+                      "  return CryptoJS.enc.Base64.stringify(wordArray)",
+                      "    .replace(/=+$/g, \"\")",
+                      "    .replace(/\\+/g, \"-\")",
+                      "    .replace(/\\//g, \"_\");",
+                      "}",
+                      "",
+                      "const header = { alg: \"HS256\", typ: \"JWT\" };",
+                      "const payload = {",
+                      "  iss: pm.collectionVariables.get(\"scenarioTestIssuer\"),",
+                      "  aud: pm.collectionVariables.get(\"scenarioTestAudience\"),",
+                      "  sub: pm.collectionVariables.get(\"scenarioOwnerSubject\"),",
+                      "  email: pm.collectionVariables.get(\"scenarioOwnerEmail\"),",
+                      "  name: pm.collectionVariables.get(\"scenarioOwnerName\"),",
+                      "  exp: Math.floor(Date.now() / 1000) + 3600",
+                      "};",
+                      "",
+                      "const encodedHeader = base64Url(CryptoJS.enc.Utf8.parse(JSON.stringify(header)));",
+                      "const encodedPayload = base64Url(CryptoJS.enc.Utf8.parse(JSON.stringify(payload)));",
+                      "const signingInput = encodedHeader + \".\" + encodedPayload;",
+                      "const signature = base64Url(CryptoJS.HmacSHA256(signingInput, pm.collectionVariables.get(\"scenarioTestJwtSecret\")));",
+                      "",
+                      "pm.collectionVariables.set(\"authToken\", signingInput + \".\" + signature);",
+                      "",
+                      "postman.setNextRequest(\"Racket QR History - Create First Stringing\");"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Racket QR History - Create First Stringing",
+              "request": {
+                "method": "POST",
+                "description": "Creates the local user implicitly and registers the first stringing, which also creates the racket with its stable public QR token.",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/rackets/stringings",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"newRacket\": {\n    \"displayName\": \"Scenario Blade 98\",\n    \"brand\": \"Wilson\",\n    \"model\": \"V9\",\n    \"stringPattern\": \"16x19\",\n    \"ownerName\": \"Scenario Owner\"\n  },\n  \"stringingDate\": \"2026-04-10\",\n  \"mainsKg\": 24.0,\n  \"crossesKg\": 23.5,\n  \"mainStringBrand\": \"Luxilon\",\n  \"mainStringModel\": \"Alu Power\",\n  \"mainStringGauge\": \"1.25\",\n  \"crossStringBrand\": \"Wilson\",\n  \"crossStringModel\": \"Sensation\",\n  \"crossStringGauge\": \"1.30\",\n  \"notes\": \"Scenario initial setup\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"First stringing created\", function () {",
+                      "  pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "const body = pm.response.json();",
+                      "pm.collectionVariables.set(\"racketPublicToken\", body.data.publicToken);",
+                      "pm.collectionVariables.set(\"racketStringingId\", String(body.data.latestStringing.id));",
+                      "",
+                      "postman.setNextRequest(\"Racket QR History - Public Lookup\");"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Racket QR History - Public Lookup",
+              "request": {
+                "method": "GET",
+                "description": "Confirms that the QR target public endpoint exposes the latest stringing and full active history without authentication.",
+                "url": "{{baseUrl}}/public/rackets/{{racketPublicToken}}"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Public lookup succeeded\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.data.publicToken).to.eql(pm.collectionVariables.get(\"racketPublicToken\"));",
+                      "  pm.expect(body.data.history.length).to.eql(1);",
+                      "  pm.expect(body.data.latestStringing.stringingDate).to.eql(\"2026-04-10\");",
+                      "});",
+                      "",
+                      "postman.setNextRequest(\"Racket QR History - Update Racket Metadata\");"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Racket QR History - Update Racket Metadata",
+              "request": {
+                "method": "PUT",
+                "description": "Updates the racket metadata while keeping the same public QR token.",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/rackets/{{racketPublicToken}}",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"brand\": \"Yonex\",\n  \"model\": \"Percept 97\",\n  \"stringPattern\": \"16x19\",\n  \"ownerName\": \"Scenario Owner Updated\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Racket metadata updated\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.data.brand).to.eql(\"Yonex\");",
+                      "  pm.expect(body.data.model).to.eql(\"Percept 97\");",
+                      "  pm.expect(body.data.ownerName).to.eql(\"Scenario Owner Updated\");",
+                      "});",
+                      "",
+                      "postman.setNextRequest(\"Racket QR History - Update First Stringing\");"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Racket QR History - Update First Stringing",
+              "request": {
+                "method": "PUT",
+                "description": "Updates the first stringing values and notes.",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/rackets/stringings/{{racketStringingId}}",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mainsKg\": 24.5,\n  \"crossesKg\": 24.0,\n  \"notes\": \"Scenario adjusted setup\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"First stringing updated\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.data.latestStringing.mainsKg).to.eql(24.5);",
+                      "  pm.expect(body.data.latestStringing.crossesKg).to.eql(24.0);",
+                      "  pm.expect(body.data.latestStringing.notes).to.eql(\"Scenario adjusted setup\");",
+                      "});",
+                      "",
+                      "postman.setNextRequest(\"Racket QR History - Add Second Stringing\");"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Racket QR History - Add Second Stringing",
+              "request": {
+                "method": "POST",
+                "description": "Registers a second stringing against the existing racket to expand the public history.",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/rackets/stringings",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"racketPublicToken\": \"{{racketPublicToken}}\",\n  \"stringingDate\": \"2026-04-17\",\n  \"mainsKg\": 23.0,\n  \"crossesKg\": 22.5,\n  \"mainStringBrand\": \"Yonex\",\n  \"mainStringModel\": \"Poly Tour Rev\",\n  \"mainStringGauge\": \"1.25\",\n  \"crossStringBrand\": \"Yonex\",\n  \"crossStringModel\": \"Poly Tour Pro\",\n  \"crossStringGauge\": \"1.20\",\n  \"notes\": \"Scenario second setup\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Second stringing created\", function () {",
+                      "  pm.response.to.have.status(201);",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.data.history.length).to.eql(2);",
+                      "  pm.expect(body.data.latestStringing.stringingDate).to.eql(\"2026-04-17\");",
+                      "  pm.collectionVariables.set(\"racketStringingId\", String(body.data.latestStringing.id));",
+                      "});",
+                      "",
+                      "postman.setNextRequest(\"Racket QR History - Delete Latest Stringing\");"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Racket QR History - Delete Latest Stringing",
+              "request": {
+                "method": "DELETE",
+                "description": "Logically deletes the latest stringing so the public history should fall back to the first one.",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/rackets/stringings/{{racketStringingId}}"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Latest stringing deleted\", function () {",
+                      "  pm.response.to.have.status(204);",
+                      "});",
+                      "",
+                      "postman.setNextRequest(\"Racket QR History - Verify Final Public View\");"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Racket QR History - Verify Final Public View",
+              "request": {
+                "method": "GET",
+                "description": "Confirms that the deleted stringing no longer appears in the public history and the first stringing is visible again as latest.",
+                "url": "{{baseUrl}}/public/rackets/{{racketPublicToken}}"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Final public racket view is correct\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.data.history.length).to.eql(1);",
+                      "  pm.expect(body.data.latestStringing.stringingDate).to.eql(\"2026-04-10\");",
+                      "  pm.expect(body.data.latestStringing.notes).to.eql(\"Scenario adjusted setup\");",
+                      "  pm.expect(body.data.brand).to.eql(\"Yonex\");",
+                      "  pm.expect(body.data.model).to.eql(\"Percept 97\");",
                       "});",
                       "",
                       "postman.setNextRequest(null);"

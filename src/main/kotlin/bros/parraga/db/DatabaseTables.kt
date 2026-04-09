@@ -7,6 +7,9 @@ import bros.parraga.db.schema.GroupsTable
 import bros.parraga.db.schema.MatchDependenciesTable
 import bros.parraga.db.schema.MatchesTable
 import bros.parraga.db.schema.PlayersTable
+import bros.parraga.db.schema.RacketStringingAuditsTable
+import bros.parraga.db.schema.RacketStringingsTable
+import bros.parraga.db.schema.RacketsTable
 import bros.parraga.db.schema.SwissRankingsTable
 import bros.parraga.db.schema.TournamentPhasesTable
 import bros.parraga.db.schema.TournamentPlayersTable
@@ -17,6 +20,9 @@ import org.jetbrains.exposed.sql.Table
 object DatabaseTables {
     val all: List<Table> = listOf(
         UsersTable,
+        RacketsTable,
+        RacketStringingsTable,
+        RacketStringingAuditsTable,
         PlayersTable,
         ClubsTable,
         ClubAdminsTable,

@@ -3,6 +3,7 @@ package bros.parraga.modules
 import bros.parraga.routes.clubRouting
 import bros.parraga.routes.matchRouting
 import bros.parraga.routes.playerRouting
+import bros.parraga.routes.racketRouting
 import bros.parraga.routes.tournamentRouting
 import bros.parraga.routes.userRouting
 import io.ktor.server.application.*
@@ -12,6 +13,7 @@ fun Application.configureRouting() {
     routing {
         tournamentRouting()
         playerRouting()
+        racketRouting()
         clubRouting()
         userRouting()
         matchRouting()

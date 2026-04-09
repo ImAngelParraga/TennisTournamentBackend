@@ -2,11 +2,12 @@
 
 ## 1) Purpose and Current Scope
 
-This backend manages clubs, players, tournaments, phases, and matches for tennis competitions.
+This backend manages clubs, players, tournaments, phases, matches, and racket stringing history for tennis workflows.
 
 Current product scope:
 - Knockout, Group, and Swiss phases are supported.
 - Knockout remains the most battle-tested format.
+- Standalone racket QR history APIs are supported for stringers/frontends.
 - Public read APIs are open.
 - Write APIs require JWT auth and role checks.
 - Tournament bracket generation/progression logic is delegated to `TennisTournamentLib`.
@@ -39,6 +40,7 @@ Routes:
 - `src/main/kotlin/bros/parraga/routes/MatchRoute.kt`
 - `src/main/kotlin/bros/parraga/routes/ClubRoute.kt`
 - `src/main/kotlin/bros/parraga/routes/PlayerRoute.kt`
+- `src/main/kotlin/bros/parraga/routes/RacketRoute.kt`
 - `src/main/kotlin/bros/parraga/routes/UserRoute.kt`
 
 Persistence/services:
@@ -119,6 +121,7 @@ Public reads:
 - `GET /players/{id}`
 - `GET /users`
 - `GET /users/{id}`
+- `GET /public/rackets/{publicToken}`
 - `GET /tournaments`
 - `GET /tournaments/{id}`
 - `GET /tournaments/{id}/players`
@@ -138,6 +141,11 @@ Authenticated writes (with role checks where applicable):
   - `POST /players`
   - `PUT /players`
   - `DELETE /players/{id}`
+- Rackets:
+  - `POST /rackets/stringings`
+  - `PUT /rackets/{publicToken}`
+  - `PUT /rackets/stringings/{stringingId}`
+  - `DELETE /rackets/stringings/{stringingId}`
 - Tournaments:
   - `POST /tournaments`
   - `PUT /tournaments`
@@ -169,6 +177,9 @@ If running with local lib source:
 Important tables/entities:
 - `users`
 - `players`
+- `rackets`
+- `racket_stringings`
+- `racket_stringing_audits`
 - `clubs`
 - `club_admins`
 - `tournaments`
@@ -202,6 +213,7 @@ Common error mapping:
 - Swiss cross-phase advancement is controlled by `advancingCount` in phase config.
 - If `advancingCount` is omitted, Swiss advances all players to the next phase.
 - Deterministic seeding is not fully implemented.
+- Racket ownership claim/link workflow is not implemented yet; owner linking still needs a safer future flow.
 - Tournament lifecycle/state machine is still permissive.
 - Auto schema mutation is enabled by default and not a long-term production migration strategy.
 - Additional concurrency/idempotency hardening is still needed for repeated start/progression calls.

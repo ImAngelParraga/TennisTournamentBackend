@@ -6,6 +6,8 @@ import bros.parraga.services.repositories.match.MatchRepository
 import bros.parraga.services.repositories.match.MatchRepositoryImpl
 import bros.parraga.services.repositories.player.PlayerRepository
 import bros.parraga.services.repositories.player.PlayerRepositoryImpl
+import bros.parraga.services.repositories.racket.RacketRepository
+import bros.parraga.services.repositories.racket.RacketRepositoryImpl
 import bros.parraga.services.repositories.tournament.TournamentRepository
 import bros.parraga.services.repositories.tournament.TournamentRepositoryImpl
 import bros.parraga.services.repositories.user.UserRepository
@@ -30,6 +32,7 @@ val appModule = module {
     singleOf(::TournamentRepositoryImpl) bind TournamentRepository::class
     singleOf(::UserRepositoryImpl) { bind<UserRepository>() }
     singleOf(::PlayerRepositoryImpl) bind PlayerRepository::class
+    singleOf(::RacketRepositoryImpl) bind RacketRepository::class
     singleOf(::ClubRepositoryImpl) bind ClubRepository::class
     singleOf(::MatchRepositoryImpl) bind MatchRepository::class
     singleOf(::AuthorizationService)
