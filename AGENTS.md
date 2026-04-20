@@ -4,11 +4,17 @@
 This file applies to `TennisTournamentBackend`.
 
 ## Required Workflow
-1. Read `AI_CONTEXT.md` and `CONTINUITY.md` before making changes.
+1. Read `MODEL_CONTEXT.md` and `CONTINUITY.md` before making changes.
 2. Do not commit or push unless the user explicitly asks.
 3. If a commit is requested, push immediately after each commit.
 4. Update `CONTINUITY.md` after each meaningful implementation/review change.
 5. Keep `docs/postman/TennisTournamentBackend.postman_collection.json` in sync with API changes.
+
+## Model Usage
+- Prefer the local Qwen OpenAI-compatible endpoint for summarization, research, and drafting tasks when it is capable of the task and enough source context can be provided.
+- Local endpoint: `http://127.0.0.1:8033/v1`
+- Verify model-generated output against repo source files before making edits or recording facts.
+- Use the hosted model directly when the task needs tighter repo/tool reasoning or source-of-truth verification across many files.
 
 ## Backend-Specific Rules
 - Any DB schema change must be a new Flyway migration (`src/main/resources/db/migration/V*_*.sql`).

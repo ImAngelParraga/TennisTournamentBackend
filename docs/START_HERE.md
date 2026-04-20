@@ -208,7 +208,7 @@ Common error mapping:
 
 ## 12) Recommended First Tasks for a New Dev/Model
 
-1. Read this file first, then `docs/AUTH_SETUP.md` and `docs/ISSUES.md`.
+1. Read `MODEL_CONTEXT.md` first, then use this file only if you need more architecture detail.
 2. Run tests and verify local environment.
 3. Validate one full knockout flow using Postman collection + sequence guide.
 4. Pick a high-priority issue from `docs/ISSUES.md`.
@@ -218,8 +218,6 @@ Common error mapping:
 - `docs/AUTH_SETUP.md`: auth and env setup details.
 - `docs/DB_MIGRATIONS.md`: Flyway migration workflow and Supabase setup steps.
 - `docs/ISSUES.md`: prioritized backlog/checklist.
-- `docs/SESSION_HANDOFF.md`: session snapshot and context.
-- `docs/SESSION_HANDOFF_CONSOLIDATED.md`: cross-repo consolidated snapshot.
 - `docs/postman/TEST_SEQUENCES.md`: manual API sequence guide.
 
-Treat `Start Here` as the canonical onboarding entrypoint.
+Treat `MODEL_CONTEXT.md` as the canonical onboarding entrypoint.

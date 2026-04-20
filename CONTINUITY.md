@@ -1,6 +1,6 @@
 # CONTINUITY
 
-Last Updated: 2026-03-15
+Last Updated: 2026-04-21
 Repository: TennisTournamentBackend
 
 ## Update Rule
@@ -10,17 +10,26 @@ Include: branch, uncommitted state, what changed, what remains.
 ## Current State
 - Branch: `master`
 - Local note: keep working tree clean between tasks; this file may appear as a local change until committed.
-- Main documentation entrypoint: `docs/START_HERE.md`
+- Main documentation entrypoint: `MODEL_CONTEXT.md`
 - Prioritized backlog: `docs/ISSUES.md`
 - Local implementation changes (not committed yet):
+  - added: `MODEL_CONTEXT.md`
+  - modified: `AGENTS.md`
   - modified: `CONTINUITY.md`
-  - modified: `docs/ISSUES.md`
-  - modified: `docs/postman/TEST_SEQUENCES.md`
-  - modified: `src/main/kotlin/bros/parraga/services/PhaseExecutionService.kt`
-  - modified: `src/main/kotlin/bros/parraga/services/repositories/tournament/TournamentRepositoryImpl.kt`
-  - modified: `src/test/kotlin/bros/parraga/TournamentRepositoryTest.kt`
+  - modified: `docs/START_HERE.md`
+  - deleted: `AI_CONTEXT.md`
+  - deleted: `docs/SESSION_HANDOFF.md`
+  - deleted: `docs/SESSION_HANDOFF_CONSOLIDATED.md`
 
 ## Recent Completed Work
+- (uncommitted in current session) Removed stale onboarding and handoff docs:
+  - deleted `AI_CONTEXT.md` after replacing it with `MODEL_CONTEXT.md`
+  - deleted `docs/SESSION_HANDOFF.md` and `docs/SESSION_HANDOFF_CONSOLIDATED.md`
+  - updated `docs/START_HERE.md` to point future agents to `MODEL_CONTEXT.md` instead of older onboarding/handoff docs
+- (uncommitted in current session) Consolidated model-facing project context:
+  - added `MODEL_CONTEXT.md` as the canonical single-file context for future coding agents
+  - updated `AGENTS.md` to require `MODEL_CONTEXT.md` and record local Qwen endpoint usage guidance
+  - switched `CONTINUITY.md` main documentation entrypoint from `docs/START_HERE.md` to `MODEL_CONTEXT.md`
 - (uncommitted in current session) Tightened tournament and phase validation inputs:
   - enforce `startDate <= endDate` on tournament create/update
   - validate draft phase definitions against projected entrant counts derived from current players and earlier phase configs
@@ -64,7 +73,7 @@ Include: branch, uncommitted state, what changed, what remains.
 - (uncommitted in current session) Marked deterministic seeding issue as completed in `docs/ISSUES.md`
 - (uncommitted in current session) Added AI operating docs:
   - `AGENTS.md` with workflow rules (commit/push policy, flyway/postman/update discipline)
-  - `AI_CONTEXT.md` as backend+lib quick-start context for future models
+  - later superseded by `MODEL_CONTEXT.md` as the canonical single-file agent context
 - (uncommitted in current session) Refreshed Postman collection to match all current routes:
   - `docs/postman/TennisTournamentBackend.postman_collection.json`
   - added missing endpoints (including tournament reset) and aligned payloads with current DTOs
