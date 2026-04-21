@@ -27,6 +27,14 @@
       "value": "1"
     },
     {
+      "key": "racketId",
+      "value": "1"
+    },
+    {
+      "key": "racketStringingId",
+      "value": "1"
+    },
+    {
       "key": "clubId",
       "value": "1"
     },
@@ -160,6 +168,165 @@
               }
             ],
             "url": "{{baseUrl}}/users/{{userId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rackets",
+      "item": [
+        {
+          "name": "Get My Rackets",
+          "description": "Returns the authenticated user's non-deleted rackets, including private ones.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me/rackets"
+          }
+        },
+        {
+          "name": "Get My Racket By Id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me/rackets/{{racketId}}"
+          }
+        },
+        {
+          "name": "Create Racket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me/rackets",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Blade 98\",\n  \"brand\": \"Wilson\",\n  \"model\": \"V9\",\n  \"stringPattern\": \"16x19\",\n  \"visibility\": \"PRIVATE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Racket",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me/rackets/{{racketId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"visibility\": \"PUBLIC\",\n  \"model\": \"V9 2026\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Racket",
+          "description": "Soft-deletes the racket and hides its history from normal reads.",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me/rackets/{{racketId}}"
+          }
+        },
+        {
+          "name": "Create Racket Stringing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me/rackets/{{racketId}}/stringings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stringingDate\": \"2026-04-10\",\n  \"mainsTensionKg\": 24.0,\n  \"crossesTensionKg\": 23.0,\n  \"mainStringType\": \"Alu Power 1.25\",\n  \"crossStringType\": \"Sensation 1.30\",\n  \"performanceNotes\": \"Stable on serve\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Racket Stringing",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me/rackets/{{racketId}}/stringings/{{racketStringingId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mainsTensionKg\": 24.5,\n  \"performanceNotes\": \"More pocketing and spin\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Racket Stringing",
+          "description": "Soft-deletes a single stringing entry.",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me/rackets/{{racketId}}/stringings/{{racketStringingId}}"
+          }
+        },
+        {
+          "name": "Get Public Rackets By User",
+          "description": "Returns only public, non-deleted rackets for the selected user.",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/{{userId}}/rackets"
+          }
+        },
+        {
+          "name": "Get Public Racket By Id",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/{{userId}}/rackets/{{racketId}}"
           }
         }
       ]

@@ -9,30 +9,56 @@ Include: branch, uncommitted state, what changed, what remains.
 
 ## Current State
 - Branch: `feat/user-profile-achievements`
-- Local note: keep working tree clean between tasks; this file may appear as a local change until committed.
+- Working tree status before this update: feature work in progress
 - Main documentation entrypoint: `MODEL_CONTEXT.md`
 - Prioritized backlog: `docs/ISSUES.md`
-- Local implementation changes (not committed yet):
-  - modified: `.gitignore`
+- Local implementation changes after this update:
   - modified: `CONTINUITY.md`
-  - modified: `docs/ISSUES.md`
-  - added: `docs/USER_PROFILE_ACHIEVEMENTS_DRAFT.md`
+  - added: `docs/USER_RACKETS_STRINGINGS_PLAN.md`
   - modified: `docs/postman/TennisTournamentBackend.postman_collection.json`
   - modified: `src/main/kotlin/bros/parraga/db/DatabaseTables.kt`
-  - modified: `src/main/kotlin/bros/parraga/db/RowLocking.kt`
-  - added: `src/main/kotlin/bros/parraga/db/schema/AchievementEntity.kt`
-  - modified: `src/main/kotlin/bros/parraga/db/schema/TournamentEntity.kt`
-  - modified: `src/main/kotlin/bros/parraga/db/schema/UserEntity.kt`
-  - modified: `src/main/kotlin/bros/parraga/domain/User.kt`
-  - modified: `src/main/kotlin/bros/parraga/services/TournamentProgressionService.kt`
-  - modified: `src/main/kotlin/bros/parraga/services/repositories/user/UserRepository.kt`
-  - modified: `src/main/kotlin/bros/parraga/services/repositories/user/UserRepositoryImpl.kt`
-  - modified: `src/test/kotlin/bros/parraga/TournamentRepositoryTest.kt`
-  - modified: `src/test/kotlin/bros/parraga/UserTest.kt`
-  - added: `src/main/resources/db/migration/V6__tournament_champion_player.sql`
-  - added: `src/main/resources/db/migration/V7__achievement_definitions.sql`
+  - modified: `src/main/kotlin/bros/parraga/modules/Koin.kt`
+  - modified: `src/main/kotlin/bros/parraga/modules/Routing.kt`
+  - added: `src/main/kotlin/bros/parraga/db/schema/RacketEntity.kt`
+  - added: `src/main/kotlin/bros/parraga/domain/RacketDtos.kt`
+  - added: `src/main/kotlin/bros/parraga/routes/RacketRoute.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/RacketRepository.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/RacketRepositoryImpl.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/dto/CreateRacketRequest.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/dto/CreateRacketStringingRequest.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/dto/UpdateRacketRequest.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/dto/UpdateRacketStringingRequest.kt`
+  - added: `src/main/resources/db/migration/V8__user_rackets_and_stringings.sql`
+  - added: `src/test/kotlin/bros/parraga/RacketRepositoryTest.kt`
 
 ## Recent Completed Work
+- (uncommitted in current session) Implemented user-owned rackets and stringing history MVP:
+  - added planning doc `docs/USER_RACKETS_STRINGINGS_PLAN.md`
+  - added DB schema + Flyway migration `V8__user_rackets_and_stringings.sql` for `rackets` and `racket_stringings`
+  - rackets support `PUBLIC` / `PRIVATE` visibility, multiple rackets per user, and soft delete
+  - stringing history stores `stringingDate`, separate mains/crosses tensions, free-text mains/crosses string types, and performance notes
+  - added owner routes under `/users/me/rackets` for list/detail/create/update/delete and stringing create/update/delete
+  - added public routes under `/users/{id}/rackets` for visible racket list/detail
+  - owner reads include private rackets; public reads only expose `PUBLIC` rackets
+  - deleting a racket soft-deletes the racket and all active stringings; deleting a stringing soft-deletes only that entry
+  - updated Postman collection with the new racket endpoints and request payloads
+  - validated with:
+    - `./gradlew.bat --stop; $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process'; ./gradlew.bat test --no-daemon --tests 'bros.parraga.RacketRepositoryTest'` (pass)
+    - `./gradlew.bat --stop; $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process'; ./gradlew.bat test --no-daemon` (pass)
+- (planning only, no code changes yet) Clarified racket stringing feature scope with user:
+  - users can manage multiple rackets
+  - each stringing entry stores separate mains/crosses tensions
+  - only the owning user can create/manage rackets and stringing history
+  - racket visibility is user-controlled and can be changed later
+  - visibility options are only `PUBLIC` and `PRIVATE`
+  - string type will be stored as free text for mains and crosses separately
+  - rackets and stringing history should use soft delete behavior
+  - previous stringer-driven QR/public-token model is now considered over-scoped for the next implementation pass
+- (local repo operation, not pushed) Fast-forward merged `feat/user-profile-achievements` into local `master`, then checked out `feat/user-profile-achievements` again to continue feature planning
+- (planning only, no code changes yet) Investigated racket string tension history support:
+  - current `/users` writes remain intentionally disabled, so authenticated stringing writes should use a dedicated subresource rather than generic user updates
+  - current `GET /users/{id}` is the only expanded user detail response and can optionally expose racket history if the feature should be public
+  - existing branch `feat/racket-stringing-qr-history` contains a broader prototype (`rackets`, `racket_stringings`, public token route, audit trail, tests) but it predates current context/docs consolidation and would need selective porting plus a new migration number
 - (uncommitted in current session) Implemented user profile achievements MVP:
   - added tournament champion persistence and Flyway migration `V6__tournament_champion_player.sql`
   - persisted a single champion when tournaments complete; for Group/Swiss ties on top `points`, selected the lowest `player_id` deterministically
