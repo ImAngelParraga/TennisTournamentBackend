@@ -93,6 +93,7 @@
       "item": [
         {
           "name": "Get Users",
+          "description": "Lists users without profile achievements.",
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/users"
@@ -100,6 +101,7 @@
         },
         {
           "name": "Get User By Id",
+          "description": "Returns a single user profile. This response now includes derived `achievements` data.",
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/users/{{userId}}"

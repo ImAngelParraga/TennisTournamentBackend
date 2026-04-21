@@ -8,20 +8,46 @@ Update this file after each meaningful implementation/review/change in this repo
 Include: branch, uncommitted state, what changed, what remains.
 
 ## Current State
-- Branch: `master`
+- Branch: `feat/user-profile-achievements`
 - Local note: keep working tree clean between tasks; this file may appear as a local change until committed.
 - Main documentation entrypoint: `MODEL_CONTEXT.md`
 - Prioritized backlog: `docs/ISSUES.md`
 - Local implementation changes (not committed yet):
-  - added: `MODEL_CONTEXT.md`
-  - modified: `AGENTS.md`
+  - modified: `.gitignore`
   - modified: `CONTINUITY.md`
-  - modified: `docs/START_HERE.md`
-  - deleted: `AI_CONTEXT.md`
-  - deleted: `docs/SESSION_HANDOFF.md`
-  - deleted: `docs/SESSION_HANDOFF_CONSOLIDATED.md`
+  - modified: `docs/ISSUES.md`
+  - added: `docs/USER_PROFILE_ACHIEVEMENTS_DRAFT.md`
+  - modified: `docs/postman/TennisTournamentBackend.postman_collection.json`
+  - modified: `src/main/kotlin/bros/parraga/db/DatabaseTables.kt`
+  - modified: `src/main/kotlin/bros/parraga/db/RowLocking.kt`
+  - added: `src/main/kotlin/bros/parraga/db/schema/AchievementEntity.kt`
+  - modified: `src/main/kotlin/bros/parraga/db/schema/TournamentEntity.kt`
+  - modified: `src/main/kotlin/bros/parraga/db/schema/UserEntity.kt`
+  - modified: `src/main/kotlin/bros/parraga/domain/User.kt`
+  - modified: `src/main/kotlin/bros/parraga/services/TournamentProgressionService.kt`
+  - modified: `src/main/kotlin/bros/parraga/services/repositories/user/UserRepository.kt`
+  - modified: `src/main/kotlin/bros/parraga/services/repositories/user/UserRepositoryImpl.kt`
+  - modified: `src/test/kotlin/bros/parraga/TournamentRepositoryTest.kt`
+  - modified: `src/test/kotlin/bros/parraga/UserTest.kt`
+  - added: `src/main/resources/db/migration/V6__tournament_champion_player.sql`
+  - added: `src/main/resources/db/migration/V7__achievement_definitions.sql`
 
 ## Recent Completed Work
+- (uncommitted in current session) Implemented user profile achievements MVP:
+  - added tournament champion persistence and Flyway migration `V6__tournament_champion_player.sql`
+  - persisted a single champion when tournaments complete; for Group/Swiss ties on top `points`, selected the lowest `player_id` deterministically
+  - added DB-backed achievement definitions via `V7__achievement_definitions.sql` and `AchievementEntity.kt`
+  - exposed DB-backed `achievements` only on `GET /users/{id}` directly on `User`
+  - kept `GET /users` unchanged
+  - added `.kotlin/` to `.gitignore`
+  - updated Postman user request descriptions to reflect the detail response contract
+  - validated with:
+    - `./gradlew.bat --stop; $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process'; ./gradlew.bat test --no-daemon --tests "bros.parraga.UserTest"` (pass)
+    - `./gradlew.bat --stop; $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process'; ./gradlew.bat test --no-daemon --tests "bros.parraga.TournamentRepositoryTest"` (pass)
+    - `./gradlew.bat --stop; $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process'; ./gradlew.bat test --no-daemon` (pass)
+- (uncommitted in current session) Added planning docs for user profile achievement badges:
+  - added backlog item in `docs/ISSUES.md` for tournament-win badges on user profiles
+  - added `docs/USER_PROFILE_ACHIEVEMENTS_DRAFT.md` with MVP analysis, tie-aware winner persistence, single-user achievements response shape, future achievement ideas, the rule that Group/Swiss tied winners are determined by equal top `points` only, the decisions that only registered users get profile achievements and invalidated results do not auto-revoke them, and the policy that admins may manually recompute winner rows later
 - (uncommitted in current session) Removed stale onboarding and handoff docs:
   - deleted `AI_CONTEXT.md` after replacing it with `MODEL_CONTEXT.md`
   - deleted `docs/SESSION_HANDOFF.md` and `docs/SESSION_HANDOFF_CONSOLIDATED.md`

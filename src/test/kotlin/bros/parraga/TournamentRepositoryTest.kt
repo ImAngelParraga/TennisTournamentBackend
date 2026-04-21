@@ -712,6 +712,126 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
         val tournamentBody = tournamentResponse.body<ApiResponse<TournamentBasic>>()
         assertEquals(HttpStatusCode.OK, tournamentResponse.status)
         assertEquals(TournamentStatus.COMPLETED, tournamentBody.data?.status)
+
+        transaction {
+            val championId = TournamentDAO[1].champion?.id?.value
+            assertEquals(scoreBody.data?.winnerId, championId)
+        }
+    }
+
+    @Test
+    fun `group-only tournament should persist a single winner when top points are tied`() = testApplicationWithClient { client ->
+        createTestData(
+            playerCount = 4,
+            phaseSpecs = listOf(
+                PhaseSpec(
+                    order = 1,
+                    format = PhaseFormat.GROUP,
+                    configuration = PhaseConfiguration.GroupConfig(
+                        groupCount = 1,
+                        teamsPerGroup = 4,
+                        advancingPerGroup = 1
+                    )
+                )
+            )
+        )
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val startResponse = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, startResponse.status)
+        val phase = startResponse.body<ApiResponse<TournamentPhase>>().data ?: error("missing started phase")
+
+        val desiredWinnersByPair = mapOf(
+            setOf(1, 2) to 2,
+            setOf(1, 3) to 1,
+            setOf(1, 4) to 1,
+            setOf(2, 3) to 2,
+            setOf(2, 4) to 4,
+            setOf(3, 4) to 3
+        )
+
+        phase.matches.forEach { match ->
+            val player1Id = match.player1?.id ?: error("missing player1")
+            val player2Id = match.player2?.id ?: error("missing player2")
+            val desiredWinnerId = desiredWinnersByPair.getValue(setOf(player1Id, player2Id))
+            val request = if (player1Id == desiredWinnerId) twoSetWin() else twoSetLoss()
+            val scoreResponse = client.put("/matches/${match.id}/score") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+            assertEquals(HttpStatusCode.OK, scoreResponse.status)
+        }
+
+        val tournamentResponse = client.get("/tournaments/1")
+        val tournamentBody = tournamentResponse.body<ApiResponse<TournamentBasic>>()
+        assertEquals(TournamentStatus.COMPLETED, tournamentBody.data?.status)
+
+        transaction {
+            val championId = TournamentDAO[1].champion?.id?.value
+            assertEquals(1, championId)
+        }
+    }
+
+    @Test
+    fun `swiss-only tournament should persist a single winner from top points`() = testApplicationWithClient { client ->
+        createTestData(
+            playerCount = 5,
+            phaseSpecs = listOf(
+                PhaseSpec(
+                    order = 1,
+                    format = PhaseFormat.SWISS,
+                    configuration = PhaseConfiguration.SwissConfig(pointsPerWin = 1)
+                )
+            )
+        )
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val startResponse = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, startResponse.status)
+        val swissPhaseId = startResponse.body<ApiResponse<TournamentPhase>>().data?.id ?: error("missing swiss phase")
+
+        while (true) {
+            val swissMatches = client.get("/tournaments/1/matches")
+                .body<ApiResponse<List<Match>>>()
+                .data
+                ?.filter { it.phaseId == swissPhaseId && it.status == MatchStatus.SCHEDULED }
+                .orEmpty()
+
+            if (swissMatches.isEmpty()) break
+
+            swissMatches.forEach { match ->
+                val scoreResponse = client.put("/matches/${match.id}/score") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(twoSetWin())
+                }
+                assertEquals(HttpStatusCode.OK, scoreResponse.status)
+            }
+        }
+
+        val tournamentResponse = client.get("/tournaments/1")
+        val tournamentBody = tournamentResponse.body<ApiResponse<TournamentBasic>>()
+        assertEquals(TournamentStatus.COMPLETED, tournamentBody.data?.status)
+
+        transaction {
+            val expectedChampionId = SwissRankingsTable.selectAll()
+                .where { (SwissRankingsTable.phaseId eq swissPhaseId) and (SwissRankingsTable.round eq 3) }
+                .let { rows ->
+                    val allRows = rows.toList()
+                    val maxPoints = allRows.maxOf { it[SwissRankingsTable.points] }
+                    allRows.filter { it[SwissRankingsTable.points] == maxPoints }
+                        .map { it[SwissRankingsTable.playerId].value }
+                        .min()
+                }
+            val championId = TournamentDAO[1].champion?.id?.value
+
+            assertEquals(expectedChampionId, championId)
+        }
     }
 
     @Test
@@ -994,6 +1114,15 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
             sets = listOf(
                 SetScore(6, 4, null),
                 SetScore(6, 4, null)
+            )
+        )
+    )
+
+    private fun twoSetLoss() = UpdateMatchScoreRequest(
+        score = TennisScore(
+            sets = listOf(
+                SetScore(4, 6, null),
+                SetScore(4, 6, null)
             )
         )
     )

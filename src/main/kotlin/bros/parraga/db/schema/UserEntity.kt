@@ -1,5 +1,6 @@
 package bros.parraga.db.schema
 
+import bros.parraga.domain.Achievement
 import bros.parraga.domain.User
 import kotlinx.datetime.toKotlinInstant
 import org.jetbrains.exposed.dao.IntEntity
@@ -28,13 +29,14 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
     val createdAt by UsersTable.createdAt
     var updatedAt by UsersTable.updatedAt
 
-    fun toDomain() = User(
-        id.value,
-        username,
-        email,
-        authProvider,
-        authSubject,
-        createdAt?.toKotlinInstant(),
-        updatedAt?.toKotlinInstant()
+    fun toDomain(achievements: List<Achievement> = emptyList()) = User(
+        id = id.value,
+        username = username,
+        email = email,
+        authProvider = authProvider,
+        authSubject = authSubject,
+        createdAt = createdAt?.toKotlinInstant(),
+        updatedAt = updatedAt?.toKotlinInstant(),
+        achievements = achievements
     )
 }

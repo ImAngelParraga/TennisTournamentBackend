@@ -55,6 +55,14 @@ This list reflects the current state of both repos:
 
 ## Recently Completed (No Longer Missing)
 
+- [x] Add user profile achievement badges for tournament wins.
+  Delivered:
+    - persisted a single tournament champion in `tournaments.champion_player_id`
+    - populated the champion on tournament completion for knockout, group, and swiss terminal phases
+    - for Group/Swiss ties on top `points`, selected the lowest `player_id` deterministically
+    - moved achievement definitions into the database so names, descriptions, activation, and thresholds can change without rebuilds
+    - exposed DB-backed `achievements` only on `GET /users/{id}`
+    - kept external champions as tournament facts without profile achievements
 - [x] JWT authentication baseline (Clerk-compatible verifier + test verifier)
 - [x] CORS origin allow-list configuration
 - [x] Role-based authorization for write endpoints (owner/admin model)

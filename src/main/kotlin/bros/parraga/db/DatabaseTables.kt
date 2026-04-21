@@ -1,5 +1,6 @@
 package bros.parraga.db
 
+import bros.parraga.db.schema.AchievementsTable
 import bros.parraga.db.schema.ClubsTable
 import bros.parraga.db.schema.ClubAdminsTable
 import bros.parraga.db.schema.GroupStandingsTable
@@ -16,6 +17,7 @@ import org.jetbrains.exposed.sql.Table
 
 object DatabaseTables {
     val all: List<Table> = listOf(
+        AchievementsTable,
         UsersTable,
         PlayersTable,
         ClubsTable,

@@ -1,5 +1,6 @@
 package bros.parraga.services
 
+import bros.parraga.db.lockTournamentRowInCurrentTransaction
 import bros.parraga.db.lockMatchRowInCurrentTransaction
 import bros.parraga.db.lockPhaseRowInCurrentTransaction
 import bros.parraga.db.schema.GroupStandingDAO
@@ -8,6 +9,8 @@ import bros.parraga.db.schema.MatchDependenciesTable
 import bros.parraga.db.schema.MatchDependencyDAO
 import bros.parraga.db.schema.MatchesTable
 import bros.parraga.db.schema.PlayerDAO
+import bros.parraga.db.schema.GroupStandingsTable
+import bros.parraga.db.schema.SwissRankingsTable
 import bros.parraga.db.schema.TournamentPhaseDAO
 import bros.parraga.domain.MatchStatus
 import bros.parraga.domain.Outcome
@@ -15,8 +18,10 @@ import bros.parraga.domain.PhaseConfiguration
 import bros.parraga.domain.PhaseFormat
 import bros.parraga.domain.TournamentStatus
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.selectAll
 import java.time.Instant
 
 object TournamentProgressionService {
@@ -99,6 +104,7 @@ object TournamentProgressionService {
 
     private fun maybeAdvanceOrCompletePhase(phase: TournamentPhaseDAO) {
         val tournament = phase.tournament
+        lockTournamentRowInCurrentTransaction(tournament.id.value)
         if (TournamentStatus.valueOf(tournament.status) != TournamentStatus.STARTED) return
 
         val phaseMatches = phase.matches.toList()
@@ -115,8 +121,56 @@ object TournamentProgressionService {
             return
         }
 
+        tournament.champion = resolveTournamentWinner(phase)
         tournament.status = TournamentStatus.COMPLETED.name
         tournament.updatedAt = Instant.now()
+    }
+
+    private fun resolveTournamentWinner(phase: TournamentPhaseDAO): PlayerDAO {
+        val candidateIds = when (PhaseFormat.valueOf(phase.format)) {
+            PhaseFormat.KNOCKOUT -> resolveKnockoutWinnerIds(phase)
+            PhaseFormat.GROUP -> resolveGroupWinnerIds(phase)
+            PhaseFormat.SWISS -> resolveSwissWinnerIds(phase)
+        }
+        val winnerId = candidateIds.distinct().sorted().firstOrNull()
+            ?: throw IllegalStateException("Could not resolve tournament winner for phase ${phase.id.value}")
+        return PlayerDAO[winnerId]
+    }
+
+    private fun resolveKnockoutWinnerIds(phase: TournamentPhaseDAO): List<Int> {
+        val highestRound = phase.matches.maxOfOrNull { it.round } ?: return emptyList()
+        return phase.matches
+            .filter { it.round == highestRound }
+            .filter { match ->
+                val dependencies = match.matchDependencies.toList()
+                dependencies.isEmpty() || dependencies.all { it.requiredOutcome == Outcome.WINNER.name }
+            }
+            .mapNotNull { it.winner?.id?.value }
+            .distinct()
+    }
+
+    private fun resolveGroupWinnerIds(phase: TournamentPhaseDAO): List<Int> {
+        val groupIds = phase.matches.mapNotNull { it.group?.id }.distinct()
+        if (groupIds.isEmpty()) return emptyList()
+
+        val standings = GroupStandingDAO.find { GroupStandingsTable.groupId inList groupIds }
+            .toList()
+        val maxPoints = standings.maxOfOrNull { it.points } ?: return emptyList()
+        return standings
+            .filter { it.points == maxPoints }
+            .map { it.player.id.value }
+            .distinct()
+    }
+
+    private fun resolveSwissWinnerIds(phase: TournamentPhaseDAO): List<Int> {
+        val finalRoundRankings = SwissRankingsTable.selectAll().where {
+            (SwissRankingsTable.phaseId eq phase.id) and (SwissRankingsTable.round eq phase.rounds)
+        }.toList()
+        val maxPoints = finalRoundRankings.maxOfOrNull { it[SwissRankingsTable.points] } ?: return emptyList()
+        return finalRoundRankings
+            .filter { it[SwissRankingsTable.points] == maxPoints }
+            .map { it[SwissRankingsTable.playerId].value }
+            .distinct()
     }
 
     private fun updateGroupStandings(match: MatchDAO) {

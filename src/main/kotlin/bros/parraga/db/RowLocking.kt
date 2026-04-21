@@ -19,6 +19,10 @@ fun lockPhaseRowInCurrentTransaction(phaseId: Int) {
     TransactionManager.current().lockPhaseRow(phaseId)
 }
 
+fun lockTournamentRowInCurrentTransaction(tournamentId: Int) {
+    TransactionManager.current().lockTournamentRow(tournamentId)
+}
+
 fun lockMatchRowInCurrentTransaction(matchId: Int) {
     TransactionManager.current().lockMatchRow(matchId)
 }

@@ -1,14 +1,27 @@
 package bros.parraga.services.repositories.user
 
 import bros.parraga.db.DatabaseFactory.dbQuery
+import bros.parraga.db.schema.AchievementDAO
+import bros.parraga.db.schema.AchievementsTable
+import bros.parraga.db.schema.MatchesTable
+import bros.parraga.db.schema.PlayerDAO
+import bros.parraga.db.schema.PlayersTable
+import bros.parraga.db.schema.TournamentsTable
 import bros.parraga.db.schema.UserDAO
 import bros.parraga.db.schema.UsersTable
+import bros.parraga.domain.Achievement
+import bros.parraga.domain.AchievementRuleType
+import bros.parraga.domain.MatchStatus
 import bros.parraga.domain.User
 import bros.parraga.services.repositories.user.dto.CreateUserRequest
 import bros.parraga.services.repositories.user.dto.UpdateUserRequest
 import org.jetbrains.exposed.dao.DaoEntityID
 import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.or
+import org.jetbrains.exposed.sql.selectAll
 import java.time.Instant
 import java.util.UUID
 
@@ -18,7 +31,8 @@ class UserRepositoryImpl : UserRepository {
     }
 
     override suspend fun getUser(id: Int): User = dbQuery {
-        UserDAO[id].toDomain()
+        val user = UserDAO[id]
+        user.toDomain(resolveAchievementsForUser(user.id.value))
     }
 
     override suspend fun createUser(request: CreateUserRequest): User = dbQuery {
@@ -83,4 +97,60 @@ class UserRepositoryImpl : UserRepository {
 
         return candidate
     }
+
+    private fun resolveAchievementsForUser(userId: Int): List<Achievement> {
+        val player = PlayerDAO.find { PlayersTable.userId eq userId }.firstOrNull() ?: return emptyList()
+        val stats = resolveAchievementStats(player.id.value)
+
+        return AchievementDAO.find { AchievementsTable.active eq true }
+            .sortedBy { it.id.value }
+            .mapNotNull { definition ->
+                val threshold = definition.threshold
+                if (threshold <= 0) return@mapNotNull null
+
+                val unlocked = when (AchievementRuleType.valueOf(definition.ruleType)) {
+                    AchievementRuleType.TOURNAMENT_WINS_AT_LEAST -> stats.tournamentWins >= threshold
+                    AchievementRuleType.MATCH_WINS_AT_LEAST -> stats.matchWins >= threshold
+                    AchievementRuleType.MATCHES_PLAYED_AT_LEAST -> stats.matchesPlayed >= threshold
+                }
+
+                definition.toDomain().takeIf { unlocked }
+            }
+    }
+
+    private fun resolveAchievementStats(playerId: Int): AchievementStats {
+        val tournamentWins = TournamentsTable
+            .selectAll()
+            .where { TournamentsTable.championPlayerId eq playerId }
+            .count()
+            .toInt()
+
+        val matchWins = MatchesTable
+            .selectAll()
+            .where { MatchesTable.winner eq playerId }
+            .count()
+            .toInt()
+
+        val completedStatuses = listOf(MatchStatus.COMPLETED.name, MatchStatus.WALKOVER.name)
+        val matchesPlayed = MatchesTable
+            .selectAll()
+            .where {
+                ((MatchesTable.player1Id eq playerId) or (MatchesTable.player2Id eq playerId)) and
+                    (MatchesTable.status inList completedStatuses)
+            }
+            .count()
+            .toInt()
+
+        return AchievementStats(
+            tournamentWins = tournamentWins,
+            matchWins = matchWins,
+            matchesPlayed = matchesPlayed
+        )
+    }
+
+    private data class AchievementStats(
+        val tournamentWins: Int,
+        val matchWins: Int,
+        val matchesPlayed: Int
+    )
 }

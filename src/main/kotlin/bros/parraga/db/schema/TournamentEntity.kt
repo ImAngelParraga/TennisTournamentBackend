@@ -18,6 +18,7 @@ object TournamentsTable : IntIdTable("tournaments") {
     val surface = varchar("surface", 50).nullable().check { it.inList(SurfaceType.entries.map { it.name }) }
     val status = varchar("status", 20).check { it.inList(TournamentStatus.entries.map { it.name }) }.default("DRAFT")
     val clubId = reference("club_id", ClubsTable)
+    val championPlayerId = reference("champion_player_id", PlayersTable).nullable()
     val startDate = timestamp("start_date")
     val endDate = timestamp("end_date")
     val createdAt = timestamp("created_at").databaseGenerated().default(Instant.now()).nullable()
@@ -37,6 +38,7 @@ class TournamentDAO(id: EntityID<Int>) : IntEntity(id) {
     var updatedAt by TournamentsTable.updatedAt
 
     var club by ClubDAO referencedOn TournamentsTable.clubId
+    var champion by PlayerDAO optionalReferencedOn TournamentsTable.championPlayerId
     var players by PlayerDAO via TournamentPlayersTable
     val phases by TournamentPhaseDAO referrersOn TournamentPhasesTable.tournamentId
 
