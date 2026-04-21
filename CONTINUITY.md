@@ -8,12 +8,13 @@ Update this file after each meaningful implementation/review/change in this repo
 Include: branch, uncommitted state, what changed, what remains.
 
 ## Current State
-- Branch: `feat/user-profile-achievements`
+- Branch: `feat/auth-coverage-mutation-paths`
 - Working tree status before this update: feature work in progress
 - Main documentation entrypoint: `MODEL_CONTEXT.md`
 - Prioritized backlog: `docs/ISSUES.md`
 - Local implementation changes after this update:
   - modified: `CONTINUITY.md`
+  - modified: `docs/ISSUES.md`
   - added: `docs/USER_RACKETS_STRINGINGS_PLAN.md`
   - modified: `docs/postman/TennisTournamentBackend.postman_collection.json`
   - modified: `src/main/kotlin/bros/parraga/db/DatabaseTables.kt`
@@ -30,8 +31,23 @@ Include: branch, uncommitted state, what changed, what remains.
   - added: `src/main/kotlin/bros/parraga/services/repositories/racket/dto/UpdateRacketStringingRequest.kt`
   - added: `src/main/resources/db/migration/V8__user_rackets_and_stringings.sql`
   - added: `src/test/kotlin/bros/parraga/RacketRepositoryTest.kt`
+  - added: `src/test/kotlin/bros/parraga/MutationAuthorizationCoverageTest.kt`
 
 ## Recent Completed Work
+- (uncommitted in current session) Implemented the P1 authorization coverage expansion and closed the backlog item:
+  - added `src/test/kotlin/bros/parraga/MutationAuthorizationCoverageTest.kt` with a seeded auth fixture covering the authenticated mutation surface end-to-end
+  - added explicit `401` coverage for all authenticated mutation routes across clubs, club admins, players, tournaments, tournament flow, tournament players, matches, disabled `/users` writes, and owner-only racket routes
+  - added explicit `403` deny coverage for outsider access across club/tournament/match manager routes and for player/racket ownership boundaries
+  - added admin happy-path coverage for club, tournament, tournament-flow, tournament-player, and match-scoring mutations
+  - covered auth-sensitive edge cases for owner-not-manageable admin operations and tournament moves into unmanaged clubs
+  - moved the authorization coverage issue from open P1 into `Recently Completed (No Longer Missing)` in `docs/ISSUES.md`
+  - validated with:
+    - `./gradlew.bat test --no-daemon --tests "bros.parraga.MutationAuthorizationCoverageTest" --tests "bros.parraga.AuthorizationFlowTest" --tests "bros.parraga.PlayerTest" --tests "bros.parraga.UserTest" --tests "bros.parraga.RacketRepositoryTest"` (pass)
+    - `./gradlew.bat test --no-daemon` (pass)
+- (uncommitted in current session) Planned the remaining P1 authorization coverage work and cleaned up backlog placement:
+  - moved already-completed P1 items for Group/Swiss support and validation tightening into `Recently Completed (No Longer Missing)` in `docs/ISSUES.md`
+  - expanded the open authorization coverage item with an implementation-oriented plan covering the full authenticated mutation surface
+  - recorded current observed auth test gaps: club/admin mutation coverage, explicit deny-path coverage across most tournament mutations, match score authorization denies, and broader owner-only deny coverage consistency
 - (uncommitted in current session) Implemented user-owned rackets and stringing history MVP:
   - added planning doc `docs/USER_RACKETS_STRINGINGS_PLAN.md`
   - added DB schema + Flyway migration `V8__user_rackets_and_stringings.sql` for `rackets` and `racket_stringings`
@@ -186,10 +202,10 @@ Include: branch, uncommitted state, what changed, what remains.
 
 ## Highest Priority Remaining Work
 (See `docs/ISSUES.md` for ordered list.)
-1. Migration rollout in deployment flow (`flywayMigrate` gate + hosted env hardening).
-2. Expand authorization test coverage for all mutation paths and edge cases.
-3. Add API contract documentation (OpenAPI/Swagger).
-4. Add operational observability for progression/auth decisions.
+1. Add API contract documentation (OpenAPI/Swagger).
+2. Add operational observability for progression/auth decisions.
+3. Add cross-repo compatibility checks between backend and lib.
+4. Design multi-context ranking sources for future seeding.
 
 ## Cross-Repo Dependency Notes
 - Backend depends on `../TennisTournamentLib` via composite build substitution.
@@ -202,6 +218,6 @@ Include: branch, uncommitted state, what changed, what remains.
   - If lock/caching issues appear, run `./gradlew --stop` and retry with `--no-daemon`.
 
 ## Next Suggested Actions
-1. Pick first P0 from `docs/ISSUES.md` and implement with tests.
-2. Add API contract docs (OpenAPI) after lifecycle rules stabilize.
-3. Add CI cross-repo compatibility checks with TennisTournamentLib.
+1. Implement OpenAPI/Swagger docs and align examples with current auth/docs paths.
+2. Add observability around progression and authorization decisions.
+3. Add CI compatibility checks against `../TennisTournamentLib`.

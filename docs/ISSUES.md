@@ -11,16 +11,7 @@ This list reflects the current state of both repos:
 
 ## P1 (High Priority)
 
-- [x] Implement Group and Swiss in `TennisTournamentLib` and backend start/progression support.
-  Why: `GroupService` and `SwissService` are still TODO in the lib while format types exist in shared models.
-
-- [x] Tighten tournament/phase validation inputs.
-  Missing validations:
-    - `startDate <= endDate` for tournament create/update
-    - stronger qualifiers validation messaging against actual player counts and intended product rules
-
-- [ ] Expand authorization test coverage for all mutation paths and edge cases.
-  Why: auth baseline exists, but coverage is still skewed toward happy paths and a few deny cases.
+- No open P1 items.
 
 ## P2 (Medium Priority)
 
@@ -55,6 +46,24 @@ This list reflects the current state of both repos:
 
 ## Recently Completed (No Longer Missing)
 
+- [x] Expand authorization test coverage for all mutation paths and edge cases.
+  Delivered:
+    - added a dedicated integration auth matrix covering every authenticated mutation route with explicit `401` expectations
+    - added `403` deny coverage across club, club-admin, tournament, tournament-player, match-scoring, player, and racket owner-boundary mutations
+    - added manager/admin happy-path coverage for club, tournament, tournament-flow, and match-scoring mutations
+    - covered auth-sensitive edge cases including owner-not-manageable-via-admins and tournament moves into unmanaged clubs
+    - consolidated seeded auth fixtures/helpers in a dedicated coverage test to keep expansion maintainable
+- [x] Implement Group and Swiss in `TennisTournamentLib` and backend start/progression support.
+  Delivered:
+    - backend phase creation/start/progression now supports `GROUP` and `SWISS`
+    - group standings, swiss ranking snapshots, and cross-phase advancement are covered end-to-end
+    - backend and lib behavior were validated together with targeted and full test runs
+- [x] Tighten tournament/phase validation inputs.
+  Delivered:
+    - enforced `startDate <= endDate` on tournament create/update
+    - validated draft phase definitions against projected entrant counts
+    - blocked draft player add/remove mutations that would invalidate saved phase configuration
+    - improved knockout qualifier validation messaging against projected player counts
 - [x] Add user profile achievement badges for tournament wins.
   Delivered:
     - persisted a single tournament champion in `tournaments.champion_player_id`
