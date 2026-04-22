@@ -1,4 +1,4 @@
-import java.util.Properties
+import java.util.*
 
 val kotlin_version: String by project
 val logback_version: String by project
@@ -7,7 +7,7 @@ val koinVersion = "4.1.0-Beta5"
 val ktor_version: String by project
 val koinAnnotationsVersion = "2.0.0-Beta1"
 val postgresqlDriverVersion = "42.7.7"
-val flywayVersion = "12.0.3"
+val flywayVersion = "12.4.0"
 
 fun firstNonBlank(vararg candidates: String?): String? =
     candidates.firstOrNull { !it.isNullOrBlank() }
@@ -137,7 +137,7 @@ flyway {
     if (runningFlywayTask && (flywayUrl.isNullOrBlank() || flywayUser.isNullOrBlank() || flywayPassword.isNullOrBlank())) {
         logger.lifecycle(
             "Flyway DB config is incomplete. Set DATABASE_URL/DATABASE_USER/DATABASE_PASSWORD " +
-                "or Gradle properties databaseUrl/databaseUser/databasePassword."
+                    "or Gradle properties databaseUrl/databaseUser/databasePassword."
         )
     }
 }
