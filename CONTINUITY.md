@@ -1,6 +1,6 @@
 # CONTINUITY
 
-Last Updated: 2026-04-21
+Last Updated: 2026-04-22
 Repository: TennisTournamentBackend
 
 ## Update Rule
@@ -8,32 +8,22 @@ Update this file after each meaningful implementation/review/change in this repo
 Include: branch, uncommitted state, what changed, what remains.
 
 ## Current State
-- Branch: `feat/auth-coverage-mutation-paths`
-- Working tree status before this update: feature work in progress
+- Branch: `master`
+- Working tree status before this update: local auth/deployment preparation in progress
 - Main documentation entrypoint: `MODEL_CONTEXT.md`
 - Prioritized backlog: `docs/ISSUES.md`
 - Local implementation changes after this update:
   - modified: `CONTINUITY.md`
-  - modified: `docs/ISSUES.md`
-  - added: `docs/USER_RACKETS_STRINGINGS_PLAN.md`
-  - modified: `docs/postman/TennisTournamentBackend.postman_collection.json`
-  - modified: `src/main/kotlin/bros/parraga/db/DatabaseTables.kt`
-  - modified: `src/main/kotlin/bros/parraga/modules/Koin.kt`
-  - modified: `src/main/kotlin/bros/parraga/modules/Routing.kt`
-  - added: `src/main/kotlin/bros/parraga/db/schema/RacketEntity.kt`
-  - added: `src/main/kotlin/bros/parraga/domain/RacketDtos.kt`
-  - added: `src/main/kotlin/bros/parraga/routes/RacketRoute.kt`
-  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/RacketRepository.kt`
-  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/RacketRepositoryImpl.kt`
-  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/dto/CreateRacketRequest.kt`
-  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/dto/CreateRacketStringingRequest.kt`
-  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/dto/UpdateRacketRequest.kt`
-  - added: `src/main/kotlin/bros/parraga/services/repositories/racket/dto/UpdateRacketStringingRequest.kt`
-  - added: `src/main/resources/db/migration/V8__user_rackets_and_stringings.sql`
-  - added: `src/test/kotlin/bros/parraga/RacketRepositoryTest.kt`
-  - added: `src/test/kotlin/bros/parraga/MutationAuthorizationCoverageTest.kt`
+  - modified: `src/main/kotlin/bros/parraga/modules/AuthConfig.kt`
+  - modified: `src/main/kotlin/bros/parraga/modules/Security.kt`
 
 ## Recent Completed Work
+- (uncommitted in current session) Simplified Clerk backend integration for deployment:
+  - made `CLERK_AUDIENCE` optional in production auth config while keeping `test-audience` as the default in test mode
+  - updated JWT verifier setup so production only enforces `aud` when `CLERK_AUDIENCE` is explicitly configured
+  - this allows the frontend to use the default Clerk session token without first creating a custom JWT template/audience contract
+  - validated with:
+    - `./gradlew.bat test --no-daemon --tests "bros.parraga.AuthorizationFlowTest" --tests "bros.parraga.MutationAuthorizationCoverageTest"` (pass)
 - (uncommitted in current session) Implemented the P1 authorization coverage expansion and closed the backlog item:
   - added `src/test/kotlin/bros/parraga/MutationAuthorizationCoverageTest.kt` with a seeded auth fixture covering the authenticated mutation surface end-to-end
   - added explicit `401` coverage for all authenticated mutation routes across clubs, club admins, players, tournaments, tournament flow, tournament players, matches, disabled `/users` writes, and owner-only racket routes

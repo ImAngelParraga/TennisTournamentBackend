@@ -2,14 +2,16 @@ package bros.parraga.modules
 
 data class AuthConfig(
     val issuer: String,
-    val audience: String,
+    val audience: String?,
     val allowedOrigins: List<String>,
     val testJwtSecret: String
 )
 
 fun loadAuthConfig(isTest: Boolean): AuthConfig {
     val issuer = System.getenv("CLERK_ISSUER") ?: if (isTest) "http://localhost/test-issuer" else ""
-    val audience = System.getenv("CLERK_AUDIENCE") ?: if (isTest) "test-audience" else ""
+    val audience = System.getenv("CLERK_AUDIENCE")
+        ?.takeIf { it.isNotBlank() }
+        ?: if (isTest) "test-audience" else null
     val allowedOriginsRaw = System.getenv("ALLOWED_ORIGINS")
     val allowedOrigins = allowedOriginsRaw
         ?.split(",")
@@ -24,7 +26,6 @@ fun loadAuthConfig(isTest: Boolean): AuthConfig {
 
     if (!isTest) {
         require(issuer.isNotBlank()) { "Missing CLERK_ISSUER environment variable" }
-        require(audience.isNotBlank()) { "Missing CLERK_AUDIENCE environment variable" }
         require(allowedOrigins.isNotEmpty()) { "Missing ALLOWED_ORIGINS environment variable" }
     }
 

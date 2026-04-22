@@ -22,7 +22,7 @@ fun Application.configureSecurity(isTest: Boolean = false) {
                 verifier(
                     JWT.require(Algorithm.HMAC256(authConfig.testJwtSecret))
                         .withIssuer(authConfig.issuer)
-                        .withAudience(authConfig.audience)
+                        .withAudience(authConfig.audience ?: error("Missing test audience"))
                         .build()
                 )
             } else {
@@ -32,7 +32,7 @@ fun Application.configureSecurity(isTest: Boolean = false) {
                     .build()
 
                 verifier(jwkProvider, authConfig.issuer) {
-                    withAudience(authConfig.audience)
+                    authConfig.audience?.let { withAudience(it) }
                 }
             }
 
