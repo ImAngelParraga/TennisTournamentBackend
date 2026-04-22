@@ -8,6 +8,7 @@ val ktor_version: String by project
 val koinAnnotationsVersion = "2.0.0-Beta1"
 val postgresqlDriverVersion = "42.7.7"
 val flywayVersion = "12.4.0"
+val tennisTournamentLibVersion = "v0.0.3"
 
 fun firstNonBlank(vararg candidates: String?): String? =
     candidates.firstOrNull { !it.isNullOrBlank() }
@@ -68,7 +69,7 @@ dependencies {
     implementation("com.auth0:jwks-rsa:0.22.1")
     //implementation("ch.qos.logback:logback-classic:$logback_version")
 
-    implementation("com.github.ImAngelParraga:TennisTournamentLib:v0.0.2")
+    implementation("com.github.ImAngelParraga:TennisTournamentLib:$tennisTournamentLibVersion")
     //implementation(files("C:\\Users\\ranki\\IdeaProjects\\TennisTournamentLib\\build\\libs\\TennisTournamentLib-0.0.2.jar"))
 
     implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
