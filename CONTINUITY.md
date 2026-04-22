@@ -9,15 +9,22 @@ Include: branch, uncommitted state, what changed, what remains.
 
 ## Current State
 - Branch: `master`
-- Working tree status before this update: local auth/deployment preparation in progress
+- Working tree status before this update: Cloud Run deployment setup in progress
 - Main documentation entrypoint: `MODEL_CONTEXT.md`
 - Prioritized backlog: `docs/ISSUES.md`
 - Local implementation changes after this update:
   - modified: `CONTINUITY.md`
-  - modified: `src/main/kotlin/bros/parraga/modules/AuthConfig.kt`
-  - modified: `src/main/kotlin/bros/parraga/modules/Security.kt`
+  - added: `cloudrun.env.yaml`
 
 ## Recent Completed Work
+- (uncommitted in current session) Deployed the backend to public Cloud Run against Supabase:
+  - enabled the required GCP deployment APIs and created Artifact Registry repo `tennis-tournament-backend` in `europe-west1`
+  - created runtime service account `tennis-backend-runner` and Secret Manager secret `tennis-backend-database-password`
+  - built and pushed image `europe-west1-docker.pkg.dev/tennis-tournament-490501/tennis-tournament-backend/tennis-tournament-backend:888aaa0`
+  - added non-secret Cloud Run env config file `cloudrun.env.yaml` for repeatable deploy/update commands
+  - deployed public Cloud Run service `tennis-tournament-backend` with Clerk issuer, localhost dev CORS origins, Supabase JDBC settings, and `DATABASE_AUTO_CREATE=false`
+  - corrected the runtime DB user to the Supabase pooler username and refreshed the secret payload so password auth works in Cloud Run
+  - verified the live public endpoint with `GET /clubs` returning success from `https://tennis-tournament-backend-639388080916.europe-west1.run.app/clubs`
 - (uncommitted in current session) Simplified Clerk backend integration for deployment:
   - made `CLERK_AUDIENCE` optional in production auth config while keeping `test-audience` as the default in test mode
   - updated JWT verifier setup so production only enforces `aud` when `CLERK_AUDIENCE` is explicitly configured
