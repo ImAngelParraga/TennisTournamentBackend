@@ -6,6 +6,7 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.*
 import io.ktor.server.response.*
+import kotlinx.datetime.Instant
 import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
 
 const val SUCCESS = "SUCCESS"
@@ -57,4 +58,23 @@ suspend inline fun <reified T : Any> handleRequest(
 fun ApplicationCall.requireIntParameter(name: String): Int {
     return parameters[name]?.toIntOrNull()
         ?: throw IllegalArgumentException("Parameter $name must be a valid number")
+}
+
+fun ApplicationCall.requireInstantQueryParameter(name: String): Instant {
+    val value = request.queryParameters[name]
+        ?: throw IllegalArgumentException("Query parameter $name is required")
+    return try {
+        Instant.parse(value)
+    } catch (_: IllegalArgumentException) {
+        throw IllegalArgumentException("Query parameter $name must be a valid ISO-8601 instant")
+    }
+}
+
+fun validateInstantRange(from: Instant, to: Instant, maxDays: Int) {
+    require(from <= to) { "Query parameter from must be on or before to" }
+
+    val maxRangeMillis = maxDays * 24L * 60L * 60L * 1000L
+    require(to.toEpochMilliseconds() - from.toEpochMilliseconds() <= maxRangeMillis) {
+        "Query range must not exceed $maxDays days"
+    }
 }

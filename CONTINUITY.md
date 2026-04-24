@@ -1,6 +1,6 @@
 # CONTINUITY
 
-Last Updated: 2026-04-22
+Last Updated: 2026-04-24
 Repository: TennisTournamentBackend
 
 ## Update Rule
@@ -9,14 +9,39 @@ Include: branch, uncommitted state, what changed, what remains.
 
 ## Current State
 - Branch: `master`
-- Working tree status before this update: Cloud Run deployment setup in progress
+- Working tree status before this update: Cloud Run deployment setup in progress plus local backend API/profile work in progress
 - Main documentation entrypoint: `MODEL_CONTEXT.md`
 - Prioritized backlog: `docs/ISSUES.md`
 - Local implementation changes after this update:
   - modified: `CONTINUITY.md`
+  - modified: `docs/postman/TennisTournamentBackend.postman_collection.json`
+  - modified: `src/main/kotlin/bros/parraga/db/schema/MatchEntity.kt`
+  - modified: `src/main/kotlin/bros/parraga/domain/Match.kt`
+  - modified: `src/main/kotlin/bros/parraga/routes/RoutingUtils.kt`
+  - modified: `src/main/kotlin/bros/parraga/routes/UserRoute.kt`
+  - modified: `src/main/kotlin/bros/parraga/services/PhaseExecutionService.kt`
+  - modified: `src/main/kotlin/bros/parraga/services/repositories/match/MatchRepositoryImpl.kt`
+  - modified: `src/main/kotlin/bros/parraga/services/repositories/user/UserRepository.kt`
+  - modified: `src/main/kotlin/bros/parraga/services/repositories/user/UserRepositoryImpl.kt`
+  - modified: `src/test/kotlin/bros/parraga/TournamentRepositoryTest.kt`
+  - modified: `src/test/kotlin/bros/parraga/UserTest.kt`
   - added: `cloudrun.env.yaml`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/user/dto/UserMatchActivityResponse.kt`
+  - added: `src/main/resources/db/migration/V9__match_completed_at.sql`
 
 ## Recent Completed Work
+- (uncommitted in current session) Added public user match activity and match completion timestamps for profile calendars:
+  - added Flyway migration `V9__match_completed_at.sql` to persist `matches.completed_at`, backfill terminal matches, and index `completed_at` plus match player foreign keys
+  - extended `Match`/`MatchDAO` mapping with `completedAt`
+  - set `completedAt` when score submission completes a match and when walkovers are generated during phase execution
+  - added public `GET /users/{id}/matches?from&to` returning modal-ready match activity for the user's linked player profile with tournament, phase, opponent, score, and win/loss context
+  - added authenticated `GET /users/me` for frontend self-identification without overloading public user detail routes
+  - added request validation for ISO-8601 `from`/`to` query params with a max 93-day range guardrail
+  - updated Postman collection with `Get My User` and `Get User Match Activity`
+  - added user and tournament test coverage for `/users/me`, user match activity ranges, completed-match timestamps, and walkover timestamps
+  - validated with:
+    - `./gradlew.bat test --no-daemon --tests "bros.parraga.UserTest" --tests "bros.parraga.TournamentRepositoryTest"` (pass)
+    - `./gradlew.bat test --no-daemon` (pass)
 - (uncommitted in current session) Deployed the backend to public Cloud Run against Supabase:
   - enabled the required GCP deployment APIs and created Artifact Registry repo `tennis-tournament-backend` in `europe-west1`
   - created runtime service account `tennis-backend-runner` and Secret Manager secret `tennis-backend-database-password`

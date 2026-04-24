@@ -35,6 +35,7 @@ class MatchRepositoryImpl : MatchRepository {
         }
 
         assertMatchIsScoreable(matchId, match)
+        val completedAt = Instant.now()
 
         val libMatch = LibMatch(
             id = match.id.value,
@@ -52,7 +53,8 @@ class MatchRepositoryImpl : MatchRepository {
         val winnerId = libMatch.winnerId ?: throw IllegalArgumentException("Score does not produce a winner.")
         match.winner = PlayerDAO[winnerId]
         match.status = MatchStatus.COMPLETED.name
-        match.updatedAt = Instant.now()
+        match.completedAt = completedAt
+        match.updatedAt = completedAt
 
         TournamentProgressionService.onMatchCompleted(match)
 

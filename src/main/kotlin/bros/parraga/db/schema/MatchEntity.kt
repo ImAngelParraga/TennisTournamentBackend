@@ -32,12 +32,16 @@ object MatchesTable : IntIdTable("matches") {
     val status = varchar("status", 20).check { it.inList(MatchStatus.entries.map { it.name }) }
         .default("SCHEDULED")
     val scheduledTime = timestamp("scheduled_time").nullable()
+    val completedAt = timestamp("completed_at").nullable()
     val court = varchar("court", 100).nullable()
     val createdAt = timestamp("created_at").clientDefault { JavaInstant.now() }
     val updatedAt = timestamp("updated_at").nullable()
 
     init {
         uniqueIndex(phaseId, round, roundSlot)
+        index(false, completedAt)
+        index(false, player1Id)
+        index(false, player2Id)
     }
 }
 
@@ -54,6 +58,7 @@ class MatchDAO(id: EntityID<Int>) : IntEntity(id) {
     var score by MatchesTable.score
     var status by MatchesTable.status
     var scheduledTime by MatchesTable.scheduledTime
+    var completedAt by MatchesTable.completedAt
     var court by MatchesTable.court
     var createdAt by MatchesTable.createdAt
     var updatedAt by MatchesTable.updatedAt
@@ -70,6 +75,7 @@ class MatchDAO(id: EntityID<Int>) : IntEntity(id) {
         score = score,
         status = MatchStatus.valueOf(status),
         scheduledTime = scheduledTime?.toKotlinInstant(),
+        completedAt = completedAt?.toKotlinInstant(),
         court = court,
         createdAt = createdAt.toKotlinInstant(),
         updatedAt = updatedAt?.toKotlinInstant(),

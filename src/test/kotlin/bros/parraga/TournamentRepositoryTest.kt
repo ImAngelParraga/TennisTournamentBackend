@@ -905,6 +905,8 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
             setBody(request)
         }
         assertEquals(HttpStatusCode.OK, firstScoreResponse.status)
+        val firstCompletedAt = firstScoreResponse.body<ApiResponse<Match>>().data?.completedAt
+        assertTrue(firstCompletedAt != null)
 
         val secondScoreResponse = client.put("/matches/$finalMatchId/score") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -915,6 +917,7 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
         val secondScoreBody = secondScoreResponse.body<ApiResponse<Match>>()
         assertEquals(MatchStatus.COMPLETED, secondScoreBody.data?.status)
         assertEquals(request.score, secondScoreBody.data?.score)
+        assertEquals(firstCompletedAt, secondScoreBody.data?.completedAt)
     }
 
     @Test
@@ -960,6 +963,7 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
         assertEquals(HttpStatusCode.OK, startResponse.status)
         val phase = startResponse.body<ApiResponse<TournamentPhase>>().data ?: error("missing started phase")
         val walkoverMatch = phase.matches.first { it.status == MatchStatus.WALKOVER }
+        assertTrue(walkoverMatch.completedAt != null)
 
         val scoreResponse = client.put("/matches/${walkoverMatch.id}/score") {
             header(HttpHeaders.Authorization, "Bearer $token")

@@ -15,6 +15,7 @@ data class Match(
     val score: TennisScore? = null,
     val status: MatchStatus,
     val scheduledTime: Instant? = null,
+    val completedAt: Instant? = null,
     val court: String? = null,
     val createdAt: Instant?,
     val updatedAt: Instant?,

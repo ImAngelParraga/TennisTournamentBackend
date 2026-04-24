@@ -13,17 +13,30 @@ import org.koin.ktor.ext.inject
 
 fun Route.userRouting() {
     val userRepository: UserRepository by inject()
+    val maxMatchActivityRangeDays = 93
 
     route("/users") {
         get {
             handleRequest(call) { userRepository.getUsers() }
         }
 
-        get("/{id}") {
-            handleRequest(call) { userRepository.getUser(call.requireIntParameter("id")) }
+        get("/{id}/matches") {
+            handleRequest(call) {
+                val from = call.requireInstantQueryParameter("from")
+                val to = call.requireInstantQueryParameter("to")
+                validateInstantRange(from, to, maxMatchActivityRangeDays)
+                userRepository.getUserMatchActivity(call.requireIntParameter("id"), from, to)
+            }
         }
 
         authenticate("clerk-jwt") {
+            get("/me") {
+                handleRequest(call) {
+                    val localUser = call.requireLocalUser(userRepository)
+                    userRepository.getUser(localUser.id)
+                }
+            }
+
             post {
                 handleRequest<Unit>(call) {
                     call.requireLocalUser(userRepository)
@@ -44,6 +57,10 @@ fun Route.userRouting() {
                     throw ForbiddenException("User write endpoints are disabled")
                 }
             }
+        }
+
+        get("/{id}") {
+            handleRequest(call) { userRepository.getUser(call.requireIntParameter("id")) }
         }
     }
 }

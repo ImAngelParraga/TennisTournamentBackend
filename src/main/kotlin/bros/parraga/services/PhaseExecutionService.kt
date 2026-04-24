@@ -192,10 +192,12 @@ object PhaseExecutionService {
         createdMatches
             .filter { it.status == MatchStatus.WALKOVER.name }
             .forEach { match ->
+                val completedAt = Instant.now()
                 if (match.winner == null) {
                     match.winner = match.player1 ?: match.player2
-                    match.updatedAt = Instant.now()
                 }
+                match.completedAt = match.completedAt ?: completedAt
+                match.updatedAt = completedAt
                 TournamentProgressionService.onMatchCompleted(match)
             }
     }

@@ -116,6 +116,28 @@
           }
         },
         {
+          "name": "Get My User",
+          "description": "Returns the authenticated backend user row for the current JWT subject.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me"
+          }
+        },
+        {
+          "name": "Get User Match Activity",
+          "description": "Returns completed and walkover matches for the user's linked player profile within the requested UTC time range. Intended for the public profile calendar and modal.",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/{{userId}}/matches?from=2026-04-01T00:00:00Z&to=2026-04-30T23:59:59Z"
+          }
+        },
+        {
           "name": "Create User (Disabled)",
           "request": {
             "method": "POST",
