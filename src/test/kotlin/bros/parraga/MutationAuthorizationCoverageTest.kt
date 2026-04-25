@@ -9,6 +9,7 @@ import bros.parraga.db.schema.RacketStringingDAO
 import bros.parraga.db.schema.TournamentDAO
 import bros.parraga.db.schema.TournamentPhaseDAO
 import bros.parraga.db.schema.UserDAO
+import bros.parraga.db.schema.UserTrainingDAO
 import bros.parraga.domain.MatchStatus
 import bros.parraga.domain.PhaseConfiguration
 import bros.parraga.domain.PhaseFormat
@@ -25,6 +26,8 @@ import bros.parraga.services.repositories.racket.dto.CreateRacketRequest
 import bros.parraga.services.repositories.racket.dto.CreateRacketStringingRequest
 import bros.parraga.services.repositories.racket.dto.UpdateRacketRequest
 import bros.parraga.services.repositories.racket.dto.UpdateRacketStringingRequest
+import bros.parraga.services.repositories.training.dto.CreateTrainingRequest
+import bros.parraga.services.repositories.training.dto.UpdateTrainingRequest
 import bros.parraga.services.repositories.tournament.dto.AddPlayersRequest
 import bros.parraga.services.repositories.tournament.dto.CreatePhaseRequest
 import bros.parraga.services.repositories.tournament.dto.CreateTournamentRequest
@@ -146,6 +149,21 @@ class MutationAuthorizationCoverageTest : BaseIntegrationTest() {
                 },
                 namedRequest("DELETE /users/{id}") {
                     client.delete("/users/${fixture.ownerUserId}").status
+                },
+                namedRequest("POST /users/me/trainings") {
+                    client.post("/users/me/trainings") {
+                        contentType(ContentType.Application.Json)
+                        setBody(createTrainingRequest())
+                    }.status
+                },
+                namedRequest("PUT /users/me/trainings/{id}") {
+                    client.put("/users/me/trainings/${fixture.trainingId}") {
+                        contentType(ContentType.Application.Json)
+                        setBody(UpdateTrainingRequest(notes = "Unauthorized training update"))
+                    }.status
+                },
+                namedRequest("DELETE /users/me/trainings/{id}") {
+                    client.delete("/users/me/trainings/${fixture.trainingId}").status
                 },
                 namedRequest("POST /users/me/rackets") {
                     client.post("/users/me/rackets") {
@@ -407,6 +425,18 @@ class MutationAuthorizationCoverageTest : BaseIntegrationTest() {
                         header(HttpHeaders.Authorization, "Bearer $outsiderToken")
                     }.status
                 },
+                namedRequest("PUT /users/me/trainings/{id}") {
+                    client.put("/users/me/trainings/${fixture.trainingId}") {
+                        header(HttpHeaders.Authorization, "Bearer $outsiderToken")
+                        contentType(ContentType.Application.Json)
+                        setBody(UpdateTrainingRequest(notes = "Hijacked training"))
+                    }.status
+                },
+                namedRequest("DELETE /users/me/trainings/{id}") {
+                    client.delete("/users/me/trainings/${fixture.trainingId}") {
+                        header(HttpHeaders.Authorization, "Bearer $outsiderToken")
+                    }.status
+                },
                 namedRequest("PUT /users/me/rackets/{id}") {
                     client.put("/users/me/rackets/${fixture.racketId}") {
                         header(HttpHeaders.Authorization, "Bearer $outsiderToken")
@@ -482,6 +512,11 @@ class MutationAuthorizationCoverageTest : BaseIntegrationTest() {
         mainStringType = "Poly",
         crossStringType = "Poly",
         performanceNotes = null
+    )
+
+    private fun createTrainingRequest() = CreateTrainingRequest(
+        trainingDate = "2026-01-11",
+        notes = "Unauthorized training"
     )
 
     private fun ownerToken() = createAuthToken("owner-subject", "owner@email.com", "Owner")
@@ -597,6 +632,11 @@ class MutationAuthorizationCoverageTest : BaseIntegrationTest() {
             crossStringType = "Poly"
             performanceNotes = "Fresh"
         }
+        val training = UserTrainingDAO.new {
+            ownerUser = owner
+            trainingDate = LocalDate.parse("2026-01-07")
+            notes = "Owner training"
+        }
 
         AuthorizationFixture(
             ownerUserId = owner.id.value,
@@ -612,6 +652,7 @@ class MutationAuthorizationCoverageTest : BaseIntegrationTest() {
             startableTournamentId = startableTournament.id.value,
             resettableTournamentId = resettableTournament.id.value,
             scorableMatchId = scorableMatch.id.value,
+            trainingId = training.id.value,
             racketId = racket.id.value,
             stringingId = stringing.id.value
         )
@@ -657,6 +698,7 @@ class MutationAuthorizationCoverageTest : BaseIntegrationTest() {
         val startableTournamentId: Int,
         val resettableTournamentId: Int,
         val scorableMatchId: Int,
+        val trainingId: Int,
         val racketId: Int,
         val stringingId: Int
     )

@@ -8,6 +8,7 @@ import io.ktor.server.plugins.*
 import io.ktor.server.response.*
 import kotlinx.datetime.Instant
 import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
+import java.time.YearMonth
 
 const val SUCCESS = "SUCCESS"
 const val FAILURE = "FAILURE"
@@ -67,6 +68,16 @@ fun ApplicationCall.requireInstantQueryParameter(name: String): Instant {
         Instant.parse(value)
     } catch (_: IllegalArgumentException) {
         throw IllegalArgumentException("Query parameter $name must be a valid ISO-8601 instant")
+    }
+}
+
+fun ApplicationCall.requireYearMonthQueryParameter(name: String): YearMonth {
+    val value = request.queryParameters[name]
+        ?: throw IllegalArgumentException("Query parameter $name is required")
+    return try {
+        YearMonth.parse(value)
+    } catch (_: Exception) {
+        throw IllegalArgumentException("Query parameter $name must use ISO format YYYY-MM")
     }
 }
 

@@ -195,6 +195,83 @@
       ]
     },
     {
+      "name": "Trainings",
+      "item": [
+        {
+          "name": "Get My Trainings By Month",
+          "description": "Returns the authenticated user's training history for a month, plus compact calendar day counts for the UI.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me/trainings?month=2026-04"
+          }
+        },
+        {
+          "name": "Create Training",
+          "description": "Creates a new training entry for the authenticated user.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me/trainings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trainingDate\": \"2026-04-12\",\n  \"notes\": \"Serve basket and crosscourt patterns\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Training",
+          "description": "Updates the selected training entry for the authenticated user.",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me/trainings/{{trainingId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trainingDate\": \"2026-04-20\",\n  \"notes\": \"Patterns and returns\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Training",
+          "description": "Deletes the selected training entry for the authenticated user.",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me/trainings/{{trainingId}}"
+          }
+        }
+      ]
+    },
+    {
       "name": "Rackets",
       "item": [
         {

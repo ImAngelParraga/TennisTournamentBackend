@@ -1,6 +1,6 @@
 # CONTINUITY
 
-Last Updated: 2026-04-24
+Last Updated: 2026-04-25
 Repository: TennisTournamentBackend
 
 ## Update Rule
@@ -16,20 +16,64 @@ Include: branch, uncommitted state, what changed, what remains.
   - modified: `CONTINUITY.md`
   - modified: `docs/postman/TennisTournamentBackend.postman_collection.json`
   - modified: `src/main/kotlin/bros/parraga/db/schema/MatchEntity.kt`
+  - modified: `src/main/kotlin/bros/parraga/db/DatabaseTables.kt`
+  - modified: `src/main/kotlin/bros/parraga/modules/Koin.kt`
+  - modified: `src/main/kotlin/bros/parraga/modules/Routing.kt`
   - modified: `src/main/kotlin/bros/parraga/domain/Match.kt`
   - modified: `src/main/kotlin/bros/parraga/routes/RoutingUtils.kt`
+  - modified: `src/main/kotlin/bros/parraga/routes/TrainingRoute.kt`
   - modified: `src/main/kotlin/bros/parraga/routes/UserRoute.kt`
   - modified: `src/main/kotlin/bros/parraga/services/PhaseExecutionService.kt`
   - modified: `src/main/kotlin/bros/parraga/services/repositories/match/MatchRepositoryImpl.kt`
+  - modified: `src/main/kotlin/bros/parraga/services/repositories/training/TrainingRepository.kt`
+  - modified: `src/main/kotlin/bros/parraga/services/repositories/training/TrainingRepositoryImpl.kt`
   - modified: `src/main/kotlin/bros/parraga/services/repositories/user/UserRepository.kt`
   - modified: `src/main/kotlin/bros/parraga/services/repositories/user/UserRepositoryImpl.kt`
+  - modified: `src/test/kotlin/bros/parraga/MutationAuthorizationCoverageTest.kt`
   - modified: `src/test/kotlin/bros/parraga/TournamentRepositoryTest.kt`
+  - modified: `src/test/kotlin/bros/parraga/TrainingRepositoryTest.kt`
   - modified: `src/test/kotlin/bros/parraga/UserTest.kt`
   - added: `cloudrun.env.yaml`
+  - added: `src/main/kotlin/bros/parraga/db/schema/TrainingEntity.kt`
+  - added: `src/main/kotlin/bros/parraga/domain/TrainingDtos.kt`
+  - added: `src/main/kotlin/bros/parraga/routes/TrainingRoute.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/training/TrainingRepository.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/training/TrainingRepositoryImpl.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/training/dto/CreateTrainingRequest.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/training/dto/UpdateTrainingRequest.kt`
   - added: `src/main/kotlin/bros/parraga/services/repositories/user/dto/UserMatchActivityResponse.kt`
+  - added: `src/main/resources/db/migration/V10__user_trainings.sql`
   - added: `src/main/resources/db/migration/V9__match_completed_at.sql`
+  - added: `src/test/kotlin/bros/parraga/TrainingRepositoryTest.kt`
 
 ## Recent Completed Work
+- (uncommitted in current session) Extended training history with owner update/delete flows and re-evaluated the local Qwen helper:
+  - added `PUT /users/me/trainings/{trainingId}` and `DELETE /users/me/trainings/{trainingId}` following the existing owner-subresource route style used by rackets
+  - added `UpdateTrainingRequest` plus repository methods for update/delete with owner checks and `204 No Content` deletes
+  - update rejects empty payloads, validates `trainingDate` format, and normalizes blank notes to `null`
+  - expanded integration coverage for successful training update/delete, invalid update payloads, and cross-user `403` owner-boundary behavior
+  - expanded mutation authorization coverage for unauthenticated `PUT`/`DELETE` on trainings
+  - validated with:
+    - `./gradlew.bat test --no-daemon --tests "bros.parraga.TrainingRepositoryTest" --tests "bros.parraga.MutationAuthorizationCoverageTest"` (pass)
+  - local Qwen endpoint observations during this extension:
+    - planning output was directionally useful on route shape (`PUT`/`DELETE` under the owner resource) but still arrived wrapped in leaked `<think>` text
+    - implementation drafting was materially weaker than planning: it drifted into generic patterns like `UUID`, `Result`, and extra non-repo assumptions instead of the repo's actual `Int` ids, exception flow, and Ktor/Exposed conventions
+    - even on final-change summarization it again emitted only a truncated reasoning preamble and no usable final answer within the token budget
+    - current best-fit role remains low-trust helper for rough drafts or compression after a stronger model has already constrained the task and source context
+- (uncommitted in current session) Implemented owner training history + monthly calendar MVP and evaluated the local Qwen helper behavior:
+  - added authenticated training routes under `/users/me/trainings` for monthly reads (`GET ?month=YYYY-MM`) and creation (`POST` with `trainingDate` + optional `notes`)
+  - added `user_trainings` persistence via Flyway migration `V10__user_trainings.sql`, Exposed DAO mapping, Koin wiring, and a dedicated training repository/route
+  - monthly response returns both ordered training entries and compact `calendarDays` counts so the frontend can render a small month view without extra grouping work
+  - added query/date validation for `month` (`YYYY-MM`) and `trainingDate` (`YYYY-MM-DD`)
+  - updated Postman collection with training requests
+  - added integration coverage for training creation, month filtering, calendar counts/order, auth requirement, invalid month/date handling, and `401` mutation coverage for training creation
+  - validated with:
+    - `./gradlew.bat test --no-daemon --tests "bros.parraga.TrainingRepositoryTest" --tests "bros.parraga.MutationAuthorizationCoverageTest"` (pass)
+  - local Qwen endpoint observations during this task:
+    - `GET /v1/models` worked and confirmed local model id `Qwen3.6-27B-IQ4_XS.gguf`
+    - `/v1/chat/completions` timed out on a repo-context design prompt, so the model was only practical through smaller `/v1/completions` prompts
+    - completion outputs repeatedly leaked `<think>` blocks despite explicit instructions not to, which makes its raw output noisy for direct user-facing use
+    - on a generic route-design prompt it suggested `/users/{userId}/training-history` endpoints, which missed this repo's `/users/me/...` convention; useful for rough drafting, not for trusted repo-specific decisions without review
 - (uncommitted in current session) Added public user match activity and match completion timestamps for profile calendars:
   - added Flyway migration `V9__match_completed_at.sql` to persist `matches.completed_at`, backfill terminal matches, and index `completed_at` plus match player foreign keys
   - extended `Match`/`MatchDAO` mapping with `completedAt`
