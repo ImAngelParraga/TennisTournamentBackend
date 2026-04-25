@@ -8,12 +8,16 @@ import bros.parraga.db.schema.PlayerDAO
 import bros.parraga.db.schema.TournamentPhaseDAO
 import bros.parraga.db.schema.TournamentDAO
 import bros.parraga.db.schema.UserDAO
+import bros.parraga.db.schema.UserTrainingDAO
 import bros.parraga.domain.User
 import bros.parraga.domain.Achievement
 import bros.parraga.domain.AchievementRuleType
 import bros.parraga.domain.MatchStatus
 import bros.parraga.domain.PhaseConfiguration
+import bros.parraga.domain.TrainingVisibility
 import bros.parraga.services.repositories.user.dto.UserMatchActivityResponse
+import bros.parraga.services.repositories.user.dto.ProfileCalendarResponse
+import bros.parraga.services.repositories.user.dto.UserMatchResult
 import io.ktor.client.statement.bodyAsText
 import bros.parraga.routes.ApiResponse
 import bros.parraga.services.repositories.user.dto.CreateUserRequest
@@ -194,6 +198,116 @@ class UserTest : BaseIntegrationTest() {
     }
 
     @Test
+    fun `public profile calendar should return scheduled live completed walkover matches public trainings timezone buckets and sorted events`() = testApplicationWithClient { client ->
+        val fixture = createProfileCalendarData()
+
+        val response = client.get(
+            "/users/${fixture.userId}/profile-calendar?from=2026-04-01&to=2026-04-04&timezone=Europe/Madrid"
+        )
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val calendar = response.body<ApiResponse<ProfileCalendarResponse>>().data
+        assertNotNull(calendar)
+        assertEquals(fixture.userId, calendar.userId)
+        assertEquals("2026-04-01", calendar.from)
+        assertEquals("2026-04-04", calendar.to)
+        assertEquals(
+            listOf(
+                fixture.scheduledMatchEventId,
+                fixture.liveMatchEventId,
+                fixture.publicSameDayTrainingEventId,
+                fixture.completedMatchEventId,
+                fixture.publicLaterTrainingEventId,
+                fixture.walkoverMatchEventId
+            ),
+            calendar.events.map { it.eventId }
+        )
+        assertEquals(
+            listOf(MatchStatus.SCHEDULED, MatchStatus.LIVE, MatchStatus.COMPLETED, MatchStatus.WALKOVER),
+            calendar.events.mapNotNull { it.match?.status }
+        )
+        assertEquals(
+            listOf(TrainingVisibility.PUBLIC, TrainingVisibility.PUBLIC),
+            calendar.events.mapNotNull { it.training?.visibility }
+        )
+        assertEquals(
+            listOf("Public same-day training", "Public later training"),
+            calendar.events.mapNotNull { it.training?.notes }
+        )
+        assertEquals(
+            listOf(null, null, UserMatchResult.WIN, UserMatchResult.WIN),
+            calendar.events.filter { it.match != null }.map { it.match?.result }
+        )
+        assertEquals(
+            listOf("2026-04-02", "2026-04-03", "2026-04-04"),
+            calendar.calendarDays.map { it.date }
+        )
+        assertEquals(listOf(3, 2, 1), calendar.calendarDays.map { it.totalCount })
+        assertEquals(listOf(1, 0, 0), calendar.calendarDays.map { it.scheduledMatchCount })
+        assertEquals(listOf(1, 0, 0), calendar.calendarDays.map { it.liveMatchCount })
+        assertEquals(listOf(0, 1, 0), calendar.calendarDays.map { it.completedMatchCount })
+        assertEquals(listOf(0, 0, 1), calendar.calendarDays.map { it.walkoverMatchCount })
+        assertEquals(listOf(1, 1, 0), calendar.calendarDays.map { it.trainingCount })
+
+        val defaultTimezoneResponse = client.get(
+            "/users/${fixture.userId}/profile-calendar?from=2026-04-01&to=2026-04-04"
+        )
+        assertEquals(HttpStatusCode.OK, defaultTimezoneResponse.status)
+        val defaultTimezoneCalendar = defaultTimezoneResponse.body<ApiResponse<ProfileCalendarResponse>>().data
+        assertNotNull(defaultTimezoneCalendar)
+        assertEquals("2026-04-01", defaultTimezoneCalendar.events.first().date)
+        assertEquals(fixture.scheduledMatchEventId, defaultTimezoneCalendar.events.first().eventId)
+    }
+
+    @Test
+    fun `owner profile calendar should return all matches all trainings and validate auth plus range`() = testApplicationWithClient { client ->
+        val fixture = createProfileCalendarData()
+        val ownerToken = createAuthToken(fixture.authSubject, "profile-calendar@email.com", "Profile Calendar User")
+
+        val unauthorizedResponse = client.get("/users/me/profile-calendar?from=2026-04-01&to=2026-04-04")
+        assertEquals(HttpStatusCode.Unauthorized, unauthorizedResponse.status)
+
+        val oversizedRangeResponse = client.get(
+            "/users/me/profile-calendar?from=2026-01-01&to=2026-04-10"
+        ) {
+            header(HttpHeaders.Authorization, "Bearer $ownerToken")
+        }
+        assertEquals(HttpStatusCode.BadRequest, oversizedRangeResponse.status)
+
+        val response = client.get(
+            "/users/me/profile-calendar?from=2026-04-01&to=2026-04-04&timezone=Europe/Madrid"
+        ) {
+            header(HttpHeaders.Authorization, "Bearer $ownerToken")
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val calendar = response.body<ApiResponse<ProfileCalendarResponse>>().data
+        assertNotNull(calendar)
+        assertEquals(
+            listOf(
+                fixture.scheduledMatchEventId,
+                fixture.liveMatchEventId,
+                fixture.publicSameDayTrainingEventId,
+                fixture.privateSameDayTrainingEventId,
+                fixture.completedMatchEventId,
+                fixture.publicLaterTrainingEventId,
+                fixture.walkoverMatchEventId
+            ),
+            calendar.events.map { it.eventId }
+        )
+        assertEquals(
+            listOf(TrainingVisibility.PUBLIC, TrainingVisibility.PRIVATE, TrainingVisibility.PUBLIC),
+            calendar.events.mapNotNull { it.training?.visibility }
+        )
+        assertEquals(
+            listOf("Public same-day training", "Private same-day training", "Public later training"),
+            calendar.events.mapNotNull { it.training?.notes }
+        )
+        assertEquals(listOf(4, 2, 1), calendar.calendarDays.map { it.totalCount })
+        assertEquals(listOf(2, 1, 0), calendar.calendarDays.map { it.trainingCount })
+    }
+
+    @Test
     fun `should require auth for user creation`() = testApplicationWithClient { client ->
         val response = client.post("/users") {
             contentType(ContentType.Application.Json)
@@ -234,6 +348,158 @@ class UserTest : BaseIntegrationTest() {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
         assertEquals(HttpStatusCode.Forbidden, response.status)
+    }
+
+    private fun createProfileCalendarData(): ProfileCalendarFixture = transaction {
+        val profileUser = UserDAO.new {
+            username = "profile-calendar-user"
+            email = "profile-calendar@email.com"
+            authProvider = "clerk"
+            authSubject = "profile-calendar-subject"
+        }
+
+        val clubOwner = UserDAO.new {
+            username = "profile-calendar-club-owner"
+            email = "profile-calendar-owner@email.com"
+            authProvider = "clerk"
+            authSubject = "profile-calendar-owner-subject"
+        }
+
+        val opponentUser = UserDAO.new {
+            username = "profile-calendar-opponent"
+            email = "profile-calendar-opponent@email.com"
+            authProvider = "clerk"
+            authSubject = "profile-calendar-opponent-subject"
+        }
+
+        val club = ClubDAO.new {
+            name = "profile-calendar-club"
+            phoneNumber = "123456789"
+            address = "court 1"
+            user = clubOwner
+        }
+
+        val tournament = TournamentDAO.new {
+            name = "profile-calendar-tournament"
+            description = null
+            surface = null
+            this.club = club
+            status = bros.parraga.domain.TournamentStatus.STARTED.name
+            startDate = Instant.parse("2026-04-01T00:00:00Z")
+            endDate = Instant.parse("2026-04-30T23:59:59Z")
+        }
+
+        val phase = TournamentPhaseDAO.new {
+            this.tournament = tournament
+            phaseOrder = 1
+            format = bros.parraga.domain.PhaseFormat.KNOCKOUT.name
+            rounds = 1
+            configuration = PhaseConfiguration.KnockoutConfig(thirdPlacePlayoff = false)
+        }
+
+        val profilePlayer = PlayerDAO.new {
+            name = "profile-calendar-player"
+            external = false
+            user = profileUser
+        }
+
+        val opponentPlayer = PlayerDAO.new {
+            name = "profile-calendar-opponent-player"
+            external = false
+            user = opponentUser
+        }
+
+        val byePlayer = PlayerDAO.new {
+            name = "profile-calendar-bye-player"
+            external = true
+            user = null
+        }
+
+        val scheduledMatch = MatchDAO.new {
+            this.phase = phase
+            round = 1
+            roundSlot = 1
+            player1 = profilePlayer
+            player2 = opponentPlayer
+            winner = null
+            status = MatchStatus.SCHEDULED.name
+            scheduledTime = Instant.parse("2026-04-01T23:30:00Z")
+            court = "Court A"
+            updatedAt = Instant.parse("2026-04-01T23:30:00Z")
+        }
+
+        val liveMatch = MatchDAO.new {
+            this.phase = phase
+            round = 1
+            roundSlot = 2
+            player1 = opponentPlayer
+            player2 = profilePlayer
+            winner = null
+            status = MatchStatus.LIVE.name
+            scheduledTime = Instant.parse("2026-04-02T09:00:00Z")
+            court = "Court B"
+            updatedAt = Instant.parse("2026-04-02T09:05:00Z")
+        }
+
+        val completedMatch = MatchDAO.new {
+            this.phase = phase
+            round = 1
+            roundSlot = 3
+            player1 = profilePlayer
+            player2 = opponentPlayer
+            winner = profilePlayer
+            status = MatchStatus.COMPLETED.name
+            completedAt = Instant.parse("2026-04-03T12:00:00Z")
+            updatedAt = Instant.parse("2026-04-03T12:00:00Z")
+        }
+
+        val walkoverMatch = MatchDAO.new {
+            this.phase = phase
+            round = 1
+            roundSlot = 4
+            player1 = profilePlayer
+            player2 = byePlayer
+            winner = profilePlayer
+            status = MatchStatus.WALKOVER.name
+            completedAt = Instant.parse("2026-04-04T08:00:00Z")
+            updatedAt = Instant.parse("2026-04-04T08:00:00Z")
+        }
+
+        val publicSameDayTraining = UserTrainingDAO.new {
+            ownerUser = profileUser
+            trainingDate = java.time.LocalDate.parse("2026-04-02")
+            durationMinutes = 60
+            notes = "Public same-day training"
+            visibility = TrainingVisibility.PUBLIC.name
+        }
+
+        val privateSameDayTraining = UserTrainingDAO.new {
+            ownerUser = profileUser
+            trainingDate = java.time.LocalDate.parse("2026-04-02")
+            durationMinutes = 90
+            notes = "Private same-day training"
+            visibility = TrainingVisibility.PRIVATE.name
+        }
+
+        val publicLaterTraining = UserTrainingDAO.new {
+            ownerUser = profileUser
+            trainingDate = java.time.LocalDate.parse("2026-04-03")
+            durationMinutes = 45
+            notes = "Public later training"
+            visibility = TrainingVisibility.PUBLIC.name
+        }
+
+        ProfileCalendarFixture(
+            userId = profileUser.id.value,
+            authSubject = "profile-calendar-subject",
+            scheduledMatchEventId = "match-${scheduledMatch.id.value}",
+            liveMatchEventId = "match-${liveMatch.id.value}",
+            completedMatchEventId = "match-${completedMatch.id.value}",
+            walkoverMatchEventId = "match-${walkoverMatch.id.value}",
+            publicSameDayTrainingEventId = "training-${publicSameDayTraining.id.value}",
+            privateSameDayTrainingEventId = "training-${privateSameDayTraining.id.value}",
+            publicLaterTrainingEventId = "training-${publicLaterTraining.id.value}"
+        )
     }
 
     private fun createTestData() {
@@ -427,4 +693,16 @@ class UserTest : BaseIntegrationTest() {
             }
         }
     }
+
+    private data class ProfileCalendarFixture(
+        val userId: Int,
+        val authSubject: String,
+        val scheduledMatchEventId: String,
+        val liveMatchEventId: String,
+        val completedMatchEventId: String,
+        val walkoverMatchEventId: String,
+        val publicSameDayTrainingEventId: String,
+        val privateSameDayTrainingEventId: String,
+        val publicLaterTrainingEventId: String
+    )
 }

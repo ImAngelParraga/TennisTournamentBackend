@@ -14,6 +14,7 @@ import org.koin.ktor.ext.inject
 fun Route.userRouting() {
     val userRepository: UserRepository by inject()
     val maxMatchActivityRangeDays = 93
+    val maxProfileCalendarRangeDays = 93
 
     route("/users") {
         get {
@@ -37,6 +38,21 @@ fun Route.userRouting() {
                 }
             }
 
+            get("/me/profile-calendar") {
+                handleRequest(call) {
+                    val localUser = call.requireLocalUser(userRepository)
+                    val from = call.requireLocalDateQueryParameter("from")
+                    val to = call.requireLocalDateQueryParameter("to")
+                    validateLocalDateRange(from, to, maxProfileCalendarRangeDays)
+                    userRepository.getOwnProfileCalendar(
+                        localUser.id,
+                        from,
+                        to,
+                        call.getZoneIdQueryParameter("timezone")
+                    )
+                }
+            }
+
             post {
                 handleRequest<Unit>(call) {
                     call.requireLocalUser(userRepository)
@@ -56,6 +72,20 @@ fun Route.userRouting() {
                     call.requireLocalUser(userRepository)
                     throw ForbiddenException("User write endpoints are disabled")
                 }
+            }
+        }
+
+        get("/{id}/profile-calendar") {
+            handleRequest(call) {
+                val from = call.requireLocalDateQueryParameter("from")
+                val to = call.requireLocalDateQueryParameter("to")
+                validateLocalDateRange(from, to, maxProfileCalendarRangeDays)
+                userRepository.getPublicProfileCalendar(
+                    call.requireIntParameter("id"),
+                    from,
+                    to,
+                    call.getZoneIdQueryParameter("timezone")
+                )
             }
         }
 

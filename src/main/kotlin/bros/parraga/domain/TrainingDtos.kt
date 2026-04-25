@@ -4,11 +4,18 @@ import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 
 @Serializable
+enum class TrainingVisibility {
+    PUBLIC,
+    PRIVATE
+}
+
+@Serializable
 data class UserTrainingEntry(
     val id: Int,
     val trainingDate: String,
     val durationMinutes: Int?,
     val notes: String?,
+    val visibility: TrainingVisibility,
     val createdAt: Instant,
     val updatedAt: Instant?
 )

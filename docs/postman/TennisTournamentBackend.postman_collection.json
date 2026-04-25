@@ -138,6 +138,28 @@
           }
         },
         {
+          "name": "Get Public Profile Calendar",
+          "description": "Returns a public profile mini-calendar combining scheduled/live/completed/walkover matches with PUBLIC trainings for the selected local-date range. `timezone` defaults to UTC when omitted.",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/{{userId}}/profile-calendar?from=2026-04-01&to=2026-04-30&timezone=Europe/Madrid"
+          }
+        },
+        {
+          "name": "Get My Profile Calendar",
+          "description": "Returns the authenticated user's profile mini-calendar combining all of their match events and both PUBLIC/PRIVATE trainings for the selected local-date range.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me/profile-calendar?from=2026-04-01&to=2026-04-30&timezone=Europe/Madrid"
+          }
+        },
+        {
           "name": "Create User (Disabled)",
           "request": {
             "method": "POST",
@@ -198,8 +220,16 @@
       "name": "Trainings",
       "item": [
         {
+          "name": "Get Public Trainings By Date Range",
+          "description": "Returns only PUBLIC training sessions for the selected user within the requested date range, plus compact calendar day counts for the UI.",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/{{userId}}/trainings?from=2026-04-01&to=2026-04-30"
+          }
+        },
+        {
           "name": "Get My Trainings By Date Range",
-          "description": "Returns the authenticated user's training history for a selected date range, plus compact calendar day counts for the UI.",
+          "description": "Returns the authenticated user's training history for a selected date range, including both PUBLIC and PRIVATE sessions plus compact calendar day counts for the UI.",
           "request": {
             "method": "GET",
             "header": [
@@ -213,7 +243,7 @@
         },
         {
           "name": "Create Training",
-          "description": "Creates a new training entry for the authenticated user.",
+          "description": "Creates a new training entry for the authenticated user. Visibility is required and controls whether the session is visible on public profiles.",
           "request": {
             "method": "POST",
             "header": [
@@ -229,13 +259,13 @@
             "url": "{{baseUrl}}/users/me/trainings",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"trainingDate\": \"2026-04-12\",\n  \"durationMinutes\": 90,\n  \"notes\": \"Serve basket and crosscourt patterns\"\n}"
+              "raw": "{\n  \"trainingDate\": \"2026-04-12\",\n  \"durationMinutes\": 90,\n  \"notes\": \"Serve basket and crosscourt patterns\",\n  \"visibility\": \"PUBLIC\"\n}"
             }
           }
         },
         {
           "name": "Update Training",
-          "description": "Updates the selected training entry for the authenticated user.",
+          "description": "Updates the selected training entry for the authenticated user. Provide at least one field; `visibility` can be changed per session.",
           "request": {
             "method": "PUT",
             "header": [
@@ -251,7 +281,7 @@
             "url": "{{baseUrl}}/users/me/trainings/{{trainingId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"trainingDate\": \"2026-04-20\",\n  \"durationMinutes\": 75,\n  \"notes\": \"Patterns and returns\"\n}"
+              "raw": "{\n  \"trainingDate\": \"2026-04-20\",\n  \"durationMinutes\": 75,\n  \"notes\": \"Patterns and returns\",\n  \"visibility\": \"PRIVATE\"\n}"
             }
           }
         },

@@ -9,7 +9,7 @@ Include: branch, uncommitted state, what changed, what remains.
 
 ## Current State
 - Branch: `feat/user-training-history`
-- Working tree status before this update: owner training history branch in progress; duration support staged and date-range retrieval follow-up in progress
+- Working tree status before this update: user profile calendar and training visibility expansion in progress on top of the existing user training history branch
 - Main documentation entrypoint: `MODEL_CONTEXT.md`
 - Prioritized backlog: `docs/ISSUES.md`
 - Local implementation changes after this update:
@@ -19,15 +19,34 @@ Include: branch, uncommitted state, what changed, what remains.
   - modified: `src/main/kotlin/bros/parraga/domain/TrainingDtos.kt`
   - modified: `src/main/kotlin/bros/parraga/routes/RoutingUtils.kt`
   - modified: `src/main/kotlin/bros/parraga/routes/TrainingRoute.kt`
+  - modified: `src/main/kotlin/bros/parraga/routes/UserRoute.kt`
   - modified: `src/main/kotlin/bros/parraga/services/repositories/training/TrainingRepository.kt`
   - modified: `src/main/kotlin/bros/parraga/services/repositories/training/TrainingRepositoryImpl.kt`
   - modified: `src/main/kotlin/bros/parraga/services/repositories/training/dto/CreateTrainingRequest.kt`
   - modified: `src/main/kotlin/bros/parraga/services/repositories/training/dto/UpdateTrainingRequest.kt`
+  - modified: `src/main/kotlin/bros/parraga/services/repositories/user/UserRepository.kt`
+  - modified: `src/main/kotlin/bros/parraga/services/repositories/user/UserRepositoryImpl.kt`
   - modified: `src/test/kotlin/bros/parraga/MutationAuthorizationCoverageTest.kt`
   - modified: `src/test/kotlin/bros/parraga/TrainingRepositoryTest.kt`
-  - added: `src/main/resources/db/migration/V11__user_trainings_duration_minutes.sql`
+  - modified: `src/test/kotlin/bros/parraga/UserTest.kt`
+  - added: `src/main/kotlin/bros/parraga/services/repositories/user/dto/ProfileCalendarResponse.kt`
+  - added: `src/main/resources/db/migration/V12__user_trainings_visibility.sql`
 
 ## Recent Completed Work
+- (uncommitted in current session) Added training visibility plus combined profile calendar support for richer user profile pages:
+  - added `TrainingVisibility { PUBLIC, PRIVATE }` to training DTOs, persistence mapping, and create/update payloads
+  - added Flyway migration `V12__user_trainings_visibility.sql` to backfill existing rows to `PRIVATE`, enforce defaults, and constrain allowed values
+  - kept existing owner training CRUD routes intact while extending owner responses with `visibility`
+  - added public `GET /users/{id}/trainings?from&to` returning only PUBLIC sessions and applied a shared inclusive 93-day guardrail to owner/public training range reads
+  - added public `GET /users/{id}/profile-calendar` plus authenticated `GET /users/me/profile-calendar` combining scheduled/live/completed/walkover matches with training sessions into one mini-calendar response
+  - profile calendar buckets match instants into local dates using optional `timezone` (default UTC), sorts events by date/time/id, and exposes per-day counts for matches vs trainings
+  - public profile calendar includes all user match events plus only PUBLIC trainings; owner profile calendar includes all matches plus PUBLIC/PRIVATE trainings
+  - broadened bad-request handling for malformed JSON/content transformation errors so required request fields like training `visibility` return `400` instead of bubbling to `500`
+  - updated Postman examples for the new training/profile calendar endpoints and visibility-aware payloads
+  - expanded integration coverage for training visibility defaults/filtering, owner/public training reads, profile calendar visibility rules, timezone bucketing, sort order, `/users/me/profile-calendar` auth, and 93-day range validation
+  - validated with:
+    - `source "$HOME/.sdkman/bin/sdkman-init.sh" && sh ./gradlew test --no-daemon --tests "bros.parraga.TrainingRepositoryTest" --tests "bros.parraga.UserTest" --tests "bros.parraga.MutationAuthorizationCoverageTest"` (pass)
+    - `source "$HOME/.sdkman/bin/sdkman-init.sh" && sh ./gradlew test --no-daemon` (pass)
 - (uncommitted in current session) Changed training retrieval from month-based lookup to explicit date ranges:
   - `GET /users/me/trainings` now expects `from=YYYY-MM-DD&to=YYYY-MM-DD` instead of `month=YYYY-MM`
   - replaced the training response wrapper with `UserTrainingRangeResponse(from, to, calendarDays, trainings)`

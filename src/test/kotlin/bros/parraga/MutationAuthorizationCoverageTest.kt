@@ -16,6 +16,7 @@ import bros.parraga.domain.PhaseFormat
 import bros.parraga.domain.RacketVisibility
 import bros.parraga.domain.SetScore
 import bros.parraga.domain.TennisScore
+import bros.parraga.domain.TrainingVisibility
 import bros.parraga.domain.TournamentStatus
 import bros.parraga.services.repositories.club.dto.CreateClubRequest
 import bros.parraga.services.repositories.club.dto.UpdateClubRequest
@@ -517,7 +518,8 @@ class MutationAuthorizationCoverageTest : BaseIntegrationTest() {
     private fun createTrainingRequest() = CreateTrainingRequest(
         trainingDate = "2026-01-11",
         durationMinutes = 60,
-        notes = "Unauthorized training"
+        notes = "Unauthorized training",
+        visibility = TrainingVisibility.PRIVATE
     )
 
     private fun ownerToken() = createAuthToken("owner-subject", "owner@email.com", "Owner")

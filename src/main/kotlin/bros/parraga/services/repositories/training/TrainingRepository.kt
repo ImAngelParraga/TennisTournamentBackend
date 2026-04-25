@@ -8,6 +8,7 @@ import java.time.LocalDate
 
 interface TrainingRepository {
     suspend fun getOwnTrainingRange(ownerUserId: Int, from: LocalDate, to: LocalDate): UserTrainingRangeResponse
+    suspend fun getPublicTrainingRange(userId: Int, from: LocalDate, to: LocalDate): UserTrainingRangeResponse
     suspend fun createTraining(ownerUserId: Int, request: CreateTrainingRequest): UserTrainingEntry
     suspend fun updateTraining(ownerUserId: Int, trainingId: Int, request: UpdateTrainingRequest): UserTrainingEntry
     suspend fun deleteTraining(ownerUserId: Int, trainingId: Int)

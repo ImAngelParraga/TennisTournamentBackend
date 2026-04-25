@@ -18,6 +18,7 @@ import org.koin.ktor.ext.inject
 fun Route.trainingRouting() {
     val trainingRepository: TrainingRepository by inject()
     val userRepository: UserRepository by inject()
+    val maxTrainingRangeDays = 93
 
     route("/users") {
         authenticate("clerk-jwt") {
@@ -27,7 +28,7 @@ fun Route.trainingRouting() {
                         val localUser = call.requireLocalUser(userRepository)
                         val from = call.requireLocalDateQueryParameter("from")
                         val to = call.requireLocalDateQueryParameter("to")
-                        validateLocalDateRange(from, to)
+                        validateLocalDateRange(from, to, maxTrainingRangeDays)
                         trainingRepository.getOwnTrainingRange(localUser.id, from, to)
                     }
                 }
@@ -56,6 +57,15 @@ fun Route.trainingRouting() {
                         trainingRepository.deleteTraining(localUser.id, call.requireIntParameter("trainingId"))
                     }
                 }
+            }
+        }
+
+        get("/{id}/trainings") {
+            handleRequest(call) {
+                val from = call.requireLocalDateQueryParameter("from")
+                val to = call.requireLocalDateQueryParameter("to")
+                validateLocalDateRange(from, to, maxTrainingRangeDays)
+                trainingRepository.getPublicTrainingRange(call.requireIntParameter("id"), from, to)
             }
         }
     }

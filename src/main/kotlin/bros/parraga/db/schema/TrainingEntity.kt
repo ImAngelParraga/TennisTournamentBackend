@@ -1,6 +1,7 @@
 package bros.parraga.db.schema
 
 import bros.parraga.domain.UserTrainingEntry
+import bros.parraga.domain.TrainingVisibility
 import kotlinx.datetime.toKotlinInstant
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
@@ -16,6 +17,7 @@ object UserTrainingsTable : IntIdTable("user_trainings") {
     val trainingDate = date("training_date")
     val durationMinutes = integer("duration_minutes").nullable()
     val notes = text("notes").nullable()
+    val visibility = varchar("visibility", 16).default(TrainingVisibility.PRIVATE.name)
     val createdAt = timestamp("created_at").clientDefault { Instant.now() }
     val updatedAt = timestamp("updated_at").nullable()
 }
@@ -27,6 +29,7 @@ class UserTrainingDAO(id: EntityID<Int>) : IntEntity(id) {
     var trainingDate by UserTrainingsTable.trainingDate
     var durationMinutes by UserTrainingsTable.durationMinutes
     var notes by UserTrainingsTable.notes
+    var visibility by UserTrainingsTable.visibility
     var createdAt by UserTrainingsTable.createdAt
     var updatedAt by UserTrainingsTable.updatedAt
 
@@ -35,6 +38,7 @@ class UserTrainingDAO(id: EntityID<Int>) : IntEntity(id) {
         trainingDate = trainingDate.toString(),
         durationMinutes = durationMinutes,
         notes = notes,
+        visibility = TrainingVisibility.valueOf(visibility),
         createdAt = createdAt.toKotlinInstant(),
         updatedAt = updatedAt?.toKotlinInstant()
     )

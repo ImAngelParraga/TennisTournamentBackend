@@ -4,6 +4,7 @@ import bros.parraga.db.DatabaseFactory.dbQuery
 import bros.parraga.db.schema.UserDAO
 import bros.parraga.db.schema.UserTrainingDAO
 import bros.parraga.db.schema.UserTrainingsTable
+import bros.parraga.domain.TrainingVisibility
 import bros.parraga.domain.UserTrainingCalendarDay
 import bros.parraga.domain.UserTrainingEntry
 import bros.parraga.domain.UserTrainingRangeResponse
@@ -12,39 +13,19 @@ import bros.parraga.services.repositories.training.dto.CreateTrainingRequest
 import bros.parraga.services.repositories.training.dto.UpdateTrainingRequest
 import io.ktor.server.plugins.NotFoundException
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.and
 import java.time.Instant
 import java.time.LocalDate
 
 class TrainingRepositoryImpl : TrainingRepository {
     override suspend fun getOwnTrainingRange(ownerUserId: Int, from: LocalDate, to: LocalDate): UserTrainingRangeResponse = dbQuery {
-        UserDAO[ownerUserId]
+        getTrainingRange(ownerUserId, from, to, includePrivateTrainings = true)
+    }
 
-        val trainings = UserTrainingDAO.find {
-            (UserTrainingsTable.ownerUserId eq ownerUserId) and
-                (UserTrainingsTable.trainingDate greaterEq from) and
-                (UserTrainingsTable.trainingDate lessEq to)
-        }
-            .sortedWith(compareByDescending<UserTrainingDAO> { it.trainingDate }.thenByDescending { it.createdAt })
-            .map { it.toDomain() }
-
-        UserTrainingRangeResponse(
-            userId = ownerUserId,
-            from = from.toString(),
-            to = to.toString(),
-            calendarDays = trainings
-                .groupingBy { it.trainingDate }
-                .eachCount()
-                .entries
-                .sortedBy { it.key }
-                .map { (date, count) ->
-                    UserTrainingCalendarDay(
-                        date = date,
-                        trainingCount = count
-                    )
-                },
-            trainings = trainings
-        )
+    override suspend fun getPublicTrainingRange(userId: Int, from: LocalDate, to: LocalDate): UserTrainingRangeResponse = dbQuery {
+        getTrainingRange(userId, from, to, includePrivateTrainings = false)
     }
 
     override suspend fun createTraining(ownerUserId: Int, request: CreateTrainingRequest): UserTrainingEntry = dbQuery {
@@ -53,6 +34,7 @@ class TrainingRepositoryImpl : TrainingRepository {
             trainingDate = parseTrainingDate(request.trainingDate)
             durationMinutes = validateDurationMinutes(request.durationMinutes)
             notes = normalizeOptionalText(request.notes)
+            visibility = request.visibility.name
             updatedAt = null
         }.toDomain()
     }
@@ -70,6 +52,7 @@ class TrainingRepositoryImpl : TrainingRepository {
         if (request.notes != null) {
             training.notes = normalizeOptionalText(request.notes)
         }
+        request.visibility?.let { training.visibility = it.name }
         training.updatedAt = Instant.now()
 
         training.toDomain()
@@ -88,9 +71,54 @@ class TrainingRepositoryImpl : TrainingRepository {
     }
 
     private fun requireUpdatePayload(request: UpdateTrainingRequest) {
-        if (request.trainingDate == null && request.durationMinutes == null && request.notes == null) {
+        if (
+            request.trainingDate == null &&
+            request.durationMinutes == null &&
+            request.notes == null &&
+            request.visibility == null
+        ) {
             throw IllegalArgumentException("At least one training field must be provided")
         }
+    }
+
+    private fun getTrainingRange(
+        userId: Int,
+        from: LocalDate,
+        to: LocalDate,
+        includePrivateTrainings: Boolean
+    ): UserTrainingRangeResponse {
+        UserDAO[userId]
+
+        val baseCondition =
+            (UserTrainingsTable.ownerUserId eq userId) and
+                (UserTrainingsTable.trainingDate greaterEq from) and
+                (UserTrainingsTable.trainingDate lessEq to)
+
+        val trainings = if (includePrivateTrainings) {
+            UserTrainingDAO.find { baseCondition }
+        } else {
+            UserTrainingDAO.find { baseCondition and (UserTrainingsTable.visibility eq TrainingVisibility.PUBLIC.name) }
+        }
+            .sortedWith(compareByDescending<UserTrainingDAO> { it.trainingDate }.thenByDescending { it.createdAt })
+            .map { it.toDomain() }
+
+        return UserTrainingRangeResponse(
+            userId = userId,
+            from = from.toString(),
+            to = to.toString(),
+            calendarDays = trainings
+                .groupingBy { it.trainingDate }
+                .eachCount()
+                .entries
+                .sortedBy { it.key }
+                .map { (date, count) ->
+                    UserTrainingCalendarDay(
+                        date = date,
+                        trainingCount = count
+                    )
+                },
+            trainings = trainings
+        )
     }
 
     private fun parseTrainingDate(value: String): LocalDate = try {

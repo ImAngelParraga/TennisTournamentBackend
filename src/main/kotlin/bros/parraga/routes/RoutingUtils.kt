@@ -7,8 +7,12 @@ import io.ktor.server.application.*
 import io.ktor.server.plugins.*
 import io.ktor.server.response.*
 import kotlinx.datetime.Instant
+import kotlinx.serialization.SerializationException
 import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
+import java.time.DateTimeException
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 
 const val SUCCESS = "SUCCESS"
 const val FAILURE = "FAILURE"
@@ -28,7 +32,10 @@ suspend inline fun <reified T : Any> handleRequest(
                 ApiResponse<T>(FAILURE, message = e.message ?: "Entity not found")
             )
 
-            is CannotTransformContentToTypeException -> call.respond(
+            is CannotTransformContentToTypeException,
+            is ContentTransformationException,
+            is BadRequestException,
+            is SerializationException -> call.respond(
                 HttpStatusCode.BadRequest,
                 ApiResponse<T>(FAILURE, message = e.message ?: "Bad request")
             )
@@ -81,8 +88,25 @@ fun ApplicationCall.requireLocalDateQueryParameter(name: String): LocalDate {
     }
 }
 
+fun ApplicationCall.getZoneIdQueryParameter(name: String, default: ZoneId = ZoneId.of("UTC")): ZoneId {
+    val value = request.queryParameters[name] ?: return default
+    return try {
+        ZoneId.of(value)
+    } catch (_: DateTimeException) {
+        throw IllegalArgumentException("Query parameter $name must be a valid IANA time zone")
+    }
+}
+
 fun validateLocalDateRange(from: LocalDate, to: LocalDate) {
     require(!from.isAfter(to)) { "Query parameter from must be on or before to" }
+}
+
+fun validateLocalDateRange(from: LocalDate, to: LocalDate, maxDaysInclusive: Int) {
+    validateLocalDateRange(from, to)
+    val totalDays = ChronoUnit.DAYS.between(from, to) + 1
+    require(totalDays <= maxDaysInclusive) {
+        "Query range must not exceed $maxDaysInclusive days"
+    }
 }
 
 fun validateInstantRange(from: Instant, to: Instant, maxDays: Int) {
