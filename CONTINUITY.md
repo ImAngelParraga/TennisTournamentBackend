@@ -8,45 +8,43 @@ Update this file after each meaningful implementation/review/change in this repo
 Include: branch, uncommitted state, what changed, what remains.
 
 ## Current State
-- Branch: `master`
-- Working tree status before this update: Cloud Run deployment setup in progress plus local backend API/profile work in progress
+- Branch: `feat/user-training-history`
+- Working tree status before this update: owner training history branch in progress; duration support staged and date-range retrieval follow-up in progress
 - Main documentation entrypoint: `MODEL_CONTEXT.md`
 - Prioritized backlog: `docs/ISSUES.md`
 - Local implementation changes after this update:
   - modified: `CONTINUITY.md`
   - modified: `docs/postman/TennisTournamentBackend.postman_collection.json`
-  - modified: `src/main/kotlin/bros/parraga/db/schema/MatchEntity.kt`
-  - modified: `src/main/kotlin/bros/parraga/db/DatabaseTables.kt`
-  - modified: `src/main/kotlin/bros/parraga/modules/Koin.kt`
-  - modified: `src/main/kotlin/bros/parraga/modules/Routing.kt`
-  - modified: `src/main/kotlin/bros/parraga/domain/Match.kt`
+  - modified: `src/main/kotlin/bros/parraga/db/schema/TrainingEntity.kt`
+  - modified: `src/main/kotlin/bros/parraga/domain/TrainingDtos.kt`
   - modified: `src/main/kotlin/bros/parraga/routes/RoutingUtils.kt`
   - modified: `src/main/kotlin/bros/parraga/routes/TrainingRoute.kt`
-  - modified: `src/main/kotlin/bros/parraga/routes/UserRoute.kt`
-  - modified: `src/main/kotlin/bros/parraga/services/PhaseExecutionService.kt`
-  - modified: `src/main/kotlin/bros/parraga/services/repositories/match/MatchRepositoryImpl.kt`
   - modified: `src/main/kotlin/bros/parraga/services/repositories/training/TrainingRepository.kt`
   - modified: `src/main/kotlin/bros/parraga/services/repositories/training/TrainingRepositoryImpl.kt`
-  - modified: `src/main/kotlin/bros/parraga/services/repositories/user/UserRepository.kt`
-  - modified: `src/main/kotlin/bros/parraga/services/repositories/user/UserRepositoryImpl.kt`
+  - modified: `src/main/kotlin/bros/parraga/services/repositories/training/dto/CreateTrainingRequest.kt`
+  - modified: `src/main/kotlin/bros/parraga/services/repositories/training/dto/UpdateTrainingRequest.kt`
   - modified: `src/test/kotlin/bros/parraga/MutationAuthorizationCoverageTest.kt`
-  - modified: `src/test/kotlin/bros/parraga/TournamentRepositoryTest.kt`
   - modified: `src/test/kotlin/bros/parraga/TrainingRepositoryTest.kt`
-  - modified: `src/test/kotlin/bros/parraga/UserTest.kt`
-  - added: `cloudrun.env.yaml`
-  - added: `src/main/kotlin/bros/parraga/db/schema/TrainingEntity.kt`
-  - added: `src/main/kotlin/bros/parraga/domain/TrainingDtos.kt`
-  - added: `src/main/kotlin/bros/parraga/routes/TrainingRoute.kt`
-  - added: `src/main/kotlin/bros/parraga/services/repositories/training/TrainingRepository.kt`
-  - added: `src/main/kotlin/bros/parraga/services/repositories/training/TrainingRepositoryImpl.kt`
-  - added: `src/main/kotlin/bros/parraga/services/repositories/training/dto/CreateTrainingRequest.kt`
-  - added: `src/main/kotlin/bros/parraga/services/repositories/training/dto/UpdateTrainingRequest.kt`
-  - added: `src/main/kotlin/bros/parraga/services/repositories/user/dto/UserMatchActivityResponse.kt`
-  - added: `src/main/resources/db/migration/V10__user_trainings.sql`
-  - added: `src/main/resources/db/migration/V9__match_completed_at.sql`
-  - added: `src/test/kotlin/bros/parraga/TrainingRepositoryTest.kt`
+  - added: `src/main/resources/db/migration/V11__user_trainings_duration_minutes.sql`
 
 ## Recent Completed Work
+- (uncommitted in current session) Changed training retrieval from month-based lookup to explicit date ranges:
+  - `GET /users/me/trainings` now expects `from=YYYY-MM-DD&to=YYYY-MM-DD` instead of `month=YYYY-MM`
+  - replaced the training response wrapper with `UserTrainingRangeResponse(from, to, calendarDays, trainings)`
+  - added route-level local-date query parsing plus `from <= to` validation in `RoutingUtils.kt`
+  - updated the training repository contract/implementation to query inclusive `training_date` ranges instead of month boundaries
+  - expanded integration coverage for date-range reads, cross-month ranges, invalid date format, reversed ranges, and existing CRUD behavior
+  - updated the Postman training read example to use the new `from`/`to` query parameters
+  - validated with:
+    - `source "$HOME/.sdkman/bin/sdkman-init.sh" && sh ./gradlew test --no-daemon --tests "bros.parraga.TrainingRepositoryTest" --tests "bros.parraga.MutationAuthorizationCoverageTest"` (pass)
+- (uncommitted in current session) Reviewed `d8759cd feat(user): add training history management` and extended tennis training entries with optional duration minutes:
+  - review outcome: the commit cleanly introduced owner-scoped training CRUD/month views; the follow-up gap for frontend-ready session length was the missing duration field
+  - added Flyway migration `V11__user_trainings_duration_minutes.sql` to append nullable `duration_minutes` with a positive-value DB check
+  - extended training DAO/domain/request DTOs and repository write logic with optional `durationMinutes`
+  - added repository validation so provided durations must be greater than zero
+  - updated training integration/auth coverage tests and Postman examples to include duration-aware payloads and assertions
+  - validated with:
+    - `sh ./gradlew test --no-daemon --tests "bros.parraga.TrainingRepositoryTest" --tests "bros.parraga.MutationAuthorizationCoverageTest"` (pass)
 - (uncommitted in current session) Extended training history with owner update/delete flows and re-evaluated the local Qwen helper:
   - added `PUT /users/me/trainings/{trainingId}` and `DELETE /users/me/trainings/{trainingId}` following the existing owner-subresource route style used by rackets
   - added `UpdateTrainingRequest` plus repository methods for update/delete with owner checks and `204 No Content` deletes

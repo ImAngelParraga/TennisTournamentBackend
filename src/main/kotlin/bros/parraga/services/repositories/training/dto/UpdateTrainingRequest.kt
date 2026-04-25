@@ -5,5 +5,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class UpdateTrainingRequest(
     val trainingDate: String? = null,
+    val durationMinutes: Int? = null,
     val notes: String? = null
 )

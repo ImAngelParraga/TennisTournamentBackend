@@ -516,6 +516,7 @@ class MutationAuthorizationCoverageTest : BaseIntegrationTest() {
 
     private fun createTrainingRequest() = CreateTrainingRequest(
         trainingDate = "2026-01-11",
+        durationMinutes = 60,
         notes = "Unauthorized training"
     )
 

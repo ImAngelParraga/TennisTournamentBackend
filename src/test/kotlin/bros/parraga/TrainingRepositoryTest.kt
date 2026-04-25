@@ -2,7 +2,7 @@ package bros.parraga
 
 import bros.parraga.db.schema.UserDAO
 import bros.parraga.domain.UserTrainingEntry
-import bros.parraga.domain.UserTrainingMonthResponse
+import bros.parraga.domain.UserTrainingRangeResponse
 import bros.parraga.routes.ApiResponse
 import bros.parraga.services.repositories.training.dto.CreateTrainingRequest
 import bros.parraga.services.repositories.training.dto.UpdateTrainingRequest
@@ -26,14 +26,14 @@ import kotlin.test.assertNotNull
 class TrainingRepositoryTest : BaseIntegrationTest() {
 
     @Test
-    fun `owner should create trainings and retrieve a monthly calendar summary`() = testApplicationWithClient { client ->
+    fun `owner should create trainings and retrieve a date range calendar summary`() = testApplicationWithClient { client ->
         createLocalUser("training_owner", "training-owner-subject")
         val ownerToken = createAuthToken("training-owner-subject", "owner@email.com", "Training Owner")
 
         val aprilThirdResponse = client.post("/users/me/trainings") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
             contentType(ContentType.Application.Json)
-            setBody(CreateTrainingRequest(trainingDate = "2026-04-03", notes = "Serve basket and volleys"))
+            setBody(CreateTrainingRequest(trainingDate = "2026-04-03", durationMinutes = 60, notes = "Serve basket and volleys"))
         }
         assertEquals(HttpStatusCode.Created, aprilThirdResponse.status)
 
@@ -49,7 +49,7 @@ class TrainingRepositoryTest : BaseIntegrationTest() {
         val secondAprilResponse = client.post("/users/me/trainings") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
             contentType(ContentType.Application.Json)
-            setBody(CreateTrainingRequest(trainingDate = "2026-04-12", notes = "Crosscourt patterns"))
+            setBody(CreateTrainingRequest(trainingDate = "2026-04-12", durationMinutes = 90, notes = "Crosscourt patterns"))
         }
         assertEquals(HttpStatusCode.Created, secondAprilResponse.status)
 
@@ -60,17 +60,33 @@ class TrainingRepositoryTest : BaseIntegrationTest() {
         }
         assertEquals(HttpStatusCode.Created, mayResponse.status)
 
-        val monthResponse = client.get("/users/me/trainings?month=2026-04") {
+        val rangeResponse = client.get("/users/me/trainings?from=2026-04-01&to=2026-04-30") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
         }
-        assertEquals(HttpStatusCode.OK, monthResponse.status)
+        assertEquals(HttpStatusCode.OK, rangeResponse.status)
 
-        val monthData = monthResponse.body<ApiResponse<UserTrainingMonthResponse>>().data ?: error("missing month data")
-        assertEquals("2026-04", monthData.month)
-        assertEquals(listOf("2026-04-12", "2026-04-12", "2026-04-03"), monthData.trainings.map { it.trainingDate })
-        assertEquals(listOf(1, 2), monthData.calendarDays.map { it.trainingCount })
-        assertEquals(listOf("2026-04-03", "2026-04-12"), monthData.calendarDays.map { it.date })
-        assertEquals(listOf("Crosscourt patterns", null, "Serve basket and volleys"), monthData.trainings.map { it.notes })
+        val rangeData = rangeResponse.body<ApiResponse<UserTrainingRangeResponse>>().data ?: error("missing range data")
+        assertEquals("2026-04-01", rangeData.from)
+        assertEquals("2026-04-30", rangeData.to)
+        assertEquals(listOf("2026-04-12", "2026-04-12", "2026-04-03"), rangeData.trainings.map { it.trainingDate })
+        assertEquals(listOf(90, null, 60), rangeData.trainings.map { it.durationMinutes })
+        assertEquals(listOf(1, 2), rangeData.calendarDays.map { it.trainingCount })
+        assertEquals(listOf("2026-04-03", "2026-04-12"), rangeData.calendarDays.map { it.date })
+        assertEquals(listOf("Crosscourt patterns", null, "Serve basket and volleys"), rangeData.trainings.map { it.notes })
+
+        val crossMonthResponse = client.get("/users/me/trainings?from=2026-04-12&to=2026-05-01") {
+            header(HttpHeaders.Authorization, "Bearer $ownerToken")
+        }
+        assertEquals(HttpStatusCode.OK, crossMonthResponse.status)
+        val crossMonthData = crossMonthResponse.body<ApiResponse<UserTrainingRangeResponse>>().data ?: error("missing cross-month data")
+        assertEquals(listOf("2026-05-01", "2026-04-12", "2026-04-12"), crossMonthData.trainings.map { it.trainingDate })
+
+        val singleDayResponse = client.get("/users/me/trainings?from=2026-04-12&to=2026-04-12") {
+            header(HttpHeaders.Authorization, "Bearer $ownerToken")
+        }
+        assertEquals(HttpStatusCode.OK, singleDayResponse.status)
+        val singleDayData = singleDayResponse.body<ApiResponse<UserTrainingRangeResponse>>().data ?: error("missing single-day data")
+        assertEquals(listOf("2026-04-12", "2026-04-12"), singleDayData.trainings.map { it.trainingDate })
     }
 
     @Test
@@ -81,38 +97,40 @@ class TrainingRepositoryTest : BaseIntegrationTest() {
         val createdTraining = client.post("/users/me/trainings") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
             contentType(ContentType.Application.Json)
-            setBody(CreateTrainingRequest(trainingDate = "2026-04-12", notes = "Initial session"))
+            setBody(CreateTrainingRequest(trainingDate = "2026-04-12", durationMinutes = 45, notes = "Initial session"))
         }.body<ApiResponse<UserTrainingEntry>>().data ?: error("missing training")
 
         val updatedResponse = client.put("/users/me/trainings/${createdTraining.id}") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
             contentType(ContentType.Application.Json)
-            setBody(UpdateTrainingRequest(trainingDate = "2026-04-20", notes = "   "))
+            setBody(UpdateTrainingRequest(trainingDate = "2026-04-20", durationMinutes = 75, notes = "   "))
         }
         assertEquals(HttpStatusCode.OK, updatedResponse.status)
         val updatedTraining = updatedResponse.body<ApiResponse<UserTrainingEntry>>().data ?: error("missing updated training")
         assertEquals("2026-04-20", updatedTraining.trainingDate)
+        assertEquals(75, updatedTraining.durationMinutes)
         assertEquals(null, updatedTraining.notes)
         assertNotNull(updatedTraining.updatedAt)
 
-        val monthResponse = client.get("/users/me/trainings?month=2026-04") {
+        val rangeResponse = client.get("/users/me/trainings?from=2026-04-01&to=2026-04-30") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
         }
-        val monthData = monthResponse.body<ApiResponse<UserTrainingMonthResponse>>().data ?: error("missing month data")
-        assertEquals(listOf("2026-04-20"), monthData.trainings.map { it.trainingDate })
-        assertEquals(listOf(null), monthData.trainings.map { it.notes })
-        assertEquals(listOf("2026-04-20"), monthData.calendarDays.map { it.date })
+        val rangeData = rangeResponse.body<ApiResponse<UserTrainingRangeResponse>>().data ?: error("missing range data")
+        assertEquals(listOf("2026-04-20"), rangeData.trainings.map { it.trainingDate })
+        assertEquals(listOf(75), rangeData.trainings.map { it.durationMinutes })
+        assertEquals(listOf(null), rangeData.trainings.map { it.notes })
+        assertEquals(listOf("2026-04-20"), rangeData.calendarDays.map { it.date })
 
         val deleteResponse = client.delete("/users/me/trainings/${createdTraining.id}") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
         }
         assertEquals(HttpStatusCode.NoContent, deleteResponse.status)
 
-        val monthAfterDelete = client.get("/users/me/trainings?month=2026-04") {
+        val rangeAfterDelete = client.get("/users/me/trainings?from=2026-04-01&to=2026-04-30") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
-        }.body<ApiResponse<UserTrainingMonthResponse>>().data ?: error("missing month data after delete")
-        assertEquals(emptyList(), monthAfterDelete.trainings)
-        assertEquals(emptyList(), monthAfterDelete.calendarDays)
+        }.body<ApiResponse<UserTrainingRangeResponse>>().data ?: error("missing range data after delete")
+        assertEquals(emptyList(), rangeAfterDelete.trainings)
+        assertEquals(emptyList(), rangeAfterDelete.calendarDays)
     }
 
     @Test
@@ -125,16 +143,26 @@ class TrainingRepositoryTest : BaseIntegrationTest() {
         val createdTraining = client.post("/users/me/trainings") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
             contentType(ContentType.Application.Json)
-            setBody(CreateTrainingRequest(trainingDate = "2026-04-12", notes = "Owned entry"))
+            setBody(CreateTrainingRequest(trainingDate = "2026-04-12", durationMinutes = 60, notes = "Owned entry"))
         }.body<ApiResponse<UserTrainingEntry>>().data ?: error("missing owned training")
 
-        val unauthorizedResponse = client.get("/users/me/trainings?month=2026-04")
+        val unauthorizedResponse = client.get("/users/me/trainings?from=2026-04-01&to=2026-04-30")
         assertEquals(HttpStatusCode.Unauthorized, unauthorizedResponse.status)
 
-        val invalidMonthResponse = client.get("/users/me/trainings?month=2026/04") {
+        val invalidFromResponse = client.get("/users/me/trainings?from=2026/04/01&to=2026-04-30") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
         }
-        assertEquals(HttpStatusCode.BadRequest, invalidMonthResponse.status)
+        assertEquals(HttpStatusCode.BadRequest, invalidFromResponse.status)
+
+        val reversedRangeResponse = client.get("/users/me/trainings?from=2026-04-30&to=2026-04-01") {
+            header(HttpHeaders.Authorization, "Bearer $ownerToken")
+        }
+        assertEquals(HttpStatusCode.BadRequest, reversedRangeResponse.status)
+
+        val missingToResponse = client.get("/users/me/trainings?from=2026-04-01") {
+            header(HttpHeaders.Authorization, "Bearer $ownerToken")
+        }
+        assertEquals(HttpStatusCode.BadRequest, missingToResponse.status)
 
         val invalidDateResponse = client.post("/users/me/trainings") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
@@ -143,12 +171,26 @@ class TrainingRepositoryTest : BaseIntegrationTest() {
         }
         assertEquals(HttpStatusCode.BadRequest, invalidDateResponse.status)
 
+        val invalidDurationResponse = client.post("/users/me/trainings") {
+            header(HttpHeaders.Authorization, "Bearer $ownerToken")
+            contentType(ContentType.Application.Json)
+            setBody(CreateTrainingRequest(trainingDate = "2026-04-12", durationMinutes = 0, notes = "Invalid duration"))
+        }
+        assertEquals(HttpStatusCode.BadRequest, invalidDurationResponse.status)
+
         val invalidUpdateDateResponse = client.put("/users/me/trainings/${createdTraining.id}") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")
             contentType(ContentType.Application.Json)
             setBody(UpdateTrainingRequest(trainingDate = "2026/04/20"))
         }
         assertEquals(HttpStatusCode.BadRequest, invalidUpdateDateResponse.status)
+
+        val invalidUpdateDurationResponse = client.put("/users/me/trainings/${createdTraining.id}") {
+            header(HttpHeaders.Authorization, "Bearer $ownerToken")
+            contentType(ContentType.Application.Json)
+            setBody(UpdateTrainingRequest(durationMinutes = -15))
+        }
+        assertEquals(HttpStatusCode.BadRequest, invalidUpdateDurationResponse.status)
 
         val emptyUpdateResponse = client.put("/users/me/trainings/${createdTraining.id}") {
             header(HttpHeaders.Authorization, "Bearer $ownerToken")

@@ -6,7 +6,7 @@ import bros.parraga.db.schema.UserTrainingDAO
 import bros.parraga.db.schema.UserTrainingsTable
 import bros.parraga.domain.UserTrainingCalendarDay
 import bros.parraga.domain.UserTrainingEntry
-import bros.parraga.domain.UserTrainingMonthResponse
+import bros.parraga.domain.UserTrainingRangeResponse
 import bros.parraga.errors.ForbiddenException
 import bros.parraga.services.repositories.training.dto.CreateTrainingRequest
 import bros.parraga.services.repositories.training.dto.UpdateTrainingRequest
@@ -15,23 +15,23 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import java.time.Instant
 import java.time.LocalDate
-import java.time.YearMonth
 
 class TrainingRepositoryImpl : TrainingRepository {
-    override suspend fun getOwnTrainingMonth(ownerUserId: Int, month: YearMonth): UserTrainingMonthResponse = dbQuery {
+    override suspend fun getOwnTrainingRange(ownerUserId: Int, from: LocalDate, to: LocalDate): UserTrainingRangeResponse = dbQuery {
         UserDAO[ownerUserId]
 
         val trainings = UserTrainingDAO.find {
             (UserTrainingsTable.ownerUserId eq ownerUserId) and
-                (UserTrainingsTable.trainingDate greaterEq month.atDay(1)) and
-                (UserTrainingsTable.trainingDate lessEq month.atEndOfMonth())
+                (UserTrainingsTable.trainingDate greaterEq from) and
+                (UserTrainingsTable.trainingDate lessEq to)
         }
             .sortedWith(compareByDescending<UserTrainingDAO> { it.trainingDate }.thenByDescending { it.createdAt })
             .map { it.toDomain() }
 
-        UserTrainingMonthResponse(
+        UserTrainingRangeResponse(
             userId = ownerUserId,
-            month = month.toString(),
+            from = from.toString(),
+            to = to.toString(),
             calendarDays = trainings
                 .groupingBy { it.trainingDate }
                 .eachCount()
@@ -51,6 +51,7 @@ class TrainingRepositoryImpl : TrainingRepository {
         UserTrainingDAO.new {
             ownerUser = UserDAO[ownerUserId]
             trainingDate = parseTrainingDate(request.trainingDate)
+            durationMinutes = validateDurationMinutes(request.durationMinutes)
             notes = normalizeOptionalText(request.notes)
             updatedAt = null
         }.toDomain()
@@ -65,6 +66,7 @@ class TrainingRepositoryImpl : TrainingRepository {
         val training = findOwnedTraining(ownerUserId, trainingId)
 
         request.trainingDate?.let { training.trainingDate = parseTrainingDate(it) }
+        request.durationMinutes?.let { training.durationMinutes = validateDurationMinutes(it) }
         if (request.notes != null) {
             training.notes = normalizeOptionalText(request.notes)
         }
@@ -86,7 +88,7 @@ class TrainingRepositoryImpl : TrainingRepository {
     }
 
     private fun requireUpdatePayload(request: UpdateTrainingRequest) {
-        if (request.trainingDate == null && request.notes == null) {
+        if (request.trainingDate == null && request.durationMinutes == null && request.notes == null) {
             throw IllegalArgumentException("At least one training field must be provided")
         }
     }
@@ -95,6 +97,12 @@ class TrainingRepositoryImpl : TrainingRepository {
         LocalDate.parse(value)
     } catch (_: Exception) {
         throw IllegalArgumentException("trainingDate must use ISO format YYYY-MM-DD")
+    }
+
+    private fun validateDurationMinutes(value: Int?): Int? {
+        if (value == null) return null
+        require(value > 0) { "durationMinutes must be greater than 0" }
+        return value
     }
 
     private fun normalizeOptionalText(value: String?): String? = value?.trim()?.takeIf { it.isNotEmpty() }

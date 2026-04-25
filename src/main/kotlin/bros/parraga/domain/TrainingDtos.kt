@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 data class UserTrainingEntry(
     val id: Int,
     val trainingDate: String,
+    val durationMinutes: Int?,
     val notes: String?,
     val createdAt: Instant,
     val updatedAt: Instant?
@@ -19,9 +20,10 @@ data class UserTrainingCalendarDay(
 )
 
 @Serializable
-data class UserTrainingMonthResponse(
+data class UserTrainingRangeResponse(
     val userId: Int,
-    val month: String,
+    val from: String,
+    val to: String,
     val calendarDays: List<UserTrainingCalendarDay>,
     val trainings: List<UserTrainingEntry>
 )

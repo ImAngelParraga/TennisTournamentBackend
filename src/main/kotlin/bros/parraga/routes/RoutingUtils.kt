@@ -8,7 +8,7 @@ import io.ktor.server.plugins.*
 import io.ktor.server.response.*
 import kotlinx.datetime.Instant
 import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
-import java.time.YearMonth
+import java.time.LocalDate
 
 const val SUCCESS = "SUCCESS"
 const val FAILURE = "FAILURE"
@@ -71,14 +71,18 @@ fun ApplicationCall.requireInstantQueryParameter(name: String): Instant {
     }
 }
 
-fun ApplicationCall.requireYearMonthQueryParameter(name: String): YearMonth {
+fun ApplicationCall.requireLocalDateQueryParameter(name: String): LocalDate {
     val value = request.queryParameters[name]
         ?: throw IllegalArgumentException("Query parameter $name is required")
     return try {
-        YearMonth.parse(value)
+        LocalDate.parse(value)
     } catch (_: Exception) {
-        throw IllegalArgumentException("Query parameter $name must use ISO format YYYY-MM")
+        throw IllegalArgumentException("Query parameter $name must use ISO format YYYY-MM-DD")
     }
+}
+
+fun validateLocalDateRange(from: LocalDate, to: LocalDate) {
+    require(!from.isAfter(to)) { "Query parameter from must be on or before to" }
 }
 
 fun validateInstantRange(from: Instant, to: Instant, maxDays: Int) {

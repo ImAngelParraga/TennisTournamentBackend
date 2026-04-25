@@ -14,6 +14,7 @@ import java.time.Instant
 object UserTrainingsTable : IntIdTable("user_trainings") {
     val ownerUserId = reference("owner_user_id", UsersTable, onDelete = ReferenceOption.RESTRICT)
     val trainingDate = date("training_date")
+    val durationMinutes = integer("duration_minutes").nullable()
     val notes = text("notes").nullable()
     val createdAt = timestamp("created_at").clientDefault { Instant.now() }
     val updatedAt = timestamp("updated_at").nullable()
@@ -24,6 +25,7 @@ class UserTrainingDAO(id: EntityID<Int>) : IntEntity(id) {
 
     var ownerUser by UserDAO referencedOn UserTrainingsTable.ownerUserId
     var trainingDate by UserTrainingsTable.trainingDate
+    var durationMinutes by UserTrainingsTable.durationMinutes
     var notes by UserTrainingsTable.notes
     var createdAt by UserTrainingsTable.createdAt
     var updatedAt by UserTrainingsTable.updatedAt
@@ -31,6 +33,7 @@ class UserTrainingDAO(id: EntityID<Int>) : IntEntity(id) {
     fun toDomain() = UserTrainingEntry(
         id = id.value,
         trainingDate = trainingDate.toString(),
+        durationMinutes = durationMinutes,
         notes = notes,
         createdAt = createdAt.toKotlinInstant(),
         updatedAt = updatedAt?.toKotlinInstant()

@@ -25,10 +25,10 @@ fun Route.trainingRouting() {
                 get {
                     handleRequest(call) {
                         val localUser = call.requireLocalUser(userRepository)
-                        trainingRepository.getOwnTrainingMonth(
-                            localUser.id,
-                            call.requireYearMonthQueryParameter("month")
-                        )
+                        val from = call.requireLocalDateQueryParameter("from")
+                        val to = call.requireLocalDateQueryParameter("to")
+                        validateLocalDateRange(from, to)
+                        trainingRepository.getOwnTrainingRange(localUser.id, from, to)
                     }
                 }
 

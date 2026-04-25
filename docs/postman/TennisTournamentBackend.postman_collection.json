@@ -198,8 +198,8 @@
       "name": "Trainings",
       "item": [
         {
-          "name": "Get My Trainings By Month",
-          "description": "Returns the authenticated user's training history for a month, plus compact calendar day counts for the UI.",
+          "name": "Get My Trainings By Date Range",
+          "description": "Returns the authenticated user's training history for a selected date range, plus compact calendar day counts for the UI.",
           "request": {
             "method": "GET",
             "header": [
@@ -208,7 +208,7 @@
                 "value": "Bearer {{authToken}}"
               }
             ],
-            "url": "{{baseUrl}}/users/me/trainings?month=2026-04"
+            "url": "{{baseUrl}}/users/me/trainings?from=2026-04-01&to=2026-04-30"
           }
         },
         {
@@ -229,7 +229,7 @@
             "url": "{{baseUrl}}/users/me/trainings",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"trainingDate\": \"2026-04-12\",\n  \"notes\": \"Serve basket and crosscourt patterns\"\n}"
+              "raw": "{\n  \"trainingDate\": \"2026-04-12\",\n  \"durationMinutes\": 90,\n  \"notes\": \"Serve basket and crosscourt patterns\"\n}"
             }
           }
         },
@@ -251,7 +251,7 @@
             "url": "{{baseUrl}}/users/me/trainings/{{trainingId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"trainingDate\": \"2026-04-20\",\n  \"notes\": \"Patterns and returns\"\n}"
+              "raw": "{\n  \"trainingDate\": \"2026-04-20\",\n  \"durationMinutes\": 75,\n  \"notes\": \"Patterns and returns\"\n}"
             }
           }
         },
