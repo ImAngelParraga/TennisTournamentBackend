@@ -10,6 +10,8 @@ import bros.parraga.services.repositories.racket.RacketRepository
 import bros.parraga.services.repositories.racket.RacketRepositoryImpl
 import bros.parraga.services.repositories.tournament.TournamentRepository
 import bros.parraga.services.repositories.tournament.TournamentRepositoryImpl
+import bros.parraga.services.repositories.tournament.TournamentJoinRequestRepository
+import bros.parraga.services.repositories.tournament.TournamentJoinRequestRepositoryImpl
 import bros.parraga.services.repositories.user.UserRepository
 import bros.parraga.services.repositories.user.UserRepositoryImpl
 import bros.parraga.services.auth.AuthorizationService
@@ -30,6 +32,7 @@ fun Application.configureKoin() {
 
 val appModule = module {
     singleOf(::TournamentRepositoryImpl) bind TournamentRepository::class
+    singleOf(::TournamentJoinRequestRepositoryImpl) bind TournamentJoinRequestRepository::class
     singleOf(::UserRepositoryImpl) { bind<UserRepository>() }
     singleOf(::PlayerRepositoryImpl) bind PlayerRepository::class
     singleOf(::RacketRepositoryImpl) bind RacketRepository::class

@@ -17,6 +17,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.or
+import org.jetbrains.exposed.sql.update
 import parraga.bros.tournament.domain.Format
 import parraga.bros.tournament.domain.Phase
 import parraga.bros.tournament.services.TournamentService
@@ -160,7 +161,8 @@ class TournamentRepositoryImpl : TournamentRepository {
 
     override suspend fun addPlayersToTournament(
         tournamentId: Int,
-        request: AddPlayersRequest
+        request: AddPlayersRequest,
+        managerUserId: Int?
     ) = dbQuery {
         val tournament = TournamentDAO[tournamentId]
         assertTournamentMutable(tournament, "modified")
@@ -186,6 +188,7 @@ class TournamentRepositoryImpl : TournamentRepository {
             } else if (request.seed != null && association.seed != request.seed) {
                 association.seed = request.seed
             }
+            managerUserId?.let { markPendingJoinRequestAccepted(tournament.id.value, player.id.value, it) }
         }
 
         assertDraftTournamentPhaseConfigurationValid(tournament)
@@ -223,6 +226,9 @@ class TournamentRepositoryImpl : TournamentRepository {
             phases = tournament.phases.map { it.toPlannedPhaseDefinition() },
             initialEntrantCount = participants.size
         )
+        if (status == TournamentStatus.DRAFT) {
+            expirePendingJoinRequests(id)
+        }
 
         val firstPhase = getFirstPhase(tournament)
         lockPhaseRow(firstPhase.id.value)
@@ -481,6 +487,30 @@ class TournamentRepositoryImpl : TournamentRepository {
         }
 
         else -> throw IllegalArgumentException("Invalid player request")
+    }
+
+    private fun markPendingJoinRequestAccepted(tournamentId: Int, playerId: Int, managerUserId: Int) {
+        val now = Instant.now()
+        val request = TournamentJoinRequestDAO.find {
+            (TournamentJoinRequestsTable.tournamentId eq tournamentId) and
+                (TournamentJoinRequestsTable.playerId eq playerId) and
+                (TournamentJoinRequestsTable.status eq TournamentJoinRequestStatus.PENDING.name)
+        }.firstOrNull() ?: return
+
+        request.status = TournamentJoinRequestStatus.ACCEPTED.name
+        request.decidedBy = UserDAO[managerUserId]
+        request.decidedAt = now
+        request.updatedAt = now
+    }
+
+    private fun expirePendingJoinRequests(tournamentId: Int) {
+        TournamentJoinRequestsTable.update({
+            (TournamentJoinRequestsTable.tournamentId eq tournamentId) and
+                (TournamentJoinRequestsTable.status eq TournamentJoinRequestStatus.PENDING.name)
+        }) {
+            it[status] = TournamentJoinRequestStatus.EXPIRED.name
+            it[updatedAt] = Instant.now()
+        }
     }
 
     private fun TournamentPhaseDAO.toPlannedPhaseDefinition() = PlannedPhaseDefinition(

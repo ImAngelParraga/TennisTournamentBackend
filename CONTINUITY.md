@@ -1,6 +1,6 @@
 # CONTINUITY
 
-Last Updated: 2026-04-24
+Last Updated: 2026-06-26
 Repository: TennisTournamentBackend
 
 ## Update Rule
@@ -8,8 +8,8 @@ Update this file after each meaningful implementation/review/change in this repo
 Include: branch, uncommitted state, what changed, what remains.
 
 ## Current State
-- Branch: `master`
-- Working tree status before this update: Cloud Run deployment setup in progress plus local backend API/profile work in progress
+- Branch: `feat/tournament-join-requests`
+- Working tree status before this update: clean `master`; feature branch created for tournament join request implementation
 - Main documentation entrypoint: `MODEL_CONTEXT.md`
 - Prioritized backlog: `docs/ISSUES.md`
 - Local implementation changes after this update:
@@ -30,6 +30,15 @@ Include: branch, uncommitted state, what changed, what remains.
   - added: `src/main/resources/db/migration/V9__match_completed_at.sql`
 
 ## Recent Completed Work
+- (uncommitted in current session) Implemented tournament join request workflow:
+  - added `tournament_join_requests` schema/entity/domain and Flyway migration `V10__tournament_join_requests.sql`
+  - added authenticated player request/withdraw/my-request endpoints
+  - added manager list/accept/reject/allow-resubmit endpoints gated by existing club owner/admin authorization
+  - auto-creates a missing user player profile from request `playerName` or username
+  - accepted requests add the player to `tournament_players`; rejected requests get a 7-day cooldown that managers can unlock
+  - manual manager add marks a matching pending request `ACCEPTED`; tournament start marks pending requests `EXPIRED`
+  - updated Postman collection and model context with new endpoints
+  - validated with `./gradlew.bat test --tests "bros.parraga.TournamentJoinRequestTest" --console=plain --quiet --warning-mode=summary --no-daemon` (pass)
 - (uncommitted in current session) Added public user match activity and match completion timestamps for profile calendars:
   - added Flyway migration `V9__match_completed_at.sql` to persist `matches.completed_at`, backfill terminal matches, and index `completed_at` plus match player foreign keys
   - extended `Match`/`MatchDAO` mapping with `completedAt`

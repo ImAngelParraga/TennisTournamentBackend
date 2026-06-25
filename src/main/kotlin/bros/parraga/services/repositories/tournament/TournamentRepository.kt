@@ -22,7 +22,7 @@ interface TournamentRepository {
     suspend fun getTournamentPhases(tournamentId: Int): List<TournamentPhaseSummary>
     suspend fun getTournamentMatches(tournamentId: Int): List<Match>
     suspend fun getTournamentBracket(tournamentId: Int): TournamentBracket
-    suspend fun addPlayersToTournament(tournamentId: Int, request: AddPlayersRequest)
+    suspend fun addPlayersToTournament(tournamentId: Int, request: AddPlayersRequest, managerUserId: Int? = null)
     suspend fun removePlayerFromTournament(tournamentId: Int, playerId: Int)
     suspend fun startTournament(id: Int): TournamentPhase
     suspend fun resetTournament(id: Int): TournamentPhase

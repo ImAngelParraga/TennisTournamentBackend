@@ -119,7 +119,7 @@ fun Route.tournamentRouting() {
                     val localUser = call.requireLocalUser(userRepository)
                     val tournamentId = call.requireIntParameter("id")
                     authorizationService.requireTournamentManager(localUser.id, tournamentId)
-                    tournamentRepository.addPlayersToTournament(tournamentId, call.receive())
+                    tournamentRepository.addPlayersToTournament(tournamentId, call.receive(), localUser.id)
                 }
             }
 
