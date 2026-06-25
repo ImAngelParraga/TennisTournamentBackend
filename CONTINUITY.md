@@ -1,6 +1,6 @@
 # CONTINUITY
 
-Last Updated: 2026-04-25
+Last Updated: 2026-06-26
 Repository: TennisTournamentBackend
 
 ## Update Rule
@@ -8,8 +8,8 @@ Update this file after each meaningful implementation/review/change in this repo
 Include: branch, uncommitted state, what changed, what remains.
 
 ## Current State
-- Branch: `feat/user-training-history`
-- Working tree status before this update: user profile calendar and training visibility expansion in progress on top of the existing user training history branch
+- Branch: `master`
+- Working tree status before this update: merging `feat/tournament-join-requests` into updated `master`
 - Main documentation entrypoint: `MODEL_CONTEXT.md`
 - Prioritized backlog: `docs/ISSUES.md`
 - Local implementation changes after this update:
@@ -33,6 +33,18 @@ Include: branch, uncommitted state, what changed, what remains.
   - added: `src/main/resources/db/migration/V12__user_trainings_visibility.sql`
 
 ## Recent Completed Work
+- (uncommitted in current session) Merged tournament join request workflow into `master` after reconciling with the user training history work already on `origin/master`:
+  - preserved the existing training routes and added tournament join request routing
+  - renumbered the join-request Flyway migration from `V10__tournament_join_requests.sql` to `V13__tournament_join_requests.sql` because `master` already contains `V10__user_trainings.sql`, `V11__user_trainings_duration_minutes.sql`, and `V12__user_trainings_visibility.sql`
+- (uncommitted in current session) Implemented tournament join request workflow:
+  - added `tournament_join_requests` schema/entity/domain and Flyway migration `V13__tournament_join_requests.sql`
+  - added authenticated player request/withdraw/my-request endpoints
+  - added manager list/accept/reject/allow-resubmit endpoints gated by existing club owner/admin authorization
+  - auto-creates a missing user player profile from request `playerName` or username
+  - accepted requests add the player to `tournament_players`; rejected requests get a 7-day cooldown that managers can unlock
+  - manual manager add marks a matching pending request `ACCEPTED`; tournament start marks pending requests `EXPIRED`
+  - updated Postman collection and model context with new endpoints
+  - validated with `./gradlew.bat test --tests "bros.parraga.TournamentJoinRequestTest" --console=plain --quiet --warning-mode=summary --no-daemon` (pass)
 - (uncommitted in current session) Added training visibility plus combined profile calendar support for richer user profile pages:
   - added `TrainingVisibility { PUBLIC, PRIVATE }` to training DTOs, persistence mapping, and create/update payloads
   - added Flyway migration `V12__user_trainings_visibility.sql` to backfill existing rows to `PRIVATE`, enforce defaults, and constrain allowed values

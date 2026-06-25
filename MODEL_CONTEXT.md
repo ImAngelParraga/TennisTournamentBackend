@@ -22,13 +22,6 @@ Use the docs under `docs/` as supporting references when you need deeper detail.
 - Never rewrite old migrations already applied in shared environments.
 - Keep secrets in `local.properties` or other gitignored configuration, not in tracked files.
 
-## Local Model Usage
-- Prefer the local Qwen OpenAI-compatible endpoint for summarization, research, and drafting tasks when it is capable of the task and enough source context can be provided.
-- Endpoint: `http://127.0.0.1:8033/v1`
-- Check the exposed model id with `GET /models` before use.
-- Verify Qwen-produced output against source files before editing code, changing contracts, or recording project facts.
-- Use the hosted model directly when the task requires tighter tool integration, careful repo reasoning, or source-of-truth verification across many files.
-
 ## Tech Stack
 - Kotlin JVM 21
 - Ktor 3
@@ -77,6 +70,8 @@ Important auth files:
 - Tournament lifecycle statuses: `DRAFT`, `STARTED`, `COMPLETED`, `CANCELLED`, `ABANDONED`.
 - Reset endpoint: `POST /tournaments/{id}/reset`.
 - Bracket/progression logic is delegated to `TennisTournamentLib` plus backend orchestration.
+- Players can request to join DRAFT tournaments through join requests; club owners/admins accept/reject requests.
+- Accepted join requests create rows in `tournament_players`; pending join requests expire when the tournament starts.
 
 Current behavior notes:
 - Group uses single round-robin generation.
@@ -142,6 +137,9 @@ Authenticated writes:
 - Tournament flow: `POST /tournaments/{id}/start`, `POST /tournaments/{id}/reset`
 - Tournament phases: `POST /tournaments/{id}/phases`
 - Tournament players: `POST /tournaments/{id}/players`, `DELETE /tournaments/{id}/players/{playerId}`
+- Tournament join requests:
+  - player: `POST /tournaments/{id}/join-requests`, `POST /tournaments/{id}/join-requests/{requestId}/withdraw`, `GET /users/me/tournament-join-requests`
+  - manager: `GET /tournaments/{id}/join-requests`, `POST /tournaments/{id}/join-requests/{requestId}/accept`, `POST /tournaments/{id}/join-requests/{requestId}/reject`, `POST /tournaments/{id}/join-requests/{requestId}/allow-resubmit`
 - Match scoring: `PUT /matches/{id}/score`
 
 Response/error contract:

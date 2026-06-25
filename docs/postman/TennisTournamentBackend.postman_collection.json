@@ -43,6 +43,10 @@
       "value": "1"
     },
     {
+      "key": "joinRequestId",
+      "value": "1"
+    },
+    {
       "key": "matchId",
       "value": "1"
     },
@@ -831,6 +835,7 @@
         },
         {
           "name": "Add Players To Tournament",
+          "description": "Manager-only direct add. If the player has a pending join request for this tournament, the request is marked ACCEPTED.",
           "request": {
             "method": "POST",
             "header": [
@@ -848,6 +853,128 @@
               "mode": "raw",
               "raw": "{\n  \"players\": [\n    { \"playerId\": {{playerId}}, \"seed\": 1 },\n    { \"name\": \"External Seeded\", \"seed\": 2 },\n    { \"name\": \"External Unseeded\" }\n  ]\n}"
             }
+          }
+        },
+        {
+          "name": "Create Tournament Join Request",
+          "description": "Authenticated player requests to join a DRAFT tournament. If the user has no player profile, one is created automatically from playerName or the user's username.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/join-requests",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"playerName\": \"Join Request Player\",\n  \"note\": \"I'd like to play this tournament.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Tournament Join Requests",
+          "description": "Manager-only request queue. Optional status filter: PENDING, ACCEPTED, REJECTED, WITHDRAWN, EXPIRED.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/join-requests?status=PENDING"
+          }
+        },
+        {
+          "name": "Get My Tournament Join Requests",
+          "description": "Authenticated player's own join request history. Optional status filter: PENDING, ACCEPTED, REJECTED, WITHDRAWN, EXPIRED.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/users/me/tournament-join-requests"
+          }
+        },
+        {
+          "name": "Withdraw Tournament Join Request",
+          "description": "Authenticated requester withdraws a PENDING join request.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/join-requests/{{joinRequestId}}/withdraw"
+          }
+        },
+        {
+          "name": "Accept Tournament Join Request",
+          "description": "Manager accepts a PENDING request, optionally assigning a seed, and adds the player to tournament_players.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/join-requests/{{joinRequestId}}/accept",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seed\": 1,\n  \"note\": \"Accepted by tournament manager.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reject Tournament Join Request",
+          "description": "Manager rejects a PENDING request. Rejected players have a 7-day resubmission cooldown unless a manager unlocks resubmission.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/join-requests/{{joinRequestId}}/reject",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Tournament is full.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Allow Join Request Resubmit",
+          "description": "Manager clears a rejected request's cooldown so the player can request again immediately.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/tournaments/{{tournamentId}}/join-requests/{{joinRequestId}}/allow-resubmit"
           }
         },
         {

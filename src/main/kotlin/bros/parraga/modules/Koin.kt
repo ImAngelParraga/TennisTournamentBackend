@@ -12,6 +12,8 @@ import bros.parraga.services.repositories.training.TrainingRepository
 import bros.parraga.services.repositories.training.TrainingRepositoryImpl
 import bros.parraga.services.repositories.tournament.TournamentRepository
 import bros.parraga.services.repositories.tournament.TournamentRepositoryImpl
+import bros.parraga.services.repositories.tournament.TournamentJoinRequestRepository
+import bros.parraga.services.repositories.tournament.TournamentJoinRequestRepositoryImpl
 import bros.parraga.services.repositories.user.UserRepository
 import bros.parraga.services.repositories.user.UserRepositoryImpl
 import bros.parraga.services.auth.AuthorizationService
@@ -32,6 +34,7 @@ fun Application.configureKoin() {
 
 val appModule = module {
     singleOf(::TournamentRepositoryImpl) bind TournamentRepository::class
+    singleOf(::TournamentJoinRequestRepositoryImpl) bind TournamentJoinRequestRepository::class
     singleOf(::UserRepositoryImpl) { bind<UserRepository>() }
     singleOf(::TrainingRepositoryImpl) bind TrainingRepository::class
     singleOf(::PlayerRepositoryImpl) bind PlayerRepository::class
