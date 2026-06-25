@@ -40,6 +40,7 @@ Include: branch, uncommitted state, what changed, what remains.
   - built the container image locally with Jib tar as a deployment dry-run, then pushed Artifact Registry image `europe-west1-docker.pkg.dev/tennis-tournament-490501/tennis-tournament-backend/tennis-tournament-backend:f2aee1d`
   - deployed Cloud Run service `tennis-tournament-backend` in `europe-west1` to revision `tennis-tournament-backend-00004-vm6`, serving 100% traffic
   - verified live public `GET /clubs` at `https://tennis-tournament-backend-639388080916.europe-west1.run.app/clubs` returned `SUCCESS`
+  - after committing this deployment record, rebuilt and redeployed the branch-tip image again so Cloud Run serves the final `master` contents rather than the pre-record commit
 - (uncommitted in current session) Merged tournament join request workflow into `master` after reconciling with the user training history work already on `origin/master`:
   - preserved the existing training routes and added tournament join request routing
   - renumbered the join-request Flyway migration from `V10__tournament_join_requests.sql` to `V13__tournament_join_requests.sql` because `master` already contains `V10__user_trainings.sql`, `V11__user_trainings_duration_minutes.sql`, and `V12__user_trainings_visibility.sql`
