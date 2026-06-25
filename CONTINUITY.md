@@ -33,6 +33,13 @@ Include: branch, uncommitted state, what changed, what remains.
   - added: `src/main/resources/db/migration/V12__user_trainings_visibility.sql`
 
 ## Recent Completed Work
+- (uncommitted in current session) Merged, migrated, and deployed tournament join requests to production:
+  - merged `feat/tournament-join-requests` into `master` with merge commit `f2aee1d`
+  - pushed `master` to `origin/master`
+  - ran Flyway against the configured hosted database: `flywayInfo` showed pending versions 9-13, `flywayMigrate` completed, `flywayValidate` passed, and final `flywayInfo` reported schema version 13
+  - built the container image locally with Jib tar as a deployment dry-run, then pushed Artifact Registry image `europe-west1-docker.pkg.dev/tennis-tournament-490501/tennis-tournament-backend/tennis-tournament-backend:f2aee1d`
+  - deployed Cloud Run service `tennis-tournament-backend` in `europe-west1` to revision `tennis-tournament-backend-00004-vm6`, serving 100% traffic
+  - verified live public `GET /clubs` at `https://tennis-tournament-backend-639388080916.europe-west1.run.app/clubs` returned `SUCCESS`
 - (uncommitted in current session) Merged tournament join request workflow into `master` after reconciling with the user training history work already on `origin/master`:
   - preserved the existing training routes and added tournament join request routing
   - renumbered the join-request Flyway migration from `V10__tournament_join_requests.sql` to `V13__tournament_join_requests.sql` because `master` already contains `V10__user_trainings.sql`, `V11__user_trainings_duration_minutes.sql`, and `V12__user_trainings_visibility.sql`
