@@ -14,6 +14,7 @@ import bros.parraga.domain.Achievement
 import bros.parraga.domain.AchievementRuleType
 import bros.parraga.domain.MatchStatus
 import bros.parraga.domain.PhaseConfiguration
+import bros.parraga.domain.TournamentBasic
 import bros.parraga.domain.TrainingVisibility
 import bros.parraga.services.repositories.user.dto.UserMatchActivityResponse
 import bros.parraga.services.repositories.user.dto.ProfileCalendarResponse
@@ -33,6 +34,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import kotlinx.datetime.Instant as KotlinInstant
+import org.jetbrains.exposed.sql.SizedCollection
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -308,6 +310,38 @@ class UserTest : BaseIntegrationTest() {
     }
 
     @Test
+    fun `should return tournaments the user is registered in sorted by start date`() = testApplicationWithClient { client ->
+        val userId = createUserTournamentsData()
+
+        val response = client.get("/users/$userId/tournaments")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val tournaments = response.body<ApiResponse<List<TournamentBasic>>>().data
+        assertNotNull(tournaments)
+        // Only the two registered tournaments, sorted by start date ascending.
+        assertEquals(listOf("registered-early", "registered-late"), tournaments.map { it.name })
+    }
+
+    @Test
+    fun `should return empty tournaments when user has no linked player`() = testApplicationWithClient { client ->
+        createTestData()
+
+        val response = client.get("/users/1/tournaments")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val tournaments = response.body<ApiResponse<List<TournamentBasic>>>().data
+        assertNotNull(tournaments)
+        assertTrue(tournaments.isEmpty())
+    }
+
+    @Test
+    fun `should return 404 for tournaments of non existing user`() = testApplicationWithClient { client ->
+        val response = client.get("/users/999/tournaments")
+
+        assertEquals(HttpStatusCode.NotFound, response.status)
+    }
+
+    @Test
     fun `should require auth for user creation`() = testApplicationWithClient { client ->
         val response = client.post("/users") {
             contentType(ContentType.Application.Json)
@@ -348,6 +382,55 @@ class UserTest : BaseIntegrationTest() {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
         assertEquals(HttpStatusCode.Forbidden, response.status)
+    }
+
+    private fun createUserTournamentsData(): Int = transaction {
+        val profileUser = UserDAO.new {
+            username = "registered-user"
+            email = "registered@email.com"
+            authProvider = "clerk"
+            authSubject = "registered-subject"
+        }
+
+        val clubOwner = UserDAO.new {
+            username = "registered-club-owner"
+            email = "registered-owner@email.com"
+            authProvider = "clerk"
+            authSubject = "registered-owner-subject"
+        }
+
+        val club = ClubDAO.new {
+            name = "registered-club"
+            phoneNumber = "123456789"
+            address = "court 1"
+            user = clubOwner
+        }
+
+        val player = PlayerDAO.new {
+            name = "registered-player"
+            external = false
+            user = profileUser
+        }
+
+        fun tournament(tName: String, start: String) = TournamentDAO.new {
+            name = tName
+            description = null
+            surface = null
+            this.club = club
+            status = bros.parraga.domain.TournamentStatus.DRAFT.name
+            startDate = Instant.parse(start)
+            endDate = Instant.parse(start).plus(1, ChronoUnit.DAYS)
+        }
+
+        // Inserted late-first to confirm the endpoint sorts by start date, not insertion order.
+        val late = tournament("registered-late", "2026-08-01T00:00:00Z")
+        val early = tournament("registered-early", "2026-07-01T00:00:00Z")
+        tournament("not-registered", "2026-07-15T00:00:00Z")
+
+        late.players = SizedCollection(listOf(player))
+        early.players = SizedCollection(listOf(player))
+
+        profileUser.id.value
     }
 
     private fun createProfileCalendarData(): ProfileCalendarFixture = transaction {

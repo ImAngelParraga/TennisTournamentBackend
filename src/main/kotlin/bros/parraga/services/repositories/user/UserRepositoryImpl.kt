@@ -5,9 +5,11 @@ import bros.parraga.db.schema.*
 import bros.parraga.domain.Achievement
 import bros.parraga.domain.AchievementRuleType
 import bros.parraga.domain.MatchStatus
+import bros.parraga.domain.TournamentBasic
 import bros.parraga.domain.TrainingVisibility
 import bros.parraga.domain.User
 import bros.parraga.services.repositories.user.dto.*
+import io.ktor.server.plugins.NotFoundException
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toJavaInstant
 import kotlinx.datetime.toKotlinInstant
@@ -15,6 +17,7 @@ import org.jetbrains.exposed.dao.DaoEntityID
 import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.or
@@ -30,6 +33,12 @@ class UserRepositoryImpl : UserRepository {
 
     override suspend fun getUser(id: Int): User = dbQuery {
         val user = UserDAO[id]
+        user.toDomain(resolveAchievementsForUser(user.id.value))
+    }
+
+    override suspend fun getUserByUsername(username: String): User = dbQuery {
+        val user = UserDAO.find { UsersTable.username eq username }.firstOrNull()
+            ?: throw NotFoundException("User '$username' not found")
         user.toDomain(resolveAchievementsForUser(user.id.value))
     }
 
@@ -65,6 +74,20 @@ class UserRepositoryImpl : UserRepository {
                 matches = matches
             )
         }
+
+    override suspend fun getUserTournaments(userId: Int): List<TournamentBasic> = dbQuery {
+        UserDAO[userId] // 404 if the user does not exist
+        val player = PlayerDAO.find { PlayersTable.userId eq userId }.firstOrNull()
+            ?: return@dbQuery emptyList()
+        val tournamentIds = TournamentPlayersTable
+            .selectAll()
+            .where { TournamentPlayersTable.playerId eq player.id }
+            .map { it[TournamentPlayersTable.tournamentId].value }
+        if (tournamentIds.isEmpty()) return@dbQuery emptyList()
+        TournamentDAO.find { TournamentsTable.id inList tournamentIds }
+            .sortedBy { it.startDate }
+            .map { it.toBasic() }
+    }
 
     override suspend fun getPublicProfileCalendar(
         userId: Int,
@@ -106,6 +129,21 @@ class UserRepositoryImpl : UserRepository {
         )
     }
 
+    override suspend fun updateOwnProfile(userId: Int, request: UpdateProfileRequest): User = dbQuery {
+        val user = UserDAO.findByIdAndUpdate(userId) {
+            it.apply {
+                request.name?.let { value ->
+                    name = value
+                    // Keep the username (and therefore the profile URL) in sync with the name.
+                    username = generateUniqueUsername(value, email, excludeUserId = id.value)
+                }
+                request.imageUrl?.let { value -> imageUrl = value }
+                updatedAt = java.time.Instant.now()
+            }
+        } ?: throw EntityNotFoundException(DaoEntityID(userId, UsersTable), UserDAO)
+        user.toDomain(resolveAchievementsForUser(user.id.value))
+    }
+
     override suspend fun deleteUser(id: Int) = dbQuery {
         UserDAO[id].delete()
     }
@@ -123,26 +161,38 @@ class UserRepositoryImpl : UserRepository {
                 ?.toDomain()
                 ?: UserDAO.new {
                     username = generateUniqueUsername(preferredName, email)
+                    this.name = preferredName
                     this.email = email
                     authProvider = "clerk"
                     this.authSubject = authSubject
                 }.toDomain()
         }
 
-    private fun generateUniqueUsername(preferredName: String?, email: String?): String {
-        val base = preferredName
-            ?.trim()
-            ?.replace("\\s+".toRegex(), "_")
-            ?.takeIf { it.isNotBlank() }
-            ?: email?.substringBefore("@")?.takeIf { it.isNotBlank() }
+    // Slug used as the public username / profile URL: "José Díaz" -> "jose-diaz".
+    private fun slugifyUsername(value: String): String {
+        return java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFKD)
+            .replace("\\p{M}+".toRegex(), "")
+            .lowercase()
+            .replace("[^a-z0-9]+".toRegex(), "-")
+            .trim('-')
+    }
+
+    // Unique slug for the username. excludeUserId lets a user keep/regenerate their own
+    // handle without colliding with their existing row. Collisions get -2, -3, ... suffixes.
+    private fun generateUniqueUsername(preferredName: String?, email: String?, excludeUserId: Int? = null): String {
+        val base = preferredName?.let { slugifyUsername(it) }?.takeIf { it.isNotBlank() }
+            ?: email?.substringBefore("@")?.let { slugifyUsername(it) }?.takeIf { it.isNotBlank() }
             ?: "user"
 
-        var candidate = base.take(220)
-        var attempt = 0
+        val root = base.take(220)
+        var candidate = root
+        var attempt = 1
 
-        while (UserDAO.find { UsersTable.username eq candidate }.firstOrNull() != null) {
+        while (true) {
+            val existing = UserDAO.find { UsersTable.username eq candidate }.firstOrNull()
+            if (existing == null || existing.id.value == excludeUserId) break
             attempt += 1
-            candidate = "${base.take(200)}_${attempt}_${UUID.randomUUID().toString().take(8)}"
+            candidate = "${root.take(210)}-$attempt"
         }
 
         return candidate

@@ -2,10 +2,13 @@ package bros.parraga.routes
 
 import bros.parraga.errors.ForbiddenException
 import bros.parraga.services.repositories.user.UserRepository
+import bros.parraga.services.repositories.user.dto.UpdateProfileRequest
 import io.ktor.server.auth.authenticate
+import io.ktor.server.request.receive
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
+import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
@@ -21,6 +24,14 @@ fun Route.userRouting() {
             handleRequest(call) { userRepository.getUsers() }
         }
 
+        get("/by-username/{username}") {
+            handleRequest(call) {
+                val username = call.parameters["username"]?.takeIf { it.isNotBlank() }
+                    ?: throw IllegalArgumentException("Parameter username is required")
+                userRepository.getUserByUsername(username)
+            }
+        }
+
         get("/{id}/matches") {
             handleRequest(call) {
                 val from = call.requireInstantQueryParameter("from")
@@ -30,11 +41,24 @@ fun Route.userRouting() {
             }
         }
 
+        get("/{id}/tournaments") {
+            handleRequest(call) {
+                userRepository.getUserTournaments(call.requireIntParameter("id"))
+            }
+        }
+
         authenticate("clerk-jwt") {
             get("/me") {
                 handleRequest(call) {
                     val localUser = call.requireLocalUser(userRepository)
                     userRepository.getUser(localUser.id)
+                }
+            }
+
+            patch("/me") {
+                handleRequest(call) {
+                    val localUser = call.requireLocalUser(userRepository)
+                    userRepository.updateOwnProfile(localUser.id, call.receive<UpdateProfileRequest>())
                 }
             }
 

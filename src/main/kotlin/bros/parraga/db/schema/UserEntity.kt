@@ -12,6 +12,8 @@ import java.time.Instant
 
 object UsersTable : IntIdTable("users") {
     val username = varchar("username", 255).uniqueIndex()
+    val name = varchar("name", 255).nullable()
+    val imageUrl = varchar("image_url", 1024).nullable()
     val email = varchar("email", 255).uniqueIndex().nullable()
     val authProvider = varchar("auth_provider", 50).default("clerk")
     val authSubject = varchar("auth_subject", 255).uniqueIndex().nullable()
@@ -23,6 +25,8 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<UserDAO>(UsersTable)
 
     var username by UsersTable.username
+    var name by UsersTable.name
+    var imageUrl by UsersTable.imageUrl
     var email by UsersTable.email
     var authProvider by UsersTable.authProvider
     var authSubject by UsersTable.authSubject
@@ -32,6 +36,8 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
     fun toDomain(achievements: List<Achievement> = emptyList()) = User(
         id = id.value,
         username = username,
+        name = name,
+        imageUrl = imageUrl,
         email = email,
         authProvider = authProvider,
         authSubject = authSubject,
