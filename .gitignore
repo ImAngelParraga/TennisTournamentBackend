@@ -38,3 +38,5 @@ out/
 
 # Local-only project settings/secrets
 local.properties
+.env
+run-local.ps1
