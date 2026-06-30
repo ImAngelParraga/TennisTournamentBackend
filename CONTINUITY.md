@@ -1,7 +1,34 @@
 # CONTINUITY
 
-Last Updated: 2026-06-26
+Last Updated: 2026-06-30
 Repository: TennisTournamentBackend
+
+## 2026-06-30 — Public endpoint: tournaments a user is registered in
+- New public read `GET /users/{id}/tournaments` → `UserRepository.getUserTournaments` returns `List<TournamentBasic>` for the tournaments the user's linked player is registered in (rows in `tournament_players`), sorted by start date ascending.
+- Behavior: 404 if the user does not exist (`UserDAO[id]`); empty list if the user has no linked player or no registrations. No date filtering server-side — the frontend carousel narrows to upcoming.
+- Impl mirrors `getUserMatchActivity`: find player by `PlayersTable.userId`, collect tournament ids from `TournamentPlayersTable`, load via `TournamentDAO.find { TournamentsTable.id inList ... }.toBasic()`.
+- No schema/migration change (read-only over existing tables).
+- Frontend (separate repo) consumes this for the non-owner profile Overview carousel (`useUserTournamentsQuery`).
+- Tests: `UserTest` passes — added registered-sorted, empty-when-no-player, and 404 cases. Postman updated with "Get User Tournaments".
+
+## 2026-06-29 — User profile name/image (frontend-only edit, no webhook)
+- Branch: `master` (uncommitted).
+- Added `name` and `image_url` to `users` via Flyway `V14__user_name_and_image.sql`; mirrored in `UsersTable`/`UserDAO`, `domain/User`, and `toDomain`. Both nullable, returned by all `/users` reads.
+- New `PATCH /users/me` (clerk-jwt): self-service edit of `name`/`imageUrl` via `UpdateProfileRequest` → `UserRepository.updateOwnProfile`. The blanket `/users` write 403 still applies to POST/PUT/DELETE; PATCH/me is the only allowed self-write.
+- `findOrCreateByAuthSubject` seeds `name` from the JWT preferred-name on first create, so name is populated on signup without any webhook.
+- Decision: editing happens **only** in the frontend UI (logged-in → JWT → PATCH/me). Clerk's own account modal is hidden, so there is no out-of-app edit path to mirror. The earlier `POST /users/sync` + webhook approach was removed (no server-to-server upsert, no shared secret).
+- Caveat to handle in ops: disable/restrict the Clerk hosted Account Portal in the dashboard so users can't edit Clerk profile outside the app (which would drift the DB, since there is no webhook).
+- Tests: `UserTest` passes (`./gradlew.bat test --tests "bros.parraga.UserTest" --no-daemon`). Postman updated with "Update My Profile".
+- Remaining: run `flywayMigrate`/`flywayValidate` against the hosted DB when creds are available; add a test for PATCH/me.
+
+## 2026-06-29 — Profile URLs keyed by username (no DB ids in URLs)
+- Added `GET /users/by-username/{username}` → `UserRepository.getUserByUsername` (find by unique `username`, 404 via `NotFoundException` if absent, includes achievements). Route sits before `/{id}/...` but doesn't collide (literal first segment).
+- Rationale: sequential DB ids in profile URLs leak row counts / allow enumeration; `username` is unique (DB index) and not sequential.
+- Frontend (separate repo) now routes `/users/{username}` (the `[id]` segment carries the username), resolves the user via this endpoint, then uses the returned numeric `id` only for sub-resource calls (`/users/{id}/rackets|trainings|profile-calendar|matches`). `/profile` redirects to `/users/{me.username}`.
+- Postman: added "Get User By Username". `UserTest` still passes.
+- Username is now a slug of the name (`generateUniqueUsername` -> lowercase/dash, `-2`/`-3` on collision, replacing the old `_`+UUID scheme). `updateOwnProfile` regenerates the username from the new name on every name change (excluding the user's own row), so the profile URL tracks the name. Frontend follows the returned `username` with a redirect after editing, and displays `@username` (== URL) instead of a separate client-side slug.
+- Existing rows keep their old usernames until their owner next edits their name.
+- Remaining: add a test for the by-username lookup (200 + 404) and for username regeneration on name change.
 
 ## Update Rule
 Update this file after each meaningful implementation/review/change in this repo.

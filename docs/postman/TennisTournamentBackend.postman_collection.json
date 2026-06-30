@@ -120,6 +120,14 @@
           }
         },
         {
+          "name": "Get User By Username",
+          "description": "Returns a single user profile by unique username (used for profile URLs so DB ids aren't exposed). 404 if not found. Includes derived `achievements`.",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/by-username/{{username}}"
+          }
+        },
+        {
           "name": "Get My User",
           "description": "Returns the authenticated backend user row for the current JWT subject.",
           "request": {
@@ -134,11 +142,41 @@
           }
         },
         {
+          "name": "Update My Profile",
+          "description": "Self-service profile edit. Updates the authenticated user's `name` and/or `imageUrl`. Identity comes from the JWT; the body has no id.",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rafael Nadal\",\n  \"imageUrl\": \"https://img.clerk.com/example.png\"\n}"
+            },
+            "url": "{{baseUrl}}/users/me"
+          }
+        },
+        {
           "name": "Get User Match Activity",
           "description": "Returns completed and walkover matches for the user's linked player profile within the requested UTC time range. Intended for the public profile calendar and modal.",
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/users/{{userId}}/matches?from=2026-04-01T00:00:00Z&to=2026-04-30T23:59:59Z"
+          }
+        },
+        {
+          "name": "Get User Tournaments",
+          "description": "Returns the tournaments the user's linked player is registered in (TournamentBasic list, sorted by start date). Empty when the user has no linked player; 404 when the user does not exist.",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/{{userId}}/tournaments"
           }
         },
         {
