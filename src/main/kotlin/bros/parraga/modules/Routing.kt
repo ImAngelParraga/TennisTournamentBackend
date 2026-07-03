@@ -1,5 +1,6 @@
 package bros.parraga.modules
 
+import bros.parraga.routes.clubContactRouting
 import bros.parraga.routes.clubRouting
 import bros.parraga.routes.matchRouting
 import bros.parraga.routes.playerRouting
@@ -17,6 +18,7 @@ fun Application.configureRouting() {
         tournamentJoinRequestRouting()
         playerRouting()
         clubRouting()
+        clubContactRouting()
         racketRouting()
         trainingRouting()
         userRouting()

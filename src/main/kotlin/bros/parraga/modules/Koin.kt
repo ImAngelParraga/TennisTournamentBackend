@@ -1,5 +1,7 @@
 package bros.parraga.modules
 
+import bros.parraga.services.repositories.club.ClubContactRequestRepository
+import bros.parraga.services.repositories.club.ClubContactRequestRepositoryImpl
 import bros.parraga.services.repositories.club.ClubRepository
 import bros.parraga.services.repositories.club.ClubRepositoryImpl
 import bros.parraga.services.repositories.match.MatchRepository
@@ -40,6 +42,7 @@ val appModule = module {
     singleOf(::PlayerRepositoryImpl) bind PlayerRepository::class
     singleOf(::RacketRepositoryImpl) bind RacketRepository::class
     singleOf(::ClubRepositoryImpl) bind ClubRepository::class
+    singleOf(::ClubContactRequestRepositoryImpl) bind ClubContactRequestRepository::class
     singleOf(::MatchRepositoryImpl) bind MatchRepository::class
     singleOf(::AuthorizationService)
 }
