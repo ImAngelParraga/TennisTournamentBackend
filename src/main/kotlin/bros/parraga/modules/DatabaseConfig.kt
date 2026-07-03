@@ -49,6 +49,23 @@ fun Application.configureDatabase() {
     }
 }
 
+/**
+ * Mirrors the fallback decision made in [configureDatabase]: when `DATABASE_URL`, `DATABASE_DRIVER`
+ * or a resolvable user are missing, the app runs against the in-memory H2 dev database. The seeder
+ * reuses this to guarantee it never writes to a hosted Postgres instance.
+ */
+fun usingLocalH2Fallback(): Boolean {
+    val url = System.getenv("DATABASE_URL")?.let(::toJdbcUrl)
+    val driver = System.getenv("DATABASE_DRIVER")
+    val envUser = System.getenv("DATABASE_USER")
+    val uri = url
+        ?.removePrefix("jdbc:")
+        ?.let { runCatching { URI(it) }.getOrNull() }
+    val uriUserInfo = uri?.userInfo?.split(":", limit = 2)
+    val user = envUser ?: uriUserInfo?.getOrNull(0)
+    return url.isNullOrBlank() || driver.isNullOrBlank() || user.isNullOrBlank()
+}
+
 private fun toJdbcUrl(rawUrl: String): String {
     val trimmed = rawUrl.trim()
     return when {

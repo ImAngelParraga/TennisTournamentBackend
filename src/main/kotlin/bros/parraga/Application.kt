@@ -20,6 +20,7 @@ fun Application.module() {
     configureSerialization()
     configureRouting()
     configureDatabase()
+    configureSeeding()
 }
 
 fun Application.testModule() {
