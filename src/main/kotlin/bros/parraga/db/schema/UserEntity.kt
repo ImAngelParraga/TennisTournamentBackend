@@ -2,6 +2,7 @@ package bros.parraga.db.schema
 
 import bros.parraga.domain.Achievement
 import bros.parraga.domain.User
+import bros.parraga.domain.UserRole
 import kotlinx.datetime.toKotlinInstant
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
@@ -17,6 +18,7 @@ object UsersTable : IntIdTable("users") {
     val email = varchar("email", 255).uniqueIndex().nullable()
     val authProvider = varchar("auth_provider", 50).default("clerk")
     val authSubject = varchar("auth_subject", 255).uniqueIndex().nullable()
+    val role = varchar("role", 32).default(UserRole.USER.name)
     val createdAt = timestamp("created_at").databaseGenerated().nullable().default(Instant.now())
     val updatedAt = timestamp("updated_at").databaseGenerated().nullable()
 }
@@ -30,10 +32,15 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
     var email by UsersTable.email
     var authProvider by UsersTable.authProvider
     var authSubject by UsersTable.authSubject
+    var role by UsersTable.role
     val createdAt by UsersTable.createdAt
     var updatedAt by UsersTable.updatedAt
 
-    fun toDomain(achievements: List<Achievement> = emptyList()) = User(
+    fun toDomain(
+        achievements: List<Achievement> = emptyList(),
+        managedClubIds: List<Int> = emptyList(),
+        matchWins: Int = 0
+    ) = User(
         id = id.value,
         username = username,
         name = name,
@@ -43,6 +50,9 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
         authSubject = authSubject,
         createdAt = createdAt?.toKotlinInstant(),
         updatedAt = updatedAt?.toKotlinInstant(),
-        achievements = achievements
+        achievements = achievements,
+        matchWins = matchWins,
+        role = UserRole.valueOf(role),
+        managedClubIds = managedClubIds
     )
 }

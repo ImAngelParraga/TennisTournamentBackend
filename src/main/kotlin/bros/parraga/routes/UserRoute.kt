@@ -51,7 +51,7 @@ fun Route.userRouting() {
             get("/me") {
                 handleRequest(call) {
                     val localUser = call.requireLocalUser(userRepository)
-                    userRepository.getUser(localUser.id)
+                    userRepository.getMe(localUser.id)
                 }
             }
 

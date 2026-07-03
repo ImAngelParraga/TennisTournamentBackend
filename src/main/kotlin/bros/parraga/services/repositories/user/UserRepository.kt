@@ -14,6 +14,7 @@ import java.time.ZoneId
 interface UserRepository {
     suspend fun getUsers(): List<User>
     suspend fun getUser(id: Int): User
+    suspend fun getMe(userId: Int): User
     suspend fun getUserByUsername(username: String): User
     suspend fun getUserMatchActivity(userId: Int, from: Instant, to: Instant): UserMatchActivityResponse
     suspend fun getUserTournaments(userId: Int): List<TournamentBasic>

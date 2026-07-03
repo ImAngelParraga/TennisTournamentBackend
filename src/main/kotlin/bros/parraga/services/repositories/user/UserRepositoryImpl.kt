@@ -19,7 +19,9 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
+import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import java.time.LocalDate
@@ -28,18 +30,41 @@ import java.util.*
 
 class UserRepositoryImpl : UserRepository {
     override suspend fun getUsers(): List<User> = dbQuery {
-        UserDAO.all().map { it.toDomain() }
+        val winsByUserId = resolveMatchWinsByUserId()
+        UserDAO.all().map { it.toDomain(matchWins = winsByUserId[it.id.value] ?: 0) }
     }
 
     override suspend fun getUser(id: Int): User = dbQuery {
         val user = UserDAO[id]
-        user.toDomain(resolveAchievementsForUser(user.id.value))
+        user.toDomain(
+            achievements = resolveAchievementsForUser(user.id.value),
+            matchWins = resolveMatchWinsForUser(user.id.value)
+        )
+    }
+
+    // Same as getUser plus the clubs the user owns or administers, so the frontend
+    // can gate host UI from a single /users/me call.
+    override suspend fun getMe(userId: Int): User = dbQuery {
+        val user = UserDAO[userId]
+        val owned = ClubDAO.find { ClubsTable.userId eq userId }.map { it.id.value }
+        val administered = ClubAdminsTable
+            .selectAll()
+            .where { ClubAdminsTable.userId eq userId }
+            .map { it[ClubAdminsTable.clubId].value }
+        user.toDomain(
+            achievements = resolveAchievementsForUser(userId),
+            managedClubIds = (owned + administered).distinct().sorted(),
+            matchWins = resolveMatchWinsForUser(userId)
+        )
     }
 
     override suspend fun getUserByUsername(username: String): User = dbQuery {
         val user = UserDAO.find { UsersTable.username eq username }.firstOrNull()
             ?: throw NotFoundException("User '$username' not found")
-        user.toDomain(resolveAchievementsForUser(user.id.value))
+        user.toDomain(
+            achievements = resolveAchievementsForUser(user.id.value),
+            matchWins = resolveMatchWinsForUser(user.id.value)
+        )
     }
 
     override suspend fun getUserMatchActivity(userId: Int, from: Instant, to: Instant): UserMatchActivityResponse =
@@ -439,6 +464,26 @@ class UserRepositoryImpl : UserRepository {
 
                 definition.toDomain().takeIf { unlocked }
             }
+    }
+
+    // Wins for every user with a linked player, in one grouped query (ranking list).
+    private fun resolveMatchWinsByUserId(): Map<Int, Int> {
+        val winsCount = MatchesTable.id.count()
+        return MatchesTable
+            .join(PlayersTable, JoinType.INNER, MatchesTable.winner, PlayersTable.id)
+            .select(PlayersTable.userId, winsCount)
+            .where { PlayersTable.userId.isNotNull() }
+            .groupBy(PlayersTable.userId)
+            .associate { row -> row[PlayersTable.userId]!!.value to row[winsCount].toInt() }
+    }
+
+    private fun resolveMatchWinsForUser(userId: Int): Int {
+        val player = PlayerDAO.find { PlayersTable.userId eq userId }.firstOrNull() ?: return 0
+        return MatchesTable
+            .selectAll()
+            .where { MatchesTable.winner eq player.id.value }
+            .count()
+            .toInt()
     }
 
     private fun resolveAchievementStats(playerId: Int): AchievementStats {

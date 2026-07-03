@@ -114,6 +114,23 @@ class UserTest : BaseIntegrationTest() {
     }
 
     @Test
+    fun `should return match wins on user reads`() = testApplicationWithClient { client ->
+        createUserMatchActivityData()
+
+        val listResponse = client.get("/users")
+        assertEquals(HttpStatusCode.OK, listResponse.status)
+        val users = listResponse.body<ApiResponse<List<User>>>().data
+        assertNotNull(users)
+        assertEquals(2, users.first { it.username == "profile-user" }.matchWins)
+        assertEquals(1, users.first { it.username == "opponent-user" }.matchWins)
+        assertEquals(0, users.first { it.username == "club-owner" }.matchWins)
+
+        val detailResponse = client.get("/users/by-username/profile-user")
+        assertEquals(HttpStatusCode.OK, detailResponse.status)
+        assertEquals(2, detailResponse.body<ApiResponse<User>>().data?.matchWins)
+    }
+
+    @Test
     fun `should return 404 for non existing user`() = testApplicationWithClient { client ->
         val response = client.get("/users/999")
 
