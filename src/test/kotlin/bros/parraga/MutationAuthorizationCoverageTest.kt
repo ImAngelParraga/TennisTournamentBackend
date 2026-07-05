@@ -65,7 +65,7 @@ class MutationAuthorizationCoverageTest : BaseIntegrationTest() {
                 namedRequest("POST /clubs") {
                     client.post("/clubs") {
                         contentType(ContentType.Application.Json)
-                        setBody(CreateClubRequest(name = "Unauthorized Club", phoneNumber = null, address = null))
+                        setBody(CreateClubRequest(name = "Unauthorized Club", phoneNumber = null, address = null, ownerUserId = 1))
                     }.status
                 },
                 namedRequest("PUT /clubs") {
@@ -208,6 +208,13 @@ class MutationAuthorizationCoverageTest : BaseIntegrationTest() {
         assertStatuses(
             expected = HttpStatusCode.Forbidden,
             requests = listOf(
+                namedRequest("POST /clubs") {
+                    client.post("/clubs") {
+                        header(HttpHeaders.Authorization, "Bearer $outsiderToken")
+                        contentType(ContentType.Application.Json)
+                        setBody(CreateClubRequest(name = "Outsider Club", phoneNumber = null, address = null, ownerUserId = fixture.candidateUserId))
+                    }.status
+                },
                 namedRequest("PUT /clubs") {
                     client.put("/clubs") {
                         header(HttpHeaders.Authorization, "Bearer $outsiderToken")

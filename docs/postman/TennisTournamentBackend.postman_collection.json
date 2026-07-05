@@ -105,7 +105,7 @@
       "item": [
         {
           "name": "Get Users",
-          "description": "Lists users without profile achievements.",
+          "description": "Lists users without profile achievements. Includes `matchWins` (count of completed/walkover matches won by the user's linked player; omitted when 0) — used by the frontend ranking.",
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/users"
@@ -129,7 +129,7 @@
         },
         {
           "name": "Get My User",
-          "description": "Returns the authenticated backend user row for the current JWT subject.",
+          "description": "Returns the authenticated backend user row for the current JWT subject, including `role` (USER | PLATFORM_ADMIN) and `managedClubIds` (clubs the user owns or administers; used by the frontend to gate host UI).",
           "request": {
             "method": "GET",
             "header": [
@@ -177,6 +177,14 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/users/{{userId}}/tournaments"
+          }
+        },
+        {
+          "name": "Get User Rating History",
+          "description": "Returns the append-only Elo rating-event log for the user's linked player, newest first. Each event has `reason` (MATCH | GUEST_WIN | GUEST_LOSS | TOURNAMENT_BONUS | DECAY), `delta`, `ratingAfter`, and optional `matchId`/`tournamentId`. Optional `limit` defaults to 50 and is clamped to 200. Empty when the user has no linked player; 404 when the user does not exist.",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/{{userId}}/rating-history?limit=50"
           }
         },
         {
@@ -602,6 +610,7 @@
         },
         {
           "name": "Create Club",
+          "description": "Platform admin only. Clubs are provisioned manually by the platform operator on behalf of the club's user (`ownerUserId`, resolved via Get Users / Get User By Username). Regular users get 403; unknown ownerUserId gets 404. Bootstrap the first platform admin via SQL: UPDATE users SET role = 'PLATFORM_ADMIN' WHERE auth_subject = '<clerk user sub>';",
           "request": {
             "method": "POST",
             "header": [
@@ -617,7 +626,7 @@
             "url": "{{baseUrl}}/clubs",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Central Club\",\n  \"phoneNumber\": \"555-0100\",\n  \"address\": \"123 Center St\"\n}"
+              "raw": "{\n  \"name\": \"Central Club\",\n  \"phoneNumber\": \"555-0100\",\n  \"address\": \"123 Center St\",\n  \"ownerUserId\": {{ownerUserId}}\n}"
             }
           }
         },
@@ -644,6 +653,7 @@
         },
         {
           "name": "Delete Club",
+          "description": "Platform admin only. Club owners/admins can no longer delete their club.",
           "request": {
             "method": "DELETE",
             "header": [
@@ -679,6 +689,52 @@
               }
             ],
             "url": "{{baseUrl}}/clubs/{{clubId}}/admins/{{adminUserId}}"
+          }
+        },
+        {
+          "name": "Send Club Contact Request",
+          "description": "Public (anonymous) onboarding form for clubs that want to join. Records the inquiry; the operator reviews it and provisions the club manually via Create Club. clubName, contactName and email are required; phone and message optional (message max 4000 chars).",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/club-contact-requests",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clubName\": \"Club de Tenis Ribera\",\n  \"contactName\": \"Ana García\",\n  \"email\": \"ana@clubribera.com\",\n  \"phone\": \"+34 600 000 000\",\n  \"message\": \"Queremos publicar nuestros torneos.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Club Contact Requests",
+          "description": "Platform admin only. Lists club onboarding inquiries, newest first — the operator's review queue before provisioning clubs.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/club-contact-requests"
+          }
+        },
+        {
+          "name": "Delete Club Contact Request",
+          "description": "Platform admin only. Clears a handled inquiry (accept flow: read request, create the club, then delete the request). 404 on unknown id.",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/club-contact-requests/{{contactRequestId}}"
           }
         }
       ]
@@ -1168,7 +1224,7 @@
               "name": "Complex Tournament - Create Club",
               "request": {
                 "method": "POST",
-                "description": "Creates the owner club. The first authenticated request auto-creates the local user from the JWT subject.",
+                "description": "Creates the owner club. The first authenticated request auto-creates the local user from the JWT subject. NOTE: POST /clubs now requires PLATFORM_ADMIN — on a zero-state DB the first run 403s after auto-creating the user (id 1); promote it (UPDATE users SET role = 'PLATFORM_ADMIN' WHERE id = 1;) and re-run the scenario.",
                 "header": [
                   {
                     "key": "Authorization",
@@ -1182,7 +1238,7 @@
                 "url": "{{baseUrl}}/clubs",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"{{scenarioClubName}}\",\n  \"phoneNumber\": \"555-0100\",\n  \"address\": \"Scenario Club Address\"\n}"
+                  "raw": "{\n  \"name\": \"{{scenarioClubName}}\",\n  \"phoneNumber\": \"555-0100\",\n  \"address\": \"Scenario Club Address\",\n  \"ownerUserId\": 1\n}"
                 }
               },
               "event": [
@@ -1654,7 +1710,7 @@
               "name": "Swiss Knockout With Bye - Create Club",
               "request": {
                 "method": "POST",
-                "description": "Creates the owner club for the zero-state Swiss plus knockout scenario.",
+                "description": "Creates the owner club for the zero-state Swiss plus knockout scenario. NOTE: POST /clubs now requires PLATFORM_ADMIN — on a zero-state DB the first run 403s after auto-creating the user (id 1); promote it (UPDATE users SET role = 'PLATFORM_ADMIN' WHERE id = 1;) and re-run the scenario.",
                 "header": [
                   {
                     "key": "Authorization",
@@ -1668,7 +1724,7 @@
                 "url": "{{baseUrl}}/clubs",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"{{scenarioClubName}}\",\n  \"phoneNumber\": \"555-0200\",\n  \"address\": \"Swiss Bye Club Address\"\n}"
+                  "raw": "{\n  \"name\": \"{{scenarioClubName}}\",\n  \"phoneNumber\": \"555-0200\",\n  \"address\": \"Swiss Bye Club Address\",\n  \"ownerUserId\": 1\n}"
                 }
               },
               "event": [

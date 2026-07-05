@@ -1,7 +1,48 @@
 # CONTINUITY
 
-Last Updated: 2026-06-30
+Last Updated: 2026-07-02
 Repository: TennisTournamentBackend
+
+## 2026-07-02 — Manual-testing personas: claim-by-email + seeded admin/club-manager + contact-request delete
+- Branch: `master` (uncommitted). Goal: end-to-end manual testing through the real frontend (see new `docs/MANUAL_TESTING.md`).
+- **Claim-by-email** (`UserRepositoryImpl.claimByEmail`): on first login, if no row matches the JWT subject but an unclaimed row (`auth_subject IS NULL`) matches the token's verified email, the subject is bound to that row (provider set, name filled if null). Rows bound to another subject are never claimed. Also removes the previous guaranteed unique-email crash when logging in with an email that exists on an unclaimed row.
+- **Seed personas** (`SeedData.kt`): `platform-admin` (email `SEED_ADMIN_EMAIL`, default `admin+clerk_test@example.com`, role PLATFORM_ADMIN) and `club-manager` (email `SEED_CLUB_MANAGER_EMAIL`, default `club+clerk_test@example.com`), both `auth_subject = null`. Club ownership moved from `seed-owner` (still the idempotency sentinel, now a club admin) to `club-manager`. Also seeds 3 pending `club_contact_requests` for the /admin review flow.
+- New `DELETE /club-contact-requests/{id}` (platform admin, 204/403/404) — the operator's "handled" action after provisioning a club from an inquiry.
+- Frontend (separate repo) adds role-gated `/admin` page: list inquiries, create club for a username, delete handled inquiry.
+- Tests: `UserTest` claim + no-steal cases; `ClubContactRequestTest` delete cases. Full suite passes (97 tests). Postman + `MODEL_CONTEXT.md` updated.
+- One-time operator setup: create the two email+password users in the Clerk dev dashboard (`well-whippet-40`); H2 resets per restart and personas re-claim automatically.
+
+## 2026-07-02 — matchWins on user reads (frontend ranking metric)
+- `domain/User` gains `matchWins: Int = 0` (count of matches where the user's linked player is `winner`; winner is only set on COMPLETED/WALKOVER). Populated on `GET /users` (one grouped query: matches ⋈ players on winner, grouped by `players.user_id` — no N+1), `GET /users/{id}`, `GET /users/by-username/{username}`, and `GET /users/me`. Omitted from JSON when 0 (defaults not serialized).
+- No schema change. Frontend (separate repo) ranks the /profile "Jugador" table by `matchWins` (was achievements count, which the list endpoint never included — ranking was effectively alphabetical).
+- Tests: `UserTest` gains `should return match wins on user reads` (list 2/1/0 + by-username detail). Full suite passes. Postman "Get Users" description updated.
+
+## 2026-07-02 — Club contact requests (onboarding inquiries from the website form)
+- Branch: `master` (uncommitted). The frontend's "Para clubes" CTAs now open a contact form instead of a mailto; this backend records those inquiries.
+- New table `club_contact_requests` via Flyway `V16__club_contact_requests.sql` (`club_name`, `contact_name`, `email`, `phone?`, `message?`, `created_at`). Mirrored in `ClubContactRequestEntity.kt`, `domain/ClubContactRequest`, added to `DatabaseTables`.
+- New `routes/ClubContactRoute.kt`: public anonymous `POST /club-contact-requests` (validates non-blank club/contact/email, loose email regex, length caps incl. 4000-char message → 400 via `IllegalArgumentException`) and platform-admin `GET /club-contact-requests` (sorted newest first). Repository `ClubContactRequestRepository[Impl]` under `services/repositories/club/`, wired in Koin + Routing.
+- Tests: new `ClubContactRequestTest` (201 create, 400 blank/invalid email, GET 401/403/200-admin). Full suite passes (93 tests).
+- Remaining: `flywayMigrate`/`flywayValidate` against hosted DB (V15 also still pending); no operator notification (email/webhook) — inquiries are pull-only via the admin GET/Postman.
+
+## 2026-07-02 — Platform-admin role; clubs are provisioned manually (no self-service creation)
+- Branch: `master` (uncommitted). Product decision: clubs are onboarded personally by the platform operator; users can no longer create clubs from the website/API.
+- New `users.role` column (`USER` | `PLATFORM_ADMIN`) via Flyway `V15__user_platform_role.sql` (default `USER`, CHECK constraint). Mirrored in `UsersTable`/`UserDAO` (Exposed default keeps H2 test/dev schema working) and `domain/User` (`UserRole` enum). The role is assigned via manual SQL only, never via API: `UPDATE users SET role = 'PLATFORM_ADMIN' WHERE auth_subject = '<clerk sub>';` (operator must have signed in once so the row exists).
+- `AuthorizationService`: new `isPlatformAdmin`/`requirePlatformAdmin` (403 `ForbiddenException`, 404 on unknown user).
+- `POST /clubs` now requires `PLATFORM_ADMIN` and `CreateClubRequest` gains required `ownerUserId` (admin creates the club on behalf of the club's user; unknown id → 404). `ClubRepository.createClub(request, ownerUserId)` → `createClub(request)`. `DELETE /clubs/{id}` is now platform-admin only (owners/admins keep `PUT /clubs` and admin add/remove). `deleteClub` now clears `club_admins` rows first — the FK has no cascade, so deleting a club with admins used to 500 (latent bug surfaced by new tests).
+- `GET /users/me` now returns `role` and `managedClubIds` (owned ∪ administered club ids, sorted) via new `UserRepository.getMe`; other user reads keep defaults (`USER`/`[]`). Frontend (separate repo) gates host UI from this single call.
+- Tournament hosting was already correctly gated (`POST /tournaments` → `requireClubManager`); unchanged.
+- Tests: new `PlatformAdminTest` (403 regular create, 201 admin create for other user, 404 unknown owner, 403 owner delete, 204 admin delete, `/users/me` role+managedClubIds for owner/club-admin/regular/platform-admin). `MutationAuthorizationCoverageTest` gained outsider `POST /clubs` 403; existing `CreateClubRequest` call sites updated. Full suite passes: `./gradlew.bat test --no-daemon` (90 tests).
+- Postman: Create Club (platform-admin note + `ownerUserId`), Delete Club note, Get My User note; both zero-state scenarios' Create Club steps annotated (first run 403s, promote user id 1 via SQL, re-run) and bodies gain `ownerUserId: 1`. `MODEL_CONTEXT.md` auth section updated.
+- Remaining: run `flywayInfo`/`flywayMigrate`/`flywayValidate` against the hosted DB when creds are available; promote the operator's user in prod after first sign-in.
+
+## 2026-07-01 — Dev seed data system (local H2 only)
+- New `db/seed/SeedData.kt` + `modules/SeedConfig.kt`; `configureSeeding()` wired as the last call in `Application.module()` (after `configureDatabase()`). Not called from `testModule()`.
+- Gating: runs only when `SEED_DATA=true`, and refuses any non-H2 DB unless `SEED_FORCE=true` (guard via new `usingLocalH2Fallback()` in `DatabaseConfig.kt`, mirroring the existing fallback check). Idempotent via sentinel user `seed-owner`. Failures are logged and swallowed so startup never blocks; each scenario is independently try/caught.
+- Base entities (users/club/players) inserted via Exposed DAOs; all tournament lifecycle state is produced by driving the real repositories (`TournamentRepository.createTournament/addPlayersToTournament/createPhase/startTournament`, `MatchRepository.updateMatchScore`, `TournamentJoinRequestRepository.createJoinRequest`) so bracket/progression/champion come from `TennisTournamentLib`, not hand-inserted.
+- Scenarios: DRAFT knockout (+2 pending join requests), STARTED knockout (8 players, round 1 scored so bracket advanced), COMPLETED knockout (4 players, all matches scored → champion + status COMPLETED), GROUP (2×4) and SWISS (6) samples started.
+- Also made the HTTP port env-configurable: `PORT` (defaults 8080; used for local verification and matches Cloud Run's injected `PORT`). `run-local.ps1` now sets `SEED_DATA=true`.
+- No schema/migration change (seed is data, not schema; nothing added to `DatabaseTables.kt`). Verified end-to-end by booting on `PORT=8090 SEED_DATA=true` against H2 and hitting `/tournaments` + `/tournaments/{id}/matches`. `./gradlew.bat test --no-daemon` passes.
+
 
 ## 2026-06-30 — Public endpoint: tournaments a user is registered in
 - New public read `GET /users/{id}/tournaments` → `UserRepository.getUserTournaments` returns `List<TournamentBasic>` for the tournaments the user's linked player is registered in (rows in `tournament_players`), sorted by start date ascending.

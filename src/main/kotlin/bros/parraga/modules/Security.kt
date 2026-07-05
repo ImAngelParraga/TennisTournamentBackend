@@ -33,6 +33,9 @@ fun Application.configureSecurity(isTest: Boolean = false) {
 
                 verifier(jwkProvider, authConfig.issuer) {
                     authConfig.audience?.let { withAudience(it) }
+                    // Clerk session tokens are short-lived (~60s); tolerate minor clock skew
+                    // between this backend and Clerk so near-expiry tokens aren't rejected.
+                    acceptLeeway(30)
                 }
             }
 

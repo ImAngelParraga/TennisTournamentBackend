@@ -1,5 +1,6 @@
 package bros.parraga.services.repositories.user
 
+import bros.parraga.domain.RatingEvent
 import bros.parraga.domain.TournamentBasic
 import bros.parraga.domain.User
 import bros.parraga.services.repositories.user.dto.CreateUserRequest
@@ -16,6 +17,7 @@ interface UserRepository {
     suspend fun getUser(id: Int): User
     suspend fun getMe(userId: Int): User
     suspend fun getUserByUsername(username: String): User
+    suspend fun getUserRatingHistory(userId: Int, limit: Int): List<RatingEvent>
     suspend fun getUserMatchActivity(userId: Int, from: Instant, to: Instant): UserMatchActivityResponse
     suspend fun getUserTournaments(userId: Int): List<TournamentBasic>
     suspend fun getPublicProfileCalendar(userId: Int, from: LocalDate, to: LocalDate, timezone: ZoneId): ProfileCalendarResponse

@@ -37,6 +37,10 @@ Use the docs under `docs/` as supporting references when you need deeper detail.
 - Core modules live under `src/main/kotlin/bros/parraga/modules/`
 - If `DATABASE_*` vars are missing, the app falls back to in-memory H2.
 - Hosted environments should set `DATABASE_AUTO_CREATE=false` and rely on Flyway.
+- Dev seed data: `configureSeeding()` (`modules/SeedConfig.kt` + `db/seed/SeedData.kt`) runs after
+  `configureDatabase()` when `SEED_DATA=true`, refuses non-H2 DBs unless `SEED_FORCE=true`, is
+  idempotent (sentinel user `seed-owner`), and drives the real repository layer to build DRAFT /
+  STARTED / COMPLETED tournaments plus GROUP/SWISS samples. `run-local.ps1` sets `SEED_DATA=true`.
 
 Important environment variables:
 - `DATABASE_URL`
@@ -48,15 +52,25 @@ Important environment variables:
 - `CLERK_AUDIENCE`
 - `ALLOWED_ORIGINS`
 - `AUTH_TEST_JWT_SECRET` (tests/local auth flows)
+- `PORT` (HTTP listen port; defaults to `8080`; Cloud Run injects it)
+- `SEED_DATA` (`true` loads dev seed data on startup; H2 fallback only)
+- `SEED_FORCE` (`true` allows seeding a non-H2 DB; leave unset in shared envs)
 
 ## Auth and Authorization
 - Public reads are open.
 - Writes require JWT auth via `clerk-jwt`.
 - Write authorization uses owner/admin checks.
-- Club owners can manage their clubs and tournaments under those clubs.
+- Platform role: `users.role` (`USER` | `PLATFORM_ADMIN`, migration `V15`). Clubs are provisioned
+  manually by the platform operator: `POST /clubs` (with required `ownerUserId`) and
+  `DELETE /clubs/{id}` require `PLATFORM_ADMIN`. The role is assigned via manual SQL only
+  (`UPDATE users SET role = 'PLATFORM_ADMIN' WHERE auth_subject = '<sub>';`), never via API.
+- Club owners can manage their clubs and tournaments under those clubs (edit + admins; not create/delete club).
 - Club admins can also perform club/tournament/match write operations.
+- `GET /users/me` returns `role` and `managedClubIds` (owned + administered clubs) for frontend gating.
 - `/users` write endpoints are intentionally disabled and return `403`.
-- On first authenticated write, a local `users` row is auto-created for the JWT subject.
+- On first authenticated write, a local `users` row is auto-created for the JWT subject — unless an
+  unclaimed row (`auth_subject IS NULL`) exists with the token's verified email, in which case that
+  row is claimed (subject bound). Used by the seeded test personas; see `docs/MANUAL_TESTING.md`.
 
 Important auth files:
 - `src/main/kotlin/bros/parraga/modules/AuthConfig.kt`
@@ -129,8 +143,12 @@ Public reads:
 - `GET /tournaments/{id}/bracket`
 - `GET /matches/{id}`
 
+Public writes:
+- `POST /club-contact-requests` — club onboarding contact form (anonymous; operator reviews via admin GET)
+
 Authenticated writes:
-- Clubs: `POST /clubs`, `PUT /clubs`, `DELETE /clubs/{id}`
+- Clubs: `POST /clubs` (platform admin), `PUT /clubs`, `DELETE /clubs/{id}` (platform admin)
+- Club contact requests: `GET /club-contact-requests`, `DELETE /club-contact-requests/{id}` (platform admin)
 - Club admins: `POST /clubs/{id}/admins/{userId}`, `DELETE /clubs/{id}/admins/{userId}`
 - Players: `POST /players`, `PUT /players`, `DELETE /players/{id}`
 - Tournaments: `POST /tournaments`, `PUT /tournaments`, `DELETE /tournaments/{id}`

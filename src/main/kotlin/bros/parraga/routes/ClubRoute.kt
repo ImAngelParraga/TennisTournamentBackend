@@ -39,10 +39,12 @@ fun Route.clubRouting() {
         }
 
         authenticate("clerk-jwt") {
+            // Clubs are provisioned manually by the platform operator, never self-service.
             post {
                 handleRequest(call, HttpStatusCode.Created) {
                     val localUser = call.requireLocalUser(userRepository)
-                    clubRepository.createClub(call.receive(), localUser.id)
+                    authorizationService.requirePlatformAdmin(localUser.id)
+                    clubRepository.createClub(call.receive())
                 }
             }
 
@@ -59,7 +61,7 @@ fun Route.clubRouting() {
                 handleRequest(call, HttpStatusCode.NoContent) {
                     val localUser = call.requireLocalUser(userRepository)
                     val clubId = call.requireIntParameter("id")
-                    authorizationService.requireClubManager(localUser.id, clubId)
+                    authorizationService.requirePlatformAdmin(localUser.id)
                     clubRepository.deleteClub(clubId)
                 }
             }

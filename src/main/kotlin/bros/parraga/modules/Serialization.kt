@@ -18,6 +18,10 @@ fun Application.configureSerialization() {
                 prettyPrint = true
                 isLenient = true
                 ignoreUnknownKeys = true
+                // Emit fields that hold their default value (e.g. KnockoutConfig
+                // qualifiers=1, seedingStrategy=INPUT_ORDER). Without this they are
+                // dropped from JSON and the client reads them as undefined.
+                encodeDefaults = true
             }
         )
     }

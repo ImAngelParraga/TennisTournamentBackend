@@ -8,6 +8,7 @@ import bros.parraga.db.schema.PlayerDAO
 import bros.parraga.db.schema.TournamentPhaseDAO
 import bros.parraga.db.schema.TournamentDAO
 import bros.parraga.db.schema.UserDAO
+import bros.parraga.db.schema.UsersTable
 import bros.parraga.db.schema.UserTrainingDAO
 import bros.parraga.domain.User
 import bros.parraga.domain.Achievement
@@ -164,6 +165,59 @@ class UserTest : BaseIntegrationTest() {
         val response = client.get("/users/me")
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `should claim unclaimed user row by verified email on first login`() = testApplicationWithClient { client ->
+        val seededId = transaction {
+            UserDAO.new {
+                username = "club-manager"
+                name = "Club Manager"
+                email = "club+clerk_test@example.com"
+                authProvider = "clerk"
+                authSubject = null
+            }.id.value
+        }
+
+        val token = createAuthToken("real-clerk-sub", "club+clerk_test@example.com", "Real Name")
+        val first = client.get("/users/me") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, first.status)
+        val claimed = first.body<ApiResponse<User>>().data
+        assertNotNull(claimed)
+        assertEquals(seededId, claimed.id)
+        assertEquals("real-clerk-sub", claimed.authSubject)
+        assertEquals("Club Manager", claimed.name)
+
+        // Second login resolves by subject, still the same row.
+        val second = client.get("/users/me") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(seededId, second.body<ApiResponse<User>>().data?.id)
+    }
+
+    @Test
+    fun `should not claim user row already bound to another subject`() = testApplicationWithClient { client ->
+        transaction {
+            UserDAO.new {
+                username = "bound-user"
+                email = "bound@example.com"
+                authProvider = "clerk"
+                authSubject = "someone-else-sub"
+            }
+        }
+
+        // Same email, different subject: must NOT steal the bound row. (Creation then
+        // collides on the unique email index — surfaced as a server error, not a takeover.)
+        val response = client.get("/users/me") {
+            header(HttpHeaders.Authorization, "Bearer ${createAuthToken("intruder-sub", "bound@example.com", "Intruder")}")
+        }
+        assertTrue(response.status != HttpStatusCode.OK)
+        val boundSubject = transaction {
+            UserDAO.find { UsersTable.username eq "bound-user" }.first().authSubject
+        }
+        assertEquals("someone-else-sub", boundSubject)
     }
 
     @Test

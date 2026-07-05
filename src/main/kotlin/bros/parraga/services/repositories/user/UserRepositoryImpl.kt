@@ -2,9 +2,11 @@ package bros.parraga.services.repositories.user
 
 import bros.parraga.db.DatabaseFactory.dbQuery
 import bros.parraga.db.schema.*
+import bros.parraga.errors.ConflictException
 import bros.parraga.domain.Achievement
 import bros.parraga.domain.AchievementRuleType
 import bros.parraga.domain.MatchStatus
+import bros.parraga.domain.RatingEvent
 import bros.parraga.domain.TournamentBasic
 import bros.parraga.domain.TrainingVisibility
 import bros.parraga.domain.User
@@ -20,6 +22,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.JoinType
+import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.or
@@ -31,15 +34,40 @@ import java.util.*
 class UserRepositoryImpl : UserRepository {
     override suspend fun getUsers(): List<User> = dbQuery {
         val winsByUserId = resolveMatchWinsByUserId()
-        UserDAO.all().map { it.toDomain(matchWins = winsByUserId[it.id.value] ?: 0) }
+        val ratingsByUserId = resolveRatingsByUserId()
+        UserDAO.all().map {
+            val rating = ratingsByUserId[it.id.value]
+            it.toDomain(
+                matchWins = winsByUserId[it.id.value] ?: 0,
+                rating = rating?.first ?: 1000,
+                ratedMatches = rating?.second ?: 0
+            )
+        }
     }
 
     override suspend fun getUser(id: Int): User = dbQuery {
         val user = UserDAO[id]
+        val (rating, ratedMatches) = resolveRatingForUser(user.id.value)
         user.toDomain(
             achievements = resolveAchievementsForUser(user.id.value),
-            matchWins = resolveMatchWinsForUser(user.id.value)
+            matchWins = resolveMatchWinsForUser(user.id.value),
+            rating = rating,
+            ratedMatches = ratedMatches
         )
+    }
+
+    override suspend fun getUserRatingHistory(userId: Int, limit: Int): List<RatingEvent> = dbQuery {
+        UserDAO[userId] // 404 when the user does not exist
+        val player = PlayerDAO.find { PlayersTable.userId eq userId }.firstOrNull()
+            ?: return@dbQuery emptyList()
+        val clampedLimit = limit.coerceIn(1, 200)
+        RatingEventDAO.find { RatingEventsTable.playerId eq player.id }
+            .orderBy(
+                RatingEventsTable.createdAt to SortOrder.DESC,
+                RatingEventsTable.id to SortOrder.DESC
+            )
+            .limit(clampedLimit)
+            .map { it.toDomain() }
     }
 
     // Same as getUser plus the clubs the user owns or administers, so the frontend
@@ -51,19 +79,25 @@ class UserRepositoryImpl : UserRepository {
             .selectAll()
             .where { ClubAdminsTable.userId eq userId }
             .map { it[ClubAdminsTable.clubId].value }
+        val (rating, ratedMatches) = resolveRatingForUser(userId)
         user.toDomain(
             achievements = resolveAchievementsForUser(userId),
             managedClubIds = (owned + administered).distinct().sorted(),
-            matchWins = resolveMatchWinsForUser(userId)
+            matchWins = resolveMatchWinsForUser(userId),
+            rating = rating,
+            ratedMatches = ratedMatches
         )
     }
 
     override suspend fun getUserByUsername(username: String): User = dbQuery {
         val user = UserDAO.find { UsersTable.username eq username }.firstOrNull()
             ?: throw NotFoundException("User '$username' not found")
+        val (rating, ratedMatches) = resolveRatingForUser(user.id.value)
         user.toDomain(
             achievements = resolveAchievementsForUser(user.id.value),
-            matchWins = resolveMatchWinsForUser(user.id.value)
+            matchWins = resolveMatchWinsForUser(user.id.value),
+            rating = rating,
+            ratedMatches = ratedMatches
         )
     }
 
@@ -155,12 +189,15 @@ class UserRepositoryImpl : UserRepository {
     }
 
     override suspend fun updateOwnProfile(userId: Int, request: UpdateProfileRequest): User = dbQuery {
+        // Each field is independent: only the fields present in the request change. The
+        // username is auto-generated once at account creation and never re-synced from the
+        // name afterward, so editing the name alone leaves the handle (and URL) untouched.
         val user = UserDAO.findByIdAndUpdate(userId) {
             it.apply {
-                request.name?.let { value ->
-                    name = value
-                    // Keep the username (and therefore the profile URL) in sync with the name.
-                    username = generateUniqueUsername(value, email, excludeUserId = id.value)
+                request.name?.let { value -> name = value }
+                request.username?.let { value ->
+                    // User-chosen handle: slugify, validate, and enforce uniqueness.
+                    username = resolveRequestedUsername(value, excludeUserId = id.value)
                 }
                 request.imageUrl?.let { value -> imageUrl = value }
                 updatedAt = java.time.Instant.now()
@@ -184,6 +221,7 @@ class UserRepositoryImpl : UserRepository {
             UserDAO.find { UsersTable.authSubject eq authSubject }
                 .firstOrNull()
                 ?.toDomain()
+                ?: claimByEmail(authSubject, email, preferredName)
                 ?: UserDAO.new {
                     username = generateUniqueUsername(preferredName, email)
                     this.name = preferredName
@@ -193,6 +231,22 @@ class UserRepositoryImpl : UserRepository {
                 }.toDomain()
         }
 
+    // First sign-in claim: a pre-provisioned row (seeded persona, or manually created user)
+    // carries a known email and no auth subject yet. The email arrives in a Clerk-verified
+    // token, so binding the subject to that row is safe. Rows already bound to another
+    // subject are never claimed.
+    private fun claimByEmail(authSubject: String, email: String?, preferredName: String?): User? {
+        if (email == null) return null
+        val unclaimed = UserDAO
+            .find { (UsersTable.email eq email) and UsersTable.authSubject.isNull() }
+            .firstOrNull() ?: return null
+        unclaimed.authSubject = authSubject
+        unclaimed.authProvider = "clerk"
+        if (unclaimed.name == null) unclaimed.name = preferredName
+        unclaimed.updatedAt = java.time.Instant.now()
+        return unclaimed.toDomain()
+    }
+
     // Slug used as the public username / profile URL: "José Díaz" -> "jose-diaz".
     private fun slugifyUsername(value: String): String {
         return java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFKD)
@@ -200,6 +254,17 @@ class UserRepositoryImpl : UserRepository {
             .lowercase()
             .replace("[^a-z0-9]+".toRegex(), "-")
             .trim('-')
+    }
+
+    // Validates a user-chosen handle: slugify it (same rules as auto-generated handles),
+    // reject empties, and 409 on collision instead of silently suffixing so the caller
+    // knows their exact choice was not honored.
+    private fun resolveRequestedUsername(requested: String, excludeUserId: Int): String {
+        val slug = slugifyUsername(requested).take(220)
+        require(slug.isNotBlank()) { "Username must contain at least one letter or number" }
+        val taken = UserDAO.find { UsersTable.username eq slug }.any { it.id.value != excludeUserId }
+        if (taken) throw ConflictException("Username '$slug' is already taken")
+        return slug
     }
 
     // Unique slug for the username. excludeUserId lets a user keep/regenerate their own
@@ -484,6 +549,22 @@ class UserRepositoryImpl : UserRepository {
             .where { MatchesTable.winner eq player.id.value }
             .count()
             .toInt()
+    }
+
+    // Rating + rated-match count for every user with a linked player, in one query
+    // (ranking list). Users without a linked player fall back to the defaults.
+    private fun resolveRatingsByUserId(): Map<Int, Pair<Int, Int>> {
+        return PlayersTable
+            .select(PlayersTable.userId, PlayersTable.rating, PlayersTable.ratedMatches)
+            .where { PlayersTable.userId.isNotNull() }
+            .associate { row ->
+                row[PlayersTable.userId]!!.value to (row[PlayersTable.rating] to row[PlayersTable.ratedMatches])
+            }
+    }
+
+    private fun resolveRatingForUser(userId: Int): Pair<Int, Int> {
+        val player = PlayerDAO.find { PlayersTable.userId eq userId }.firstOrNull() ?: return 1000 to 0
+        return player.rating to player.ratedMatches
     }
 
     private fun resolveAchievementStats(playerId: Int): AchievementStats {
