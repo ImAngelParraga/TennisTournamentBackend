@@ -26,12 +26,12 @@ class ClubRepositoryImpl : ClubRepository {
         ClubDAO[id].toDomain()
     }
 
-    override suspend fun createClub(request: CreateClubRequest, ownerUserId: Int): Club = DatabaseFactory.dbQuery {
+    override suspend fun createClub(request: CreateClubRequest): Club = DatabaseFactory.dbQuery {
         ClubDAO.new {
             name = request.name
             phoneNumber = request.phoneNumber
             address = request.address
-            user = UserDAO[ownerUserId]
+            user = UserDAO[request.ownerUserId]
         }.toDomain()
     }
 
@@ -46,7 +46,10 @@ class ClubRepositoryImpl : ClubRepository {
     }
 
     override suspend fun deleteClub(id: Int) = DatabaseFactory.dbQuery {
-        ClubDAO[id].delete()
+        val club = ClubDAO[id]
+        // club_admins has no ON DELETE CASCADE; clear memberships before deleting the club.
+        ClubAdminsTable.deleteWhere { ClubAdminsTable.clubId eq id }
+        club.delete()
     }
 
     override suspend fun getClubAdmins(clubId: Int): List<PublicUser> = DatabaseFactory.dbQuery {

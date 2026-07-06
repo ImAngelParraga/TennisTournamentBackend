@@ -39,7 +39,9 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
     fun toDomain(
         achievements: List<Achievement> = emptyList(),
         managedClubIds: List<Int> = emptyList(),
-        matchWins: Int = 0
+        matchWins: Int = 0,
+        rating: Int = 1000,
+        ratedMatches: Int = 0
     ) = User(
         id = id.value,
         username = username,
@@ -52,6 +54,8 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
         updatedAt = updatedAt?.toKotlinInstant(),
         achievements = achievements,
         matchWins = matchWins,
+        rating = rating,
+        ratedMatches = ratedMatches,
         role = UserRole.valueOf(role),
         managedClubIds = managedClubIds
     )

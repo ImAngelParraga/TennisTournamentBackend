@@ -6,5 +6,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class UpdateProfileRequest(
     val name: String? = null,
+    // User-chosen handle / profile-URL slug. When provided it is slugified and must be
+    // unique; when omitted the username stays in sync with the name (legacy behavior).
+    val username: String? = null,
     val imageUrl: String? = null,
 )

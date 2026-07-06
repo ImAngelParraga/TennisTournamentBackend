@@ -47,6 +47,13 @@ fun Route.userRouting() {
             }
         }
 
+        get("/{id}/rating-history") {
+            handleRequest(call) {
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
+                userRepository.getUserRatingHistory(call.requireIntParameter("id"), limit)
+            }
+        }
+
         authenticate("clerk-jwt") {
             get("/me") {
                 handleRequest(call) {

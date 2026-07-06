@@ -21,6 +21,7 @@ fun Application.module() {
     configureRouting()
     configureDatabase()
     configureSeeding()
+    configureRating()
 }
 
 fun Application.testModule() {

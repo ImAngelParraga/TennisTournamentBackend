@@ -30,7 +30,7 @@ class AuthorizationFlowTest : BaseIntegrationTest() {
     fun `should return 401 for unauthenticated write endpoint`() = testApplicationWithClient { client ->
         val response = client.post("/clubs") {
             contentType(ContentType.Application.Json)
-            setBody(CreateClubRequest(name = "club", phoneNumber = null, address = null))
+            setBody(CreateClubRequest(name = "club", phoneNumber = null, address = null, ownerUserId = 1))
         }
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)

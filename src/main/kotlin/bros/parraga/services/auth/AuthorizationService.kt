@@ -7,11 +7,26 @@ import bros.parraga.db.schema.MatchDAO
 import bros.parraga.db.schema.MatchesTable
 import bros.parraga.db.schema.TournamentDAO
 import bros.parraga.db.schema.TournamentsTable
+import bros.parraga.db.schema.UserDAO
+import bros.parraga.db.schema.UsersTable
+import bros.parraga.domain.UserRole
 import bros.parraga.errors.ForbiddenException
 import org.jetbrains.exposed.dao.DaoEntityID
 import org.jetbrains.exposed.dao.exceptions.EntityNotFoundException
 
 class AuthorizationService {
+    suspend fun isPlatformAdmin(userId: Int): Boolean = dbQuery {
+        val user = UserDAO.findById(userId)
+            ?: throw EntityNotFoundException(DaoEntityID(userId, UsersTable), UserDAO)
+        user.role == UserRole.PLATFORM_ADMIN.name
+    }
+
+    suspend fun requirePlatformAdmin(userId: Int) {
+        if (!isPlatformAdmin(userId)) {
+            throw ForbiddenException("Platform administrator role required")
+        }
+    }
+
     suspend fun isClubOwner(userId: Int, clubId: Int): Boolean = dbQuery {
         val club = ClubDAO.findById(clubId)
             ?: throw EntityNotFoundException(DaoEntityID(clubId, ClubsTable), ClubDAO)

@@ -12,6 +12,7 @@ import bros.parraga.domain.PhaseConfiguration
 import bros.parraga.domain.PhaseFormat
 import bros.parraga.domain.SeedingStrategy
 import bros.parraga.domain.SetScore
+import bros.parraga.domain.SurfaceType
 import bros.parraga.domain.TennisScore
 import bros.parraga.services.repositories.match.MatchRepository
 import bros.parraga.services.repositories.match.dto.UpdateMatchScoreRequest
@@ -145,7 +146,7 @@ object SeedData {
         joinRequests: TournamentJoinRequestRepository,
         context: SeedContext
     ) {
-        val tournament = createTournament(tournaments, context, "Spring Open (Draft)")
+        val tournament = createTournament(tournaments, context, "Spring Open (Draft)", SurfaceType.CLAY)
         addNamedPlayers(tournaments, tournament.id, count = 4, prefix = "Draft Player")
         tournaments.createPhase(tournament.id, knockoutPhase(thirdPlacePlayoff = false))
 
@@ -167,7 +168,7 @@ object SeedData {
         matches: MatchRepository,
         context: SeedContext
     ) {
-        val tournament = createTournament(tournaments, context, "Summer Slam (In Progress)")
+        val tournament = createTournament(tournaments, context, "Summer Slam (In Progress)", SurfaceType.HARD)
         addNamedPlayers(tournaments, tournament.id, count = 8, prefix = "Slam Player")
         tournaments.createPhase(tournament.id, knockoutPhase(thirdPlacePlayoff = true))
         tournaments.startTournament(tournament.id)
@@ -179,7 +180,7 @@ object SeedData {
         matches: MatchRepository,
         context: SeedContext
     ) {
-        val tournament = createTournament(tournaments, context, "Winter Cup (Completed)")
+        val tournament = createTournament(tournaments, context, "Winter Cup (Completed)", SurfaceType.GRASS)
         addNamedPlayers(tournaments, tournament.id, count = 4, prefix = "Cup Player")
         tournaments.createPhase(tournament.id, knockoutPhase(thirdPlacePlayoff = false))
         tournaments.startTournament(tournament.id)
@@ -187,7 +188,7 @@ object SeedData {
     }
 
     private suspend fun seedGroup(tournaments: TournamentRepository, context: SeedContext) {
-        val tournament = createTournament(tournaments, context, "Club Championship (Groups)")
+        val tournament = createTournament(tournaments, context, "Club Championship (Groups)", SurfaceType.HARD)
         // GroupConfig requires exactly groupCount * teamsPerGroup entrants.
         addNamedPlayers(tournaments, tournament.id, count = 8, prefix = "Group Player")
         tournaments.createPhase(
@@ -206,7 +207,7 @@ object SeedData {
     }
 
     private suspend fun seedSwiss(tournaments: TournamentRepository, context: SeedContext) {
-        val tournament = createTournament(tournaments, context, "Open League (Swiss)")
+        val tournament = createTournament(tournaments, context, "Open League (Swiss)", SurfaceType.CLAY)
         addNamedPlayers(tournaments, tournament.id, count = 6, prefix = "Swiss Player")
         tournaments.createPhase(
             tournament.id,
@@ -247,12 +248,13 @@ object SeedData {
     private suspend fun createTournament(
         tournaments: TournamentRepository,
         context: SeedContext,
-        name: String
+        name: String,
+        surface: SurfaceType
     ) = tournaments.createTournament(
         CreateTournamentRequest(
             name = name,
             description = "Seed data for local testing",
-            surface = null,
+            surface = surface.name,
             clubId = context.clubId,
             startDate = Clock.System.now(),
             endDate = Clock.System.now() + 7.days

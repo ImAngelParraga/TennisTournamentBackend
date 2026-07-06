@@ -11,6 +11,7 @@ import bros.parraga.db.schema.MatchesTable
 import bros.parraga.db.schema.PlayersTable
 import bros.parraga.db.schema.RacketStringingsTable
 import bros.parraga.db.schema.RacketsTable
+import bros.parraga.db.schema.RatingEventsTable
 import bros.parraga.db.schema.SwissRankingsTable
 import bros.parraga.db.schema.TournamentPhasesTable
 import bros.parraga.db.schema.TournamentJoinRequestsTable
@@ -39,6 +40,7 @@ object DatabaseTables {
         GroupStandingsTable,
         SwissRankingsTable,
         MatchesTable,
-        MatchDependenciesTable
+        MatchDependenciesTable,
+        RatingEventsTable
     )
 }
