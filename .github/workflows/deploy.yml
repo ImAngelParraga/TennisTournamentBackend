@@ -1,0 +1,97 @@
+name: Deploy to Cloud Run
+
+# Automatic production deploy: on every push to master we build the container,
+# gate on tests + Flyway migrations against the prod DB, push the image to
+# Artifact Registry, and roll a new Cloud Run revision.
+# Auth is keyless (Workload Identity Federation) — no secrets stored in GitHub.
+on:
+  push:
+    branches: [master]
+  workflow_dispatch: {}
+
+# Never store credentials: request a short-lived OIDC token instead.
+permissions:
+  id-token: write
+  contents: read
+
+# Serialize deploys so two pushes can't race a half-rolled revision.
+concurrency:
+  group: deploy-cloud-run
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT: tennis-tournament-490501
+  GCP_REGION: europe-west1
+  SERVICE: tennis-tournament-backend
+  IMAGE_REPO: europe-west1-docker.pkg.dev/tennis-tournament-490501/tennis-tournament-backend/tennis-tournament-backend
+  DB_PASSWORD_SECRET: tennis-backend-database-password
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT }}
+          workload_identity_provider: projects/639388080916/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-deployer@tennis-tournament-490501.iam.gserviceaccount.com
+          token_format: access_token
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Compute image tag
+        id: vars
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Run tests (gate)
+        run: ./gradlew test --no-daemon
+
+      # Gate: apply pending Flyway migrations to the prod DB before deploying.
+      # The DB password is read from Secret Manager (never stored in GitHub).
+      # If migrations fail, the job stops here and no new revision is deployed.
+      # DB coordinates are scoped to THIS step only — they must not leak into the
+      # `test` step, which relies on the H2 fallback (DATABASE_* unset).
+      - name: Run DB migrations (gate)
+        env:
+          DATABASE_URL: jdbc:postgresql://aws-1-eu-west-1.pooler.supabase.com:5432/postgres
+          DATABASE_USER: postgres.xmcjokboybwvssfhgzgh
+        run: |
+          DATABASE_PASSWORD="$(gcloud secrets versions access latest \
+            --secret="${DB_PASSWORD_SECRET}" --project="${GCP_PROJECT}")"
+          echo "::add-mask::${DATABASE_PASSWORD}"
+          export DATABASE_PASSWORD
+          ./gradlew flywayMigrate --no-daemon
+
+      - name: Build & push image
+        env:
+          IMAGE_TAG: ${{ steps.vars.outputs.tag }}
+          REGISTRY_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: ./gradlew publishImage --no-daemon
+
+      # Image-only update: preserves the service's existing env vars, secrets,
+      # runtime service account, and scaling configuration.
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "${SERVICE}" \
+            --project="${GCP_PROJECT}" \
+            --region="${GCP_REGION}" \
+            --image="${IMAGE_REPO}:${{ steps.vars.outputs.tag }}" \
+            --quiet

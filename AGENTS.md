@@ -28,6 +28,16 @@ This file applies to `TennisTournamentBackend`.
   - targeted tests for changed areas
   - full backend tests when changes are broad
 
+## Deployment (CI/CD)
+- Pushing to `master` auto-deploys to Cloud Run via `.github/workflows/deploy.yml`
+  (tests → `flywayMigrate` gate against the prod DB → build/push image → `gcloud run deploy`).
+- Auth is keyless (Workload Identity Federation); the deployer is
+  `github-deployer@tennis-tournament-490501.iam.gserviceaccount.com`. No secrets live in GitHub.
+- The container image is built by the Ktor plugin's `publishImage` (Jib) — no Dockerfile.
+  Registry config lives in the `ktor { docker { … } }` block in `build.gradle.kts`.
+- Deploys are image-only updates: service env vars, Secret Manager bindings, runtime SA,
+  and scaling are set on the Cloud Run service, not in the workflow.
+
 ## Cross-Repo Rules
 - Backend uses `../TennisTournamentLib` via composite build.
 - If backend-lib contracts change (phase config, seeding, scoring/progression semantics), validate both repos.

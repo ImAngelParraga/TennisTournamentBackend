@@ -50,6 +50,28 @@ application {
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
 }
 
+// Container image build (Jib, via the Ktor plugin's `publishImage` task).
+// Targets the production Artifact Registry repo; auth + tag are supplied by CI.
+// Resulting image: europe-west1-docker.pkg.dev/tennis-tournament-490501/tennis-tournament-backend/tennis-tournament-backend:<tag>
+ktor {
+    docker {
+        jreVersion.set(JavaVersion.VERSION_21)
+        localImageName.set("tennis-tournament-backend")
+        imageTag.set(providers.environmentVariable("IMAGE_TAG").orElse("latest"))
+        externalRegistry.set(
+            io.ktor.plugin.features.DockerImageRegistry.externalRegistry(
+                // Artifact Registry accepts an OAuth access token as the password
+                // with the fixed username "oauth2accesstoken" (token injected by CI).
+                username = providers.provider { "oauth2accesstoken" },
+                password = providers.environmentVariable("REGISTRY_TOKEN"),
+                project = providers.provider { "tennis-tournament-backend" },
+                namespace = providers.provider { "tennis-tournament-490501/tennis-tournament-backend" },
+                hostname = providers.provider { "europe-west1-docker.pkg.dev" },
+            )
+        )
+    }
+}
+
 repositories {
     mavenCentral()
     maven { url = uri("https://jitpack.io") }

@@ -1,7 +1,15 @@
 # CONTINUITY
 
-Last Updated: 2026-07-02
+Last Updated: 2026-07-07
 Repository: TennisTournamentBackend
+
+## 2026-07-07 — CI/CD: auto-deploy to Cloud Run on push to master
+- New GitHub Actions workflow `.github/workflows/deploy.yml`: on push to `master` (also `workflow_dispatch`) it runs `test` → `flywayMigrate` (gate) → build/push image → `gcloud run deploy`. Concurrency-serialized; a failed migration aborts the deploy.
+- **Keyless auth (Workload Identity Federation)** — no credentials stored in GitHub. GCP side (provisioned via gcloud): deployer SA `github-deployer@tennis-tournament-490501.iam.gserviceaccount.com` with `roles/run.admin`, `roles/artifactregistry.writer`, `roles/secretmanager.secretAccessor`, plus `roles/iam.serviceAccountUser` on `tennis-backend-runner`; WIF pool `github-pool` + OIDC provider `github-provider` locked to repo `ImAngelParraga/TennisTournamentBackend`.
+- **Image build via Ktor `publishImage` (Jib), no Dockerfile.** Added a `ktor { docker { … } }` block to `build.gradle.kts` targeting `europe-west1-docker.pkg.dev/tennis-tournament-490501/tennis-tournament-backend/tennis-tournament-backend`; tag = short git sha, auth via short-lived OAuth token (`REGISTRY_TOKEN`).
+- **Migration gate** reads the DB password from Secret Manager (`tennis-backend-database-password`) and runs `flywayMigrate` against the prod Supabase DB before deploying — satisfies the `docs/ISSUES.md` deployment-pipeline backlog item.
+- Deploy is an **image-only update**: service env vars, secret bindings, runtime SA, and scaling stay as configured on the Cloud Run service (no config drift into the workflow).
+- Follow-up (not done here): `ALLOWED_ORIGINS` on the running service still lists only localhost — add the prod frontend origin before the frontend can call the API.
 
 ## 2026-07-02 — Manual-testing personas: claim-by-email + seeded admin/club-manager + contact-request delete
 - Branch: `master` (uncommitted). Goal: end-to-end manual testing through the real frontend (see new `docs/MANUAL_TESTING.md`).
@@ -42,7 +50,6 @@ Repository: TennisTournamentBackend
 - Scenarios: DRAFT knockout (+2 pending join requests), STARTED knockout (8 players, round 1 scored so bracket advanced), COMPLETED knockout (4 players, all matches scored → champion + status COMPLETED), GROUP (2×4) and SWISS (6) samples started.
 - Also made the HTTP port env-configurable: `PORT` (defaults 8080; used for local verification and matches Cloud Run's injected `PORT`). `run-local.ps1` now sets `SEED_DATA=true`.
 - No schema/migration change (seed is data, not schema; nothing added to `DatabaseTables.kt`). Verified end-to-end by booting on `PORT=8090 SEED_DATA=true` against H2 and hitting `/tournaments` + `/tournaments/{id}/matches`. `./gradlew.bat test --no-daemon` passes.
-
 
 ## 2026-06-30 — Public endpoint: tournaments a user is registered in
 - New public read `GET /users/{id}/tournaments` → `UserRepository.getUserTournaments` returns `List<TournamentBasic>` for the tournaments the user's linked player is registered in (rows in `tournament_players`), sorted by start date ascending.

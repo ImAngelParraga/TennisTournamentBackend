@@ -33,19 +33,18 @@ This list reflects the current state of both repos:
     - organizer/club-scoped ranking based only on tournaments they host
     - seeding policy selection (which ranking source applies per tournament/phase)
 
-- [ ] Deployment pipeline (future): run `flywayMigrate` before app startup.
-  Why: this is required once a hosting/deployment target is chosen.
-  Scope:
-    - add a pre-start migration step in deployment/release workflow
-    - ensure hosted env keeps `DATABASE_AUTO_CREATE=false`
-    - fail deployment if migrations fail
-
 - [ ] Add feature to allow users to create tournaments/leagues without a club.
   Why: clubs usually create few events, but some users may want to create an event without a club. This would allow
   users to keep the competitive scene alive without a club.
 
 ## Recently Completed (No Longer Missing)
 
+- [x] Deployment pipeline: run `flywayMigrate` before deploy, gated.
+  Delivered:
+    - GitHub Actions workflow `.github/workflows/deploy.yml` auto-deploys to Cloud Run on push to `master`
+    - keyless auth via Workload Identity Federation (no long-lived credentials in GitHub)
+    - pre-deploy `flywayMigrate` step runs against the prod DB (password from Secret Manager) and aborts the deploy on failure
+    - hosted env keeps `DATABASE_AUTO_CREATE=false`; the deploy is an image-only update that preserves service env/secrets/SA
 - [x] Expand authorization test coverage for all mutation paths and edge cases.
   Delivered:
     - added a dedicated integration auth matrix covering every authenticated mutation route with explicit `401` expectations
