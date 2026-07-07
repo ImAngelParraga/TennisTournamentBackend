@@ -3,6 +3,11 @@
 Last Updated: 2026-07-07
 Repository: TennisTournamentBackend
 
+## 2026-07-07 — CORS: allow prod + Vercel preview origins
+- The deployed frontend (`https://tennis-tournaments.vercel.app`) was blocked by CORS — the service `ALLOWED_ORIGINS` was localhost-only. Added the prod origin to `ALLOWED_ORIGINS` on the Cloud Run service (new revision `-00008`) and to `cloudrun.env.yaml` so a manual full deploy won't revert it.
+- `modules/HTTP.kt`: added a scoped `allowOrigins { … }` predicate matching `^https://tennis-tournaments(-<hash>)?\.vercel\.app$` (case-insensitive) so Vercel preview/branch deploys work without listing each dynamic subdomain. Anchored + prefix-scoped, so arbitrary `*.vercel.app` and lookalike/suffix domains are rejected. Verified locally: prod/preview/git-branch/localhost allowed; `evil.vercel.app`, `tennis-tournaments.evil.com`, `…vercel.app.evil.com` blocked. Full test suite passes.
+- Resolves the follow-up flagged in the CI/CD entry below.
+
 ## 2026-07-07 — CI/CD: auto-deploy to Cloud Run on push to master
 - New GitHub Actions workflow `.github/workflows/deploy.yml`: on push to `master` (also `workflow_dispatch`) it runs `test` → `flywayMigrate` (gate) → build/push image → `gcloud run deploy`. Concurrency-serialized; a failed migration aborts the deploy.
 - **Keyless auth (Workload Identity Federation)** — no credentials stored in GitHub. GCP side (provisioned via gcloud): deployer SA `github-deployer@tennis-tournament-490501.iam.gserviceaccount.com` with `roles/run.admin`, `roles/artifactregistry.writer`, `roles/secretmanager.secretAccessor`, plus `roles/iam.serviceAccountUser` on `tennis-backend-runner`; WIF pool `github-pool` + OIDC provider `github-provider` locked to repo `ImAngelParraga/TennisTournamentBackend`.
