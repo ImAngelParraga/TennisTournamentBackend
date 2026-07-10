@@ -4,16 +4,17 @@ import bros.parraga.db.DatabaseFactory.dbQuery
 import bros.parraga.db.schema.ClubContactRequestDAO
 import bros.parraga.db.schema.ClubDAO
 import bros.parraga.db.schema.PlayerDAO
+import bros.parraga.db.schema.RatingEventDAO
 import bros.parraga.db.schema.UserDAO
 import bros.parraga.db.schema.UsersTable
-import bros.parraga.domain.MatchStatus
-import bros.parraga.domain.UserRole
 import bros.parraga.domain.PhaseConfiguration
 import bros.parraga.domain.PhaseFormat
+import bros.parraga.domain.MatchStatus
 import bros.parraga.domain.SeedingStrategy
 import bros.parraga.domain.SetScore
 import bros.parraga.domain.SurfaceType
 import bros.parraga.domain.TennisScore
+import bros.parraga.domain.UserRole
 import bros.parraga.services.repositories.match.MatchRepository
 import bros.parraga.services.repositories.match.dto.UpdateMatchScoreRequest
 import bros.parraga.services.repositories.tournament.TournamentJoinRequestRepository
@@ -27,6 +28,7 @@ import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.SizedCollection
 import org.koin.core.Koin
 import org.slf4j.LoggerFactory
+import java.time.Instant
 import kotlin.time.Duration.Companion.days
 
 /**
@@ -138,7 +140,94 @@ object SeedData {
             }.id.value
         }
 
+        seedRankedUsers()
+
         SeedContext(clubId = club.id.value, applicantUserIds = applicantIds)
+    }
+
+    /** Registered users with linked players and rating history for ranking/profile manual testing. */
+    private fun seedRankedUsers() {
+        listOf(
+            RankedSeed(
+                username = "ranking-alba",
+                name = "Alba Navarro",
+                email = "ranking-alba@example.com",
+                events = listOf(40, 32, -12, 44, 36, 52, 28)
+            ),
+            RankedSeed(
+                username = "ranking-bruno",
+                name = "Bruno Soler",
+                email = "ranking-bruno@example.com",
+                events = listOf(36, 28, -14, 30, 42)
+            ),
+            RankedSeed(
+                username = "ranking-carmen",
+                name = "Carmen Rivas",
+                email = "ranking-carmen@example.com",
+                events = listOf(-12, 34, 28, -10, 42, -18)
+            ),
+            RankedSeed(
+                username = "ranking-diego",
+                name = "Diego Martín",
+                email = "ranking-diego@example.com",
+                events = listOf(40, -18, 26, -14, 30)
+            ),
+            RankedSeed(
+                username = "ranking-elena",
+                name = "Elena Campos",
+                email = "ranking-elena@example.com",
+                events = listOf(16, -10, 22, -8, 14, 55)
+            ),
+            RankedSeed(
+                username = "ranking-ferran",
+                name = "Ferran Vidal",
+                email = "ranking-ferran@example.com",
+                events = listOf(-18, 24, -14, 20, 24)
+            ),
+            RankedSeed(
+                username = "ranking-gala",
+                name = "Gala Torres",
+                email = "ranking-gala@example.com",
+                events = listOf(22, -18, -12, 8)
+            ),
+            RankedSeed(
+                username = "ranking-hugo",
+                name = "Hugo León",
+                email = "ranking-hugo@example.com",
+                events = listOf(-16, 20, -24, 12, 12)
+            )
+        ).forEach { seed ->
+            val finalRating = 1000 + seed.events.sum()
+            val user = UserDAO.new {
+                username = seed.username
+                name = seed.name
+                email = seed.email
+                authProvider = "clerk"
+                authSubject = "${seed.username}-subject"
+            }
+            val player = PlayerDAO.new {
+                name = seed.name
+                external = false
+                this.user = user
+                rating = finalRating
+                ratedMatches = seed.events.count { it != 0 }
+                lastRatedAt = rankedEventTime(seed.events.lastIndex)
+            }
+
+            var ratingAfter = 1000
+            seed.events.forEachIndexed { index, delta ->
+                ratingAfter += delta
+                RatingEventDAO.new {
+                    this.player = player
+                    match = null
+                    tournament = null
+                    reason = "MATCH"
+                    this.delta = delta
+                    this.ratingAfter = ratingAfter
+                    createdAt = rankedEventTime(index)
+                }
+            }
+        }
     }
 
     private suspend fun seedDraftKnockout(
@@ -319,6 +408,16 @@ object SeedData {
                 SetScore(6, 4, null)
             )
         )
+    )
+
+    private fun rankedEventTime(index: Int): Instant =
+        Instant.now().minusSeconds((45L - index * 6L) * 24L * 60L * 60L)
+
+    private data class RankedSeed(
+        val username: String,
+        val name: String,
+        val email: String,
+        val events: List<Int>
     )
 
     private data class SeedContext(

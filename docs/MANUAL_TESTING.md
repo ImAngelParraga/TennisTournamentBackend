@@ -11,10 +11,10 @@ real Clerk sign-in whose verified email matches, the backend binds that Clerk su
 (`UserRepositoryImpl.claimByEmail`). No Clerk user IDs are ever copied into the seed, and because
 the H2 database resets on every backend restart, the personas simply re-claim on your next login.
 
-| Persona | Username | Default email | What it can do |
-| --- | --- | --- | --- |
-| Platform admin | `platform-admin` | `admin+clerk_test@example.com` | `/admin`: review club contact requests, create clubs (`POST /clubs`), delete handled requests |
-| Club manager | `club-manager` | `club+clerk_test@example.com` | Owns "Seed Tennis Club": `/host`, edit club, manage club admins, create/start/score tournaments, accept join requests |
+| Persona | Username | Default email | Suggested password | What it can do |
+| --- | --- | --- | --- | --- |
+| Platform admin | `platform-admin` | `admin+clerk_test@example.com` | `CourtRankAdmin123!` | `/admin`: review club contact requests, create clubs (`POST /clubs`), delete handled requests |
+| Club manager | `club-manager` | `club+clerk_test@example.com` | `CourtRankClub123!` | Owns "Seed Tennis Club": `/host`, edit club, manage club admins, create/start/score tournaments, accept join requests |
 
 Override the emails with `SEED_ADMIN_EMAIL` / `SEED_CLUB_MANAGER_EMAIL` env vars if your Clerk test
 accounts use different addresses.
@@ -24,8 +24,8 @@ accounts use different addresses.
 1. Open the Clerk dashboard for the dev instance (`well-whippet-40.clerk.accounts.dev` — the same
    instance the frontend `.env.local` publishable key points at).
 2. Create two users with **email + password**:
-   - `admin+clerk_test@example.com`
-   - `club+clerk_test@example.com`
+   - `admin+clerk_test@example.com` / `CourtRankAdmin123!`
+   - `club+clerk_test@example.com` / `CourtRankClub123!`
    `+clerk_test` addresses are Clerk test users — no real mailbox needed; if a verification code is
    ever prompted, it is `424242`.
 
@@ -42,6 +42,8 @@ accounts use different addresses.
 - "Spring Open (Draft)" has 2 pending join requests → open the tournament → accept/reject them.
 - Create a tournament, add players, add a phase, start it, score matches.
 - "Summer Slam (In Progress)" is mid-bracket for scoring/progression checks; groups + Swiss samples too.
+- `/players` includes ranked seed users (`ranking-alba`, `ranking-bruno`, ...) with varied Elo ratings.
+- Open any ranked profile to verify rating-history charts backed by seeded `rating_events`.
 
 **Platform admin** (sign in as `admin+clerk_test@example.com`):
 - Go to `/admin` (not in the nav — direct URL; the page is role-gated and every call is re-authorized
