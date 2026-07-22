@@ -67,6 +67,7 @@ Important environment variables:
 - Club owners can manage their clubs and tournaments under those clubs (edit + admins; not create/delete club).
 - Club admins can also perform club/tournament/match write operations.
 - `GET /users/me` returns `role` and `managedClubIds` (owned + administered clubs) for frontend gating.
+- `GET /users/me/tournaments` and `GET /users/me/leagues` return the authenticated user's private competition surfaces.
 - `/users` write endpoints are intentionally disabled and return `403`.
 - On first authenticated write, a local `users` row is auto-created for the JWT subject — unless an
   unclaimed row (`auth_subject IS NULL`) exists with the token's verified email, in which case that
@@ -86,6 +87,11 @@ Important auth files:
 - Bracket/progression logic is delegated to `TennisTournamentLib` plus backend orchestration.
 - Players can request to join DRAFT tournaments through join requests; club owners/admins accept/reject requests.
 - Accepted join requests create rows in `tournament_players`; pending join requests expire when the tournament starts.
+- Signed-in users can create private owner-owned tournaments by omitting `clubId` on `POST /tournaments`; private
+  tournaments have invite codes, are hidden from public tournament/profile lists, can be joined through
+  `POST /tournaments/join`, and do not affect public Elo.
+- Signed-in users can create private leagues (`/leagues`) with invite-code/member-by-email membership, freely recorded
+  league matches, isolated league Elo, and W/L counters. League rating events do not touch public `players.rating`.
 
 Current behavior notes:
 - Group uses single round-robin generation.
@@ -152,6 +158,7 @@ Authenticated writes:
 - Club admins: `POST /clubs/{id}/admins/{userId}`, `DELETE /clubs/{id}/admins/{userId}`
 - Players: `POST /players`, `PUT /players`, `DELETE /players/{id}`
 - Tournaments: `POST /tournaments`, `PUT /tournaments`, `DELETE /tournaments/{id}`
+- Private tournament joins: `POST /tournaments/join`, `GET /users/me/tournaments`
 - Tournament flow: `POST /tournaments/{id}/start`, `POST /tournaments/{id}/reset`
 - Tournament phases: `POST /tournaments/{id}/phases`
 - Tournament players: `POST /tournaments/{id}/players`, `DELETE /tournaments/{id}/players/{playerId}`
@@ -159,6 +166,10 @@ Authenticated writes:
   - player: `POST /tournaments/{id}/join-requests`, `POST /tournaments/{id}/join-requests/{requestId}/withdraw`, `GET /users/me/tournament-join-requests`
   - manager: `GET /tournaments/{id}/join-requests`, `POST /tournaments/{id}/join-requests/{requestId}/accept`, `POST /tournaments/{id}/join-requests/{requestId}/reject`, `POST /tournaments/{id}/join-requests/{requestId}/allow-resubmit`
 - Match scoring: `PUT /matches/{id}/score`
+- Leagues: `POST /leagues`, `POST /leagues/join`, `GET /users/me/leagues`, `GET/PUT/DELETE /leagues/{id}`,
+  `POST /leagues/{id}/invite-code`, `GET/POST /leagues/{id}/members`,
+  `DELETE /leagues/{id}/members/{playerId}`, `GET/POST /leagues/{id}/matches`,
+  `DELETE /leagues/{id}/matches/{matchId}`
 
 Response/error contract:
 - Responses use `ApiResponse(status, data, message)`.
@@ -170,6 +181,7 @@ Response/error contract:
 - Repository/services: `src/main/kotlin/bros/parraga/services/`
 - Tournament repository: `src/main/kotlin/bros/parraga/services/repositories/tournament/TournamentRepositoryImpl.kt`
 - Match repository: `src/main/kotlin/bros/parraga/services/repositories/match/MatchRepositoryImpl.kt`
+- League repository: `src/main/kotlin/bros/parraga/services/repositories/league/LeagueRepositoryImpl.kt`
 - Phase execution: `src/main/kotlin/bros/parraga/services/PhaseExecutionService.kt`
 - Progression orchestration: `src/main/kotlin/bros/parraga/services/TournamentProgressionService.kt`
 - Schema: `src/main/kotlin/bros/parraga/db/schema/`

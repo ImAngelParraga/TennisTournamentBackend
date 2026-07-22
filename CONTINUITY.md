@@ -1,7 +1,29 @@
 # CONTINUITY
 
-Last Updated: 2026-07-07
+## 2026-07-13 - Private competitions backend
+- Branch: `master` (uncommitted). Implemented backend support for user-created private competitions.
+- Private tournaments: `tournaments.club_id` is nullable with `owner_user_id`, `visibility`, and `invite_code` via `V18__private_competitions.sql`; omitting `clubId` on `POST /tournaments` creates a PRIVATE owner-owned tournament, `POST /tournaments/join` joins by invite code, public tournament/profile lists hide private tournaments, private reads require owner/participant access, private tournament join requests are blocked, and public Elo application/backfill skips private tournaments.
+- Leagues: added `leagues`, `league_members`, `league_matches`, and `league_rating_events` schema/entities; new `/leagues` routes support create/update/delete, invite-code join/regeneration, member-by-email add/remove, member/match lists, result recording, and owner result deletion. League Elo reuses `EloCalculator` in an isolated replay service and does not mutate public `players.rating` or `rating_events`.
+- Shared player resolution extracted into `PlayerResolutionService`; tournament add-players now supports registered-user email resolution.
+- Postman collection updated with private tournament and league endpoints. `MODEL_CONTEXT.md` updated for the new baseline.
+- Validated with `./gradlew.bat test --tests "bros.parraga.LeagueTest" --tests "bros.parraga.PrivateTournamentTest" --no-daemon`, full `./gradlew.bat test --no-daemon`, and final `./gradlew.bat testClasses --no-daemon`.
+- Remaining: run Flyway `info/migrate/validate` against the hosted database when credentials are available, then deploy for frontend smoke testing.
+
+## 2026-07-12 - Tournament reset with rating rollback
+- Branch: `master` (uncommitted). Product fix coordinated with the frontend: once a tournament is started, setup actions should be hidden and reset should be the only management action.
+- Runtime rating policy changed so match Elo is no longer awarded when each match is scored. Tournament match ratings are applied in completion order only when the final phase completes, immediately before the tournament completion bonus. This avoids provisional point churn while the bracket is still editable/resettable.
+- `POST /tournaments/{id}/reset` now accepts `STARTED` and `COMPLETED` tournaments, reverts all rating events tied to the tournament, clears champion/result/progress state, deletes generated matches/dependencies/groups/Swiss rankings, resets phase rounds, and returns the tournament to `DRAFT` so players and phases can be edited again.
+- Tests added/updated for reset after completed matches, post-reset setup edits, no rating before completion, and rating rollback on reset. Postman reset description updated.
+- Validated in this session with targeted backend tests, the full backend suite, and the web Vitest suite.
+
+Last Updated: 2026-07-12
 Repository: TennisTournamentBackend
+
+## 2026-07-12 — Editable knockout match scores before dependent play
+- Branch: `master` (uncommitted). Frontend score editing exposed a backend guard that rejected any changed payload for an already `COMPLETED` match.
+- `MatchRepositoryImpl.updateMatchScore`: completed knockout matches can now be rescored while every dependent match is still unplayed (`SCHEDULED`, no winner, no score). The previous winner/loser slot is removed from dependent matches, prior match rating events are reverted, and progression is reapplied from the new score. Rescoring remains blocked once a dependent match has a result, for completed tournaments, for walkovers, and for non-knockout formats whose standings/rankings have already consumed the result.
+- `UpdateMatchScoreRequest` now accepts optional `winnerId`; the repository verifies it matches the submitted score. Postman "Update Match Score" now includes the optional field in the example.
+- Tests: added coverage for rescoring a completed knockout match before the dependent match is played and rejecting after the dependent match is played. Validated with `./gradlew.bat test --tests "bros.parraga.TournamentRepositoryTest" --no-daemon` and full `./gradlew.bat test --no-daemon`.
 
 ## 2026-07-07 — CORS: allow prod + Vercel preview origins
 - The deployed frontend (`https://tennis-tournaments.vercel.app`) was blocked by CORS — the service `ALLOWED_ORIGINS` was localhost-only. Added the prod origin to `ALLOWED_ORIGINS` on the Cloud Run service (new revision `-00008`) and to `cloudrun.env.yaml` so a manual full deploy won't revert it.

@@ -263,6 +263,25 @@
             ],
             "url": "{{baseUrl}}/users/{{userId}}"
           }
+        },
+        {
+          "name": "Get My Tournaments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/tournaments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "tournaments"
+              ]
+            },
+            "description": "Authenticated read of tournaments owned by or joined by the current user."
+          }
         }
       ]
     },
@@ -802,7 +821,8 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Winter Open\",\n  \"description\": \"Test tournament\",\n  \"surface\": \"HARD\",\n  \"clubId\": {{clubId}},\n  \"startDate\": \"2026-03-10T09:00:00Z\",\n  \"endDate\": \"2026-03-15T18:00:00Z\"\n}"
-            }
+            },
+            "description": "\n\nProvide clubId for a public club-hosted tournament. Omit clubId for a private owner-hosted tournament."
           }
         },
         {
@@ -1099,6 +1119,7 @@
         },
         {
           "name": "Reset Tournament",
+          "description": "Resets a STARTED or COMPLETED tournament back to DRAFT. Generated matches, dependencies, groups, Swiss rankings, champion, and tournament rating events are cleared so players/phases can be edited again.",
           "request": {
             "method": "POST",
             "header": [
@@ -1108,6 +1129,106 @@
               }
             ],
             "url": "{{baseUrl}}/tournaments/{{tournamentId}}/reset"
+          }
+        },
+        {
+          "name": "Get My Tournaments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/tournaments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "tournaments"
+              ]
+            },
+            "description": "Authenticated read. Returns private tournaments owned by or joined by the current user plus public tournaments they are registered in."
+          }
+        },
+        {
+          "name": "Join Private Tournament By Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tournaments/join",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tournaments",
+                "join"
+              ]
+            },
+            "description": "Authenticated. Joins a private tournament by invite code and auto-registers the caller as a player. Bad code returns 404; duplicate registration returns 409.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inviteCode\": \"{{tournamentInviteCode}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Create Private Tournament",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tournaments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tournaments"
+              ]
+            },
+            "description": "Authenticated. Omit clubId to create an owner-owned PRIVATE tournament with inviteCode. Private tournaments are hidden from public listings and do not affect public Elo.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Friends Knockout\",\n  \"description\": \"Invite-only private tournament\",\n  \"surface\": \"HARD\",\n  \"startDate\": \"2026-02-01T00:00:00Z\",\n  \"endDate\": \"2026-02-02T00:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         }
       ]
@@ -1139,7 +1260,7 @@
             "url": "{{baseUrl}}/matches/{{matchId}}/score",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"score\": {\n    \"sets\": [\n      { \"player1Games\": 6, \"player2Games\": 4, \"tiebreak\": null },\n      { \"player1Games\": 6, \"player2Games\": 3, \"tiebreak\": null }\n    ]\n  }\n}"
+              "raw": "{\n  \"score\": {\n    \"sets\": [\n      { \"player1Games\": 6, \"player2Games\": 4, \"tiebreak\": null },\n      { \"player1Games\": 6, \"player2Games\": 3, \"tiebreak\": null }\n    ]\n  },\n  \"winnerId\": 1\n}"
             }
           }
         }
@@ -2085,6 +2206,405 @@
               ]
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "Leagues",
+      "item": [
+        {
+          "name": "Create League",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/leagues",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leagues"
+              ]
+            },
+            "description": "Authenticated. Creates a private league, generates inviteCode, and adds the owner as a member.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Friday Ladder\",\n  \"description\": \"Private weekly ladder\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get My Leagues",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/leagues",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "leagues"
+              ]
+            },
+            "description": "Authenticated. Returns leagues owned by or joined by the current user."
+          }
+        },
+        {
+          "name": "Join League By Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/leagues/join",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leagues",
+                "join"
+              ]
+            },
+            "description": "Authenticated. Joins a league by invite code.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inviteCode\": \"{{leagueInviteCode}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get League",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/leagues/{{leagueId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leagues",
+                "{{leagueId}}"
+              ]
+            },
+            "description": "Authenticated. League owner or member only; non-members receive 404."
+          }
+        },
+        {
+          "name": "Update League",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/leagues/{{leagueId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leagues",
+                "{{leagueId}}"
+              ]
+            },
+            "description": "Owner only.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Friday Ladder Updated\",\n  \"description\": \"Updated description\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete League",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/leagues/{{leagueId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leagues",
+                "{{leagueId}}"
+              ]
+            },
+            "description": "Owner only.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Regenerate League Invite Code",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/leagues/{{leagueId}}/invite-code",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leagues",
+                "{{leagueId}}",
+                "invite-code"
+              ]
+            },
+            "description": "Owner only. Returns the league with a new inviteCode.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get League Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/leagues/{{leagueId}}/members",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leagues",
+                "{{leagueId}}",
+                "members"
+              ]
+            },
+            "description": "Owner or member only. Members include league-scoped rating, ratedMatches, wins, and losses."
+          }
+        },
+        {
+          "name": "Add League Member By Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/leagues/{{leagueId}}/members",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leagues",
+                "{{leagueId}}",
+                "members"
+              ]
+            },
+            "description": "Owner only. Resolves email server-side; unknown email returns 404.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"friend@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Remove League Member",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/leagues/{{leagueId}}/members/{{leaguePlayerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leagues",
+                "{{leagueId}}",
+                "members",
+                "{{leaguePlayerId}}"
+              ]
+            },
+            "description": "Owner only. Members with recorded matches cannot be removed.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get League Matches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/leagues/{{leagueId}}/matches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leagues",
+                "{{leagueId}}",
+                "matches"
+              ]
+            },
+            "description": "Owner or member only."
+          }
+        },
+        {
+          "name": "Record League Match",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/leagues/{{leagueId}}/matches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leagues",
+                "{{leagueId}}",
+                "matches"
+              ]
+            },
+            "description": "Owner or match participant. Replays league-scoped Elo immediately; public ratings are untouched.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player1Id\": 1,\n  \"player2Id\": 2,\n  \"winnerId\": 1,\n  \"score\": {\n    \"sets\": [\n      {\n        \"player1Games\": 6,\n        \"player2Games\": 4\n      },\n      {\n        \"player1Games\": 6,\n        \"player2Games\": 4\n      }\n    ]\n  },\n  \"playedAt\": \"2026-02-01T18:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete League Match",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/leagues/{{leagueId}}/matches/{{leagueMatchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leagues",
+                "{{leagueId}}",
+                "matches",
+                "{{leagueMatchId}}"
+              ]
+            },
+            "description": "Owner only. Replays league-scoped Elo after deletion.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{authToken}}"
+                }
+              ]
+            }
+          }
         }
       ]
     }
