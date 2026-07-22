@@ -1,6 +1,7 @@
 package bros.parraga.routes
 
 import bros.parraga.errors.ForbiddenException
+import bros.parraga.services.repositories.tournament.TournamentRepository
 import bros.parraga.services.repositories.user.UserRepository
 import bros.parraga.services.repositories.user.dto.UpdateProfileRequest
 import io.ktor.server.auth.authenticate
@@ -16,6 +17,7 @@ import org.koin.ktor.ext.inject
 
 fun Route.userRouting() {
     val userRepository: UserRepository by inject()
+    val tournamentRepository: TournamentRepository by inject()
     val maxMatchActivityRangeDays = 93
     val maxProfileCalendarRangeDays = 93
 
@@ -59,6 +61,13 @@ fun Route.userRouting() {
                 handleRequest(call) {
                     val localUser = call.requireLocalUser(userRepository)
                     userRepository.getMe(localUser.id)
+                }
+            }
+
+            get("/me/tournaments") {
+                handleRequest(call) {
+                    val localUser = call.requireLocalUser(userRepository)
+                    tournamentRepository.getMyTournaments(localUser.id)
                 }
             }
 

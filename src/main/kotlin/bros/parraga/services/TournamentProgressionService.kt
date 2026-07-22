@@ -17,6 +17,7 @@ import bros.parraga.domain.Outcome
 import bros.parraga.domain.PhaseConfiguration
 import bros.parraga.domain.PhaseFormat
 import bros.parraga.domain.TournamentStatus
+import bros.parraga.domain.TournamentVisibility
 import bros.parraga.services.rating.RatingService
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
@@ -27,12 +28,6 @@ import java.time.Instant
 
 object TournamentProgressionService {
     fun onMatchCompleted(match: MatchDAO) {
-        // Land the played-match Elo before any progression, so the final match's
-        // delta is in place before the tournament completion bonus is computed.
-        // Walkovers arrive as WALKOVER and are skipped (not a played match).
-        if (match.status == MatchStatus.COMPLETED.name) {
-            RatingService.applyMatchRating(match)
-        }
         when (PhaseFormat.valueOf(match.phase.format)) {
             PhaseFormat.KNOCKOUT -> progressKnockout(match)
             PhaseFormat.SWISS -> progressSwiss(match)
@@ -130,7 +125,10 @@ object TournamentProgressionService {
 
         tournament.champion = resolveTournamentWinner(phase)
         tournament.status = TournamentStatus.COMPLETED.name
-        RatingService.applyTournamentCompletionBonus(tournament, phase)
+        if (TournamentVisibility.valueOf(tournament.visibility) == TournamentVisibility.PUBLIC) {
+            RatingService.applyTournamentMatchRatings(tournament)
+            RatingService.applyTournamentCompletionBonus(tournament, phase)
+        }
         tournament.updatedAt = Instant.now()
     }
 

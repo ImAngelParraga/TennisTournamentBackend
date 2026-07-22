@@ -8,6 +8,7 @@ import bros.parraga.domain.AchievementRuleType
 import bros.parraga.domain.MatchStatus
 import bros.parraga.domain.RatingEvent
 import bros.parraga.domain.TournamentBasic
+import bros.parraga.domain.TournamentVisibility
 import bros.parraga.domain.TrainingVisibility
 import bros.parraga.domain.User
 import bros.parraga.services.repositories.user.dto.*
@@ -143,7 +144,10 @@ class UserRepositoryImpl : UserRepository {
             .where { TournamentPlayersTable.playerId eq player.id }
             .map { it[TournamentPlayersTable.tournamentId].value }
         if (tournamentIds.isEmpty()) return@dbQuery emptyList()
-        TournamentDAO.find { TournamentsTable.id inList tournamentIds }
+        TournamentDAO.find {
+            (TournamentsTable.id inList tournamentIds) and
+                (TournamentsTable.visibility eq TournamentVisibility.PUBLIC.name)
+        }
             .sortedBy { it.startDate }
             .map { it.toBasic() }
     }

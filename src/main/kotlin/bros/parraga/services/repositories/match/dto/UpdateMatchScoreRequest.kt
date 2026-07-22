@@ -5,5 +5,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class UpdateMatchScoreRequest(
-    val score: TennisScore
+    val score: TennisScore,
+    val winnerId: Int? = null
 )

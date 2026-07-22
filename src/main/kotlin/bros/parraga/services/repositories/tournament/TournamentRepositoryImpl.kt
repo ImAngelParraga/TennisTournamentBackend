@@ -6,8 +6,10 @@ import bros.parraga.db.lockTournamentRow
 import bros.parraga.db.schema.*
 import bros.parraga.domain.*
 import bros.parraga.errors.ConflictException
+import bros.parraga.services.InviteCodes
 import bros.parraga.services.PhaseExecutionService
-import bros.parraga.services.TournamentProgressionService
+import bros.parraga.services.PlayerResolutionService
+import bros.parraga.services.rating.RatingService
 import bros.parraga.services.repositories.tournament.dto.*
 import io.ktor.server.plugins.*
 import kotlinx.datetime.toJavaInstant
@@ -24,12 +26,29 @@ import parraga.bros.tournament.services.TournamentService
 import java.time.Instant
 import parraga.bros.tournament.domain.SeededParticipant as LibSeededParticipant
 
-class TournamentRepositoryImpl : TournamentRepository {
-    override suspend fun getTournaments(): List<TournamentBasic> = dbQuery { TournamentDAO.all().map { it.toBasic() } }
+class TournamentRepositoryImpl(
+    private val playerResolutionService: PlayerResolutionService
+) : TournamentRepository {
+    override suspend fun getTournaments(): List<TournamentBasic> = dbQuery {
+        TournamentDAO.find { TournamentsTable.visibility eq TournamentVisibility.PUBLIC.name }.map { it.toBasic() }
+    }
+
+    override suspend fun getMyTournaments(userId: Int): List<TournamentBasic> = dbQuery {
+        val player = PlayerDAO.find { PlayersTable.userId eq userId }.firstOrNull()
+        val owned = TournamentDAO.find { TournamentsTable.ownerUserId eq userId }.toList()
+        val participatingIds = player?.let {
+            TournamentPlayerDAO.find { TournamentPlayersTable.playerId eq it.id }
+                .map { association -> association.tournament.id.value }
+        }.orEmpty()
+        (owned + participatingIds.map { TournamentDAO[it] })
+            .distinctBy { it.id.value }
+            .sortedBy { it.startDate }
+            .map { it.toBasic() }
+    }
 
     override suspend fun getTournament(id: Int): TournamentBasic = dbQuery { TournamentDAO[id].toBasic() }
 
-    override suspend fun createTournament(request: CreateTournamentRequest): TournamentBasic = dbQuery {
+    override suspend fun createTournament(ownerUserId: Int, request: CreateTournamentRequest): TournamentBasic = dbQuery {
         val requestedStartDate = request.startDate.toJavaInstant()
         val requestedEndDate = request.endDate.toJavaInstant()
         assertTournamentDatesValid(requestedStartDate, requestedEndDate)
@@ -39,10 +58,37 @@ class TournamentRepositoryImpl : TournamentRepository {
             description = request.description
             surface = request.surface
             status = TournamentStatus.DRAFT.name
-            club = ClubDAO[request.clubId]
+            if (request.clubId != null) {
+                club = ClubDAO[request.clubId]
+                visibility = TournamentVisibility.PUBLIC.name
+            } else {
+                owner = UserDAO[ownerUserId]
+                visibility = TournamentVisibility.PRIVATE.name
+                inviteCode = generateUniqueTournamentInviteCode()
+            }
             startDate = requestedStartDate
             endDate = requestedEndDate
         }.toBasic()
+    }
+
+    override suspend fun joinTournamentByCode(userId: Int, request: JoinTournamentByCodeRequest): TournamentBasic = dbQuery {
+        val inviteCode = request.inviteCode.trim().uppercase()
+        require(inviteCode.isNotBlank()) { "Invite code is required" }
+        val tournament = TournamentDAO.find {
+            (TournamentsTable.inviteCode eq inviteCode) and (TournamentsTable.visibility eq TournamentVisibility.PRIVATE.name)
+        }.firstOrNull() ?: throw NotFoundException("Tournament invite code not found")
+        assertTournamentMutable(tournament, "joined")
+        val player = playerResolutionService.findOrCreateForUser(UserDAO[userId])
+        if (isTournamentPlayer(tournament.id.value, player.id.value)) {
+            throw ConflictException("Player ${player.id.value} is already registered for tournament ${tournament.id.value}")
+        }
+        TournamentPlayerDAO.new {
+            this.tournament = tournament
+            this.player = player
+            seed = null
+        }
+        assertDraftTournamentPhaseConfigurationValid(tournament)
+        tournament.toBasic()
     }
 
     override suspend fun updateTournament(request: UpdateTournamentRequest): TournamentBasic = dbQuery {
@@ -61,6 +107,9 @@ class TournamentRepositoryImpl : TournamentRepository {
             request.description?.let { description = it }
             request.surface?.let { surface = it }
             if (status == TournamentStatus.DRAFT) {
+                if (tournament.owner != null && request.clubId != null) {
+                    throw ConflictException("Private owner-owned tournaments cannot be moved into a club")
+                }
                 request.clubId?.let { club = ClubDAO[it] }
                 request.startDate?.let { startDate = it.toJavaInstant() }
                 request.endDate?.let { endDate = it.toJavaInstant() }
@@ -248,24 +297,37 @@ class TournamentRepositoryImpl : TournamentRepository {
     }
 
     override suspend fun resetTournament(id: Int): TournamentPhase = dbQuery {
+        lockTournamentRow(id)
         val tournament = TournamentDAO[id]
         val status = TournamentStatus.valueOf(tournament.status)
-        if (status != TournamentStatus.STARTED) {
-            throw ConflictException("Tournament $id can only be reset from status STARTED")
+        if (status != TournamentStatus.STARTED && status != TournamentStatus.COMPLETED) {
+            throw ConflictException("Tournament $id can only be reset from status STARTED or COMPLETED")
         }
 
         val phaseIds = tournament.phases.map { it.id }
+        phaseIds.forEach { lockPhaseRow(it.value) }
         val matches = if (phaseIds.isEmpty()) {
             emptyList()
         } else {
             MatchDAO.find { MatchesTable.phaseId inList phaseIds }.toList()
         }
 
-        if (matches.any { it.status == MatchStatus.COMPLETED.name }) {
-            throw ConflictException(
-                "Tournament $id has completed matches and cannot be reset. Cancel or abandon it instead."
+        RatingService.revertTournamentRating(tournament)
+
+        val now = Instant.now()
+        matches
+            .sortedWith(
+                compareByDescending<MatchDAO> { it.phase.phaseOrder }
+                    .thenByDescending { it.round }
+                    .thenByDescending { it.id.value }
             )
-        }
+            .forEach { match ->
+                match.winner = null
+                match.score = null
+                match.status = MatchStatus.SCHEDULED.name
+                match.completedAt = null
+                match.updatedAt = now
+            }
 
         val matchIds = matches.map { it.id }
         if (matchIds.isNotEmpty()) {
@@ -284,6 +346,7 @@ class TournamentRepositoryImpl : TournamentRepository {
             phase.updatedAt = Instant.now()
         }
 
+        tournament.champion = null
         tournament.status = TournamentStatus.DRAFT.name
         tournament.updatedAt = Instant.now()
 
@@ -486,7 +549,23 @@ class TournamentRepositoryImpl : TournamentRepository {
             }
         }
 
+        request.email != null -> playerResolutionService.findRegisteredByEmail(request.email)
+
         else -> throw IllegalArgumentException("Invalid player request")
+    }
+
+    private fun isTournamentPlayer(tournamentId: Int, playerId: Int): Boolean =
+        TournamentPlayerDAO.find {
+            (TournamentPlayersTable.tournamentId eq tournamentId) and
+                (TournamentPlayersTable.playerId eq playerId)
+        }.firstOrNull() != null
+
+    private fun generateUniqueTournamentInviteCode(): String {
+        repeat(5) {
+            val code = InviteCodes.generate()
+            if (TournamentDAO.find { TournamentsTable.inviteCode eq code }.empty()) return code
+        }
+        throw ConflictException("Could not generate a unique tournament invite code")
     }
 
     private fun markPendingJoinRequestAccepted(tournamentId: Int, playerId: Int, managerUserId: Int) {

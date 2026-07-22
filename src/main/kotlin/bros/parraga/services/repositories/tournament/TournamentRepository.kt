@@ -9,12 +9,15 @@ import bros.parraga.domain.TournamentPhaseSummary
 import bros.parraga.services.repositories.tournament.dto.AddPlayersRequest
 import bros.parraga.services.repositories.tournament.dto.CreatePhaseRequest
 import bros.parraga.services.repositories.tournament.dto.CreateTournamentRequest
+import bros.parraga.services.repositories.tournament.dto.JoinTournamentByCodeRequest
 import bros.parraga.services.repositories.tournament.dto.UpdateTournamentRequest
 
 interface TournamentRepository {
     suspend fun getTournaments(): List<TournamentBasic>
+    suspend fun getMyTournaments(userId: Int): List<TournamentBasic>
     suspend fun getTournament(id: Int): TournamentBasic
-    suspend fun createTournament(request: CreateTournamentRequest): TournamentBasic
+    suspend fun createTournament(ownerUserId: Int, request: CreateTournamentRequest): TournamentBasic
+    suspend fun joinTournamentByCode(userId: Int, request: JoinTournamentByCodeRequest): TournamentBasic
     suspend fun updateTournament(request: UpdateTournamentRequest): TournamentBasic
     suspend fun deleteTournament(id: Int)
     suspend fun createPhase(tournamentId: Int, request: CreatePhaseRequest): TournamentPhase

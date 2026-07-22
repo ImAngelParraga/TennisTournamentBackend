@@ -14,6 +14,7 @@ import bros.parraga.domain.PhaseConfiguration
 import bros.parraga.domain.PhaseFormat
 import bros.parraga.domain.TournamentJoinRequestStatus
 import bros.parraga.domain.TournamentStatus
+import bros.parraga.domain.TournamentVisibility
 import bros.parraga.errors.ConflictException
 import bros.parraga.errors.ForbiddenException
 import bros.parraga.services.repositories.tournament.dto.AcceptTournamentJoinRequest
@@ -237,6 +238,9 @@ class TournamentJoinRequestRepositoryImpl : TournamentJoinRequestRepository {
     private fun assertTournamentAcceptsJoinRequests(tournament: TournamentDAO) {
         if (TournamentStatus.valueOf(tournament.status) != TournamentStatus.DRAFT) {
             throw ConflictException("Tournament ${tournament.id.value} is ${tournament.status} and cannot accept join requests")
+        }
+        if (TournamentVisibility.valueOf(tournament.visibility) == TournamentVisibility.PRIVATE) {
+            throw ConflictException("Private tournaments are joined by invite code")
         }
     }
 

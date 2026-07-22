@@ -645,8 +645,17 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
     }
 
     @Test
-    fun `should return conflict when resetting tournament with completed matches`() = testApplicationWithClient { client ->
-        createTestData(playerCount = 2)
+    fun `should reset tournament with completed matches and allow draft setup again`() = testApplicationWithClient { client ->
+        createTestData(
+            playerCount = 4,
+            phaseSpecs = listOf(
+                PhaseSpec(
+                    order = 1,
+                    format = PhaseFormat.KNOCKOUT,
+                    configuration = PhaseConfiguration.KnockoutConfig(thirdPlacePlayoff = false, qualifiers = 2)
+                )
+            )
+        )
         val token = createAuthToken("owner-subject", "owner@email.com", "owner")
 
         val startResponse = client.post("/tournaments/1/start") {
@@ -654,28 +663,60 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
         }
         assertEquals(HttpStatusCode.OK, startResponse.status)
         val phase = startResponse.body<ApiResponse<TournamentPhase>>().data ?: error("missing started phase")
-        val finalMatchId = phase.matches.first().id
 
-        val scoreResponse = client.put("/matches/$finalMatchId/score") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(
-                UpdateMatchScoreRequest(
-                    score = TennisScore(
-                        sets = listOf(
-                            SetScore(6, 4, null),
-                            SetScore(6, 4, null)
+        phase.matches
+            .filter { it.status == MatchStatus.SCHEDULED && it.player1 != null && it.player2 != null }
+            .forEach { match ->
+                val scoreResponse = client.put("/matches/${match.id}/score") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(
+                        UpdateMatchScoreRequest(
+                            score = TennisScore(
+                                sets = listOf(
+                                    SetScore(6, 4, null),
+                                    SetScore(6, 4, null)
+                                )
+                            )
                         )
                     )
-                )
-            )
-        }
-        assertEquals(HttpStatusCode.OK, scoreResponse.status)
+                }
+                assertEquals(HttpStatusCode.OK, scoreResponse.status)
+            }
 
         val resetResponse = client.post("/tournaments/1/reset") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
-        assertEquals(HttpStatusCode.Conflict, resetResponse.status)
+        assertEquals(HttpStatusCode.OK, resetResponse.status)
+        val resetBody = resetResponse.body<ApiResponse<TournamentPhase>>()
+        assertTrue(resetBody.data?.matches?.isEmpty() == true)
+
+        val tournamentBody = client.get("/tournaments/1").body<ApiResponse<TournamentBasic>>()
+        assertEquals(TournamentStatus.DRAFT, tournamentBody.data?.status)
+        transaction {
+            assertEquals(null, TournamentDAO[1].champion)
+            assertEquals(0, MatchDAO.all().count().toInt())
+        }
+
+        val addPlayerResponse = client.post("/tournaments/1/players") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(AddPlayersRequest(listOf(TournamentPlayerRequest(name = "late-player"))))
+        }
+        assertEquals(HttpStatusCode.OK, addPlayerResponse.status)
+
+        val createPhaseResponse = client.post("/tournaments/1/phases") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(
+                CreatePhaseRequest(
+                    phaseOrder = 2,
+                    format = PhaseFormat.KNOCKOUT,
+                    configuration = PhaseConfiguration.KnockoutConfig(thirdPlacePlayoff = false)
+                )
+            )
+        }
+        assertEquals(HttpStatusCode.Created, createPhaseResponse.status)
     }
 
     @Test
@@ -877,6 +918,83 @@ class TournamentRepositoryTest : BaseIntegrationTest() {
             )
         }
         assertEquals(HttpStatusCode.Conflict, secondScoreResponse.status)
+    }
+
+    @Test
+    fun `should allow rescoring a completed knockout match before dependent match is played`() = testApplicationWithClient { client ->
+        createTestData(playerCount = 4)
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val startResponse = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, startResponse.status)
+        val phase = startResponse.body<ApiResponse<TournamentPhase>>().data ?: error("missing started phase")
+        val firstRoundMatch = phase.matches.first { it.round == 1 && it.player1 != null && it.player2 != null }
+
+        val firstScoreResponse = client.put("/matches/${firstRoundMatch.id}/score") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(twoSetWin())
+        }
+        assertEquals(HttpStatusCode.OK, firstScoreResponse.status)
+
+        val secondScoreResponse = client.put("/matches/${firstRoundMatch.id}/score") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(twoSetLoss())
+        }
+        assertEquals(HttpStatusCode.OK, secondScoreResponse.status)
+        val rescored = secondScoreResponse.body<ApiResponse<Match>>().data ?: error("missing rescored match")
+        assertEquals(firstRoundMatch.player2?.id, rescored.winnerId)
+
+        val dependentWinnerSlotIds = transaction {
+            val required = MatchDAO[firstRoundMatch.id]
+            val dependent = MatchDependencyDAO.find { MatchDependenciesTable.requiredMatchId eq required.id }
+                .first { it.requiredOutcome == "WINNER" }
+                .let { MatchDAO[it.matchId] }
+            listOf(dependent.player1?.id?.value, dependent.player2?.id?.value)
+        }
+        assertTrue(firstRoundMatch.player1?.id !in dependentWinnerSlotIds)
+        assertTrue(firstRoundMatch.player2?.id in dependentWinnerSlotIds)
+    }
+
+    @Test
+    fun `should reject rescoring a completed knockout match after dependent match is played`() = testApplicationWithClient { client ->
+        createTestData(playerCount = 4)
+        val token = createAuthToken("owner-subject", "owner@email.com", "owner")
+
+        val startResponse = client.post("/tournaments/1/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, startResponse.status)
+        val phase = startResponse.body<ApiResponse<TournamentPhase>>().data ?: error("missing started phase")
+        val firstRoundMatches = phase.matches.filter { it.round == 1 && it.player1 != null && it.player2 != null }
+        firstRoundMatches.forEach { match ->
+            val response = client.put("/matches/${match.id}/score") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                contentType(ContentType.Application.Json)
+                setBody(twoSetWin())
+            }
+            assertEquals(HttpStatusCode.OK, response.status)
+        }
+
+        val finalMatchId = transaction {
+            MatchDAO.find { MatchesTable.round eq 2 }.first().id.value
+        }
+        val finalScoreResponse = client.put("/matches/$finalMatchId/score") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(twoSetWin())
+        }
+        assertEquals(HttpStatusCode.OK, finalScoreResponse.status)
+
+        val rescoreResponse = client.put("/matches/${firstRoundMatches.first().id}/score") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(twoSetLoss())
+        }
+        assertEquals(HttpStatusCode.Conflict, rescoreResponse.status)
     }
 
     @Test

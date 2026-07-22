@@ -10,7 +10,10 @@ data class Tournament(
     val description: String?,
     val surface: SurfaceType?,
     val status: TournamentStatus,
-    val clubId: Int,
+    val clubId: Int?,
+    val ownerUserId: Int? = null,
+    val visibility: TournamentVisibility = TournamentVisibility.PUBLIC,
+    val inviteCode: String? = null,
     val startDate: Instant,
     val endDate: Instant,
     val createdAt: Instant?,
@@ -22,3 +25,5 @@ data class Tournament(
 enum class SurfaceType { CLAY, HARD, GRASS }
 
 enum class TournamentStatus { DRAFT, STARTED, COMPLETED, CANCELLED, ABANDONED }
+
+enum class TournamentVisibility { PUBLIC, PRIVATE }

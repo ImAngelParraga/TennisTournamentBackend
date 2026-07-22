@@ -8,7 +8,7 @@ data class CreateTournamentRequest(
     val name: String,
     val description: String?,
     val surface: String?,
-    val clubId: Int,
+    val clubId: Int? = null,
     val startDate: Instant,
     val endDate: Instant
 )

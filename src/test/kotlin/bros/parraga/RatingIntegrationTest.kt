@@ -141,6 +141,65 @@ class RatingIntegrationTest : BaseIntegrationTest() {
     }
 
     @Test
+    fun `played matches do not change rating before tournament completion`() = testApplicationWithClient { client ->
+        val fixture = createRegisteredKnockout(playerCount = 4)
+        val token = createAuthToken(fixture.ownerSubject, fixture.ownerEmail, "owner")
+
+        val phase = client.post("/tournaments/${fixture.tournamentId}/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }.body<ApiResponse<TournamentPhase>>().data ?: error("missing started phase")
+
+        val firstMatch = phase.matches.first { it.status == MatchStatus.SCHEDULED }
+        val scoreResponse = client.put("/matches/${firstMatch.id}/score") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(twoSetWin())
+        }
+        assertEquals(HttpStatusCode.OK, scoreResponse.status)
+
+        transaction {
+            assertTrue(RatingEventDAO.all().empty(), "ratings are awarded only when the tournament completes")
+            fixture.playerIds.forEach { playerId ->
+                val player = PlayerDAO[playerId]
+                assertEquals(1000, player.rating)
+                assertEquals(0, player.ratedMatches)
+            }
+        }
+    }
+
+    @Test
+    fun `resetting a completed tournament reverts rating events`() = testApplicationWithClient { client ->
+        val fixture = createRegisteredKnockout(playerCount = 4)
+        val token = createAuthToken(fixture.ownerSubject, fixture.ownerEmail, "owner")
+
+        val startResponse = client.post("/tournaments/${fixture.tournamentId}/start") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, startResponse.status)
+
+        scoreAllScheduled(client, token, fixture.tournamentId)
+
+        transaction {
+            assertTrue(RatingEventDAO.all().count() > 0)
+        }
+
+        val resetResponse = client.post("/tournaments/${fixture.tournamentId}/reset") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, resetResponse.status)
+
+        transaction {
+            assertTrue(RatingEventDAO.all().empty())
+            fixture.playerIds.forEach { playerId ->
+                val player = PlayerDAO[playerId]
+                assertEquals(1000, player.rating)
+                assertEquals(0, player.ratedMatches)
+                assertEquals(null, player.lastRatedAt)
+            }
+        }
+    }
+
+    @Test
     fun `registered player beating a guest earns a fixed guest win and keeps the provisional window`() =
         testApplicationWithClient { client ->
             val fixture = createGuestTournament()

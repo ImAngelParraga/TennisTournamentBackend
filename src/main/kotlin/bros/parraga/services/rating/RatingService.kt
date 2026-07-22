@@ -18,6 +18,7 @@ import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.selectAll
 import java.time.Instant
 
@@ -112,6 +113,50 @@ object RatingService {
 
         applyMatchSide(winner, match, tournament, deltas.winnerDelta, timing)
         applyMatchSide(loser, match, tournament, deltas.loserDelta, timing)
+    }
+
+    fun applyTournamentMatchRatings(tournament: TournamentDAO) {
+        revertTournamentRating(tournament)
+
+        tournament.phases
+            .flatMap { it.matches }
+            .filter { it.status == MatchStatus.COMPLETED.name }
+            .sortedWith(
+                compareBy<MatchDAO> { it.completedAt ?: it.updatedAt ?: it.createdAt }
+                    .thenBy { it.id.value }
+            )
+            .forEach { applyMatchRating(it) }
+    }
+
+    fun revertMatchRating(match: MatchDAO) {
+        val events = RatingEventDAO.find { RatingEventsTable.matchId eq match.id }.toList()
+        revertEvents(events)
+        RatingEventsTable.deleteWhere { matchId eq match.id }
+    }
+
+    fun revertTournamentRating(tournament: TournamentDAO) {
+        val events = RatingEventDAO.find { RatingEventsTable.tournamentId eq tournament.id }.toList()
+        revertEvents(events)
+        RatingEventsTable.deleteWhere { tournamentId eq tournament.id }
+    }
+
+    private fun revertEvents(events: List<RatingEventDAO>) {
+        val eventIdsToRemove = events.map { it.id }.toSet()
+        val orderedEvents = events.sortedWith(
+            compareByDescending<RatingEventDAO> { it.createdAt }.thenByDescending { it.id.value }
+        )
+        orderedEvents.forEach { event ->
+            lockPlayerRowInCurrentTransaction(event.player.id.value)
+            event.player.refresh(flush = false)
+            event.player.rating = EloCalculator.applyFloor(event.player.rating - event.delta)
+            if (event.reason == REASON_MATCH) {
+                event.player.ratedMatches = (event.player.ratedMatches - 1).coerceAtLeast(0)
+            }
+            val latestRemainingEvent = RatingEventDAO.find { RatingEventsTable.playerId eq event.player.id }
+                .filter { it.id !in eventIdsToRemove }
+                .maxByOrNull { it.createdAt }
+            event.player.lastRatedAt = latestRemainingEvent?.createdAt
+        }
     }
 
     private fun applyMatchSide(

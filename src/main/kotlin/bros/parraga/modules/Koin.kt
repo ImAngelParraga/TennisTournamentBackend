@@ -4,6 +4,9 @@ import bros.parraga.services.repositories.club.ClubContactRequestRepository
 import bros.parraga.services.repositories.club.ClubContactRequestRepositoryImpl
 import bros.parraga.services.repositories.club.ClubRepository
 import bros.parraga.services.repositories.club.ClubRepositoryImpl
+import bros.parraga.services.PlayerResolutionService
+import bros.parraga.services.repositories.league.LeagueRepository
+import bros.parraga.services.repositories.league.LeagueRepositoryImpl
 import bros.parraga.services.repositories.match.MatchRepository
 import bros.parraga.services.repositories.match.MatchRepositoryImpl
 import bros.parraga.services.repositories.player.PlayerRepository
@@ -37,6 +40,8 @@ fun Application.configureKoin() {
 val appModule = module {
     singleOf(::TournamentRepositoryImpl) bind TournamentRepository::class
     singleOf(::TournamentJoinRequestRepositoryImpl) bind TournamentJoinRequestRepository::class
+    singleOf(::LeagueRepositoryImpl) bind LeagueRepository::class
+    singleOf(::PlayerResolutionService)
     singleOf(::UserRepositoryImpl) { bind<UserRepository>() }
     singleOf(::TrainingRepositoryImpl) bind TrainingRepository::class
     singleOf(::PlayerRepositoryImpl) bind PlayerRepository::class

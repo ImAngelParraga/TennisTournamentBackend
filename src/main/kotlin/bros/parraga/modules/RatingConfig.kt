@@ -12,6 +12,7 @@ import bros.parraga.db.schema.TournamentDAO
 import bros.parraga.db.schema.TournamentsTable
 import bros.parraga.domain.MatchStatus
 import bros.parraga.domain.TournamentStatus
+import bros.parraga.domain.TournamentVisibility
 import bros.parraga.services.rating.EloCalculator
 import bros.parraga.services.rating.RatingService
 import io.ktor.server.application.*
@@ -69,11 +70,13 @@ private fun backfillRatingsIfEmpty() {
 
     completedMatches
         .sortedWith(compareBy<MatchDAO>({ it.completedAt == null }, { it.completedAt }, { it.id.value }))
+        .filter { it.phase.tournament.visibility == TournamentVisibility.PUBLIC.name }
         .forEach { RatingService.applyMatchRating(it) }
 
     TournamentDAO.find {
         (TournamentsTable.status eq TournamentStatus.COMPLETED.name) and
-            TournamentsTable.championPlayerId.isNotNull()
+            TournamentsTable.championPlayerId.isNotNull() and
+            (TournamentsTable.visibility eq TournamentVisibility.PUBLIC.name)
     }
         .sortedWith(compareBy<TournamentDAO>({ it.updatedAt }, { it.id.value }))
         .forEach { tournament ->

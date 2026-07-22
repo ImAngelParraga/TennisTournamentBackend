@@ -3,6 +3,7 @@ package bros.parraga.routes
 import bros.parraga.services.auth.AuthorizationService
 import bros.parraga.services.repositories.tournament.TournamentRepository
 import bros.parraga.services.repositories.tournament.dto.CreateTournamentRequest
+import bros.parraga.services.repositories.tournament.dto.JoinTournamentByCodeRequest
 import bros.parraga.services.repositories.tournament.dto.UpdateTournamentRequest
 import bros.parraga.services.repositories.user.UserRepository
 import io.ktor.http.HttpStatusCode
@@ -26,35 +27,49 @@ fun Route.tournamentRouting() {
             handleRequest(call) { tournamentRepository.getTournaments() }
         }
 
-        get("/{id}") {
-            handleRequest(call) { tournamentRepository.getTournament(call.requireIntParameter("id")) }
-        }
-
-        route("/{id}/phases") {
-            get {
+        authenticate("clerk-jwt", optional = true) {
+            get("/{id}") {
                 handleRequest(call) {
-                    tournamentRepository.getTournamentPhases(call.requireIntParameter("id"))
+                    val tournamentId = call.requireIntParameter("id")
+                    authorizationService.requireTournamentReadable(call.localUserOrNull(userRepository)?.id, tournamentId)
+                    tournamentRepository.getTournament(tournamentId)
                 }
             }
-        }
 
-        route("/{id}/players") {
-            get {
-                handleRequest(call) {
-                    tournamentRepository.getTournamentPlayers(call.requireIntParameter("id"))
+            route("/{id}/phases") {
+                get {
+                    handleRequest(call) {
+                        val tournamentId = call.requireIntParameter("id")
+                        authorizationService.requireTournamentReadable(call.localUserOrNull(userRepository)?.id, tournamentId)
+                        tournamentRepository.getTournamentPhases(tournamentId)
+                    }
                 }
             }
-        }
 
-        get("/{id}/matches") {
-            handleRequest(call) {
-                tournamentRepository.getTournamentMatches(call.requireIntParameter("id"))
+            route("/{id}/players") {
+                get {
+                    handleRequest(call) {
+                        val tournamentId = call.requireIntParameter("id")
+                        authorizationService.requireTournamentReadable(call.localUserOrNull(userRepository)?.id, tournamentId)
+                        tournamentRepository.getTournamentPlayers(tournamentId)
+                    }
+                }
             }
-        }
 
-        get("/{id}/bracket") {
-            handleRequest(call) {
-                tournamentRepository.getTournamentBracket(call.requireIntParameter("id"))
+            get("/{id}/matches") {
+                handleRequest(call) {
+                    val tournamentId = call.requireIntParameter("id")
+                    authorizationService.requireTournamentReadable(call.localUserOrNull(userRepository)?.id, tournamentId)
+                    tournamentRepository.getTournamentMatches(tournamentId)
+                }
+            }
+
+            get("/{id}/bracket") {
+                handleRequest(call) {
+                    val tournamentId = call.requireIntParameter("id")
+                    authorizationService.requireTournamentReadable(call.localUserOrNull(userRepository)?.id, tournamentId)
+                    tournamentRepository.getTournamentBracket(tournamentId)
+                }
             }
         }
 
@@ -63,8 +78,15 @@ fun Route.tournamentRouting() {
                 handleRequest(call, HttpStatusCode.Created) {
                     val localUser = call.requireLocalUser(userRepository)
                     val request = call.receive<CreateTournamentRequest>()
-                    authorizationService.requireClubManager(localUser.id, request.clubId)
-                    tournamentRepository.createTournament(request)
+                    request.clubId?.let { authorizationService.requireClubManager(localUser.id, it) }
+                    tournamentRepository.createTournament(localUser.id, request)
+                }
+            }
+
+            post("/join") {
+                handleRequest(call) {
+                    val localUser = call.requireLocalUser(userRepository)
+                    tournamentRepository.joinTournamentByCode(localUser.id, call.receive<JoinTournamentByCodeRequest>())
                 }
             }
 

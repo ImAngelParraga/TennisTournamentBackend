@@ -19,6 +19,10 @@ fun Transaction.lockPlayerRow(playerId: Int) {
     lockRow("players", playerId)
 }
 
+fun Transaction.lockLeagueRow(leagueId: Int) {
+    lockRow("leagues", leagueId)
+}
+
 fun lockPhaseRowInCurrentTransaction(phaseId: Int) {
     TransactionManager.current().lockPhaseRow(phaseId)
 }
@@ -33,6 +37,10 @@ fun lockMatchRowInCurrentTransaction(matchId: Int) {
 
 fun lockPlayerRowInCurrentTransaction(playerId: Int) {
     TransactionManager.current().lockPlayerRow(playerId)
+}
+
+fun lockLeagueRowInCurrentTransaction(leagueId: Int) {
+    TransactionManager.current().lockLeagueRow(leagueId)
 }
 
 private fun Transaction.lockRow(tableName: String, id: Int) {

@@ -5,8 +5,11 @@ import bros.parraga.db.schema.ClubContactRequestDAO
 import bros.parraga.db.schema.ClubDAO
 import bros.parraga.db.schema.PlayerDAO
 import bros.parraga.db.schema.RatingEventDAO
+import bros.parraga.db.schema.TournamentDAO
+import bros.parraga.db.schema.RatingEventsTable
 import bros.parraga.db.schema.UserDAO
 import bros.parraga.db.schema.UsersTable
+import bros.parraga.db.schema.UserTrainingDAO
 import bros.parraga.domain.PhaseConfiguration
 import bros.parraga.domain.PhaseFormat
 import bros.parraga.domain.MatchStatus
@@ -14,6 +17,8 @@ import bros.parraga.domain.SeedingStrategy
 import bros.parraga.domain.SetScore
 import bros.parraga.domain.SurfaceType
 import bros.parraga.domain.TennisScore
+import bros.parraga.domain.TournamentStatus
+import bros.parraga.domain.TrainingVisibility
 import bros.parraga.domain.UserRole
 import bros.parraga.services.repositories.match.MatchRepository
 import bros.parraga.services.repositories.match.dto.UpdateMatchScoreRequest
@@ -26,9 +31,11 @@ import bros.parraga.services.repositories.tournament.dto.CreateTournamentRequest
 import bros.parraga.services.repositories.tournament.dto.TournamentPlayerRequest
 import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.SizedCollection
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.koin.core.Koin
 import org.slf4j.LoggerFactory
 import java.time.Instant
+import java.time.LocalDate
 import kotlin.time.Duration.Companion.days
 
 /**
@@ -49,11 +56,13 @@ object SeedData {
     /** Presence of this user marks the DB as already seeded (idempotency sentinel). */
     private const val SENTINEL_USERNAME = "seed-owner"
 
+    private const val SECONDS_PER_DAY = 24L * 60L * 60L
+
     // Claimable test personas: seeded with a known email and NO auth subject, so the first
     // real Clerk sign-in with that (verified) email claims the row — see
     // UserRepositoryImpl.claimByEmail. Create matching email+password users once in the
     // Clerk dev dashboard (docs/MANUAL_TESTING.md).
-    private val adminEmail = System.getenv("SEED_ADMIN_EMAIL") ?: "admin+clerk_test@example.com"
+    private val adminEmail = System.getenv("SEED_ADMIN_EMAIL") ?: "javiparmu@gmail.com"
     private val clubManagerEmail = System.getenv("SEED_CLUB_MANAGER_EMAIL") ?: "club+clerk_test@example.com"
 
     suspend fun seed(koin: Koin) {
@@ -72,6 +81,8 @@ object SeedData {
         runScenario("COMPLETED knockout") { seedCompletedKnockout(tournaments, matches, context) }
         runScenario("GROUP sample") { seedGroup(tournaments, context) }
         runScenario("SWISS sample") { seedSwiss(tournaments, context) }
+        runScenario("Santomera club") { seedSantomeraTournaments(tournaments, matches, context) }
+        runScenario("Javiparmu profile showcase") { seedProfileShowcase(tournaments, matches, context) }
         runScenario("club contact requests") { seedClubContactRequests() }
 
         log.info("Seed data created")
@@ -89,13 +100,22 @@ object SeedData {
     /** A few users and a club to own the seeded tournaments, plus applicant users for join requests. */
     private suspend fun createBaseEntities(): SeedContext = dbQuery {
         // Claimable personas (auth_subject = null until the matching Clerk user signs in).
-        UserDAO.new {
+        val platformAdmin = UserDAO.new {
             username = "platform-admin"
             name = "Platform Admin"
             email = adminEmail
             authProvider = "clerk"
             authSubject = null
             role = UserRole.PLATFORM_ADMIN.name
+        }
+        // The claimable admin persona also competes: this linked player is what powers the
+        // profile (matches, tournaments, rating history, achievements). Rating/ratedMatches/
+        // lastRatedAt are left at defaults here and filled by the genuine tournament runs in
+        // seedProfileShowcase.
+        val platformAdminPlayer = PlayerDAO.new {
+            name = "Javier Párraga"
+            external = false
+            user = platformAdmin
         }
         val clubManager = UserDAO.new {
             username = "club-manager"
@@ -130,6 +150,15 @@ object SeedData {
         }
         club.admins = SizedCollection(listOf(sentinel, admin))
 
+        // The platform-admin persona (javiparmu@gmail.com once claimed) owns its own club so
+        // the operator can exercise the full host lifecycle from their own account.
+        val santomeraClub = ClubDAO.new {
+            name = "Santomera"
+            phoneNumber = "600123456"
+            address = "Calle del Tenis, Santomera"
+            user = platformAdmin
+        }
+
         val applicantIds = (1..2).map { index ->
             UserDAO.new {
                 username = "seed-applicant-$index"
@@ -142,7 +171,14 @@ object SeedData {
 
         seedRankedUsers()
 
-        SeedContext(clubId = club.id.value, applicantUserIds = applicantIds)
+        SeedContext(
+            ownerUserId = clubManager.id.value,
+            clubId = club.id.value,
+            santomeraClubId = santomeraClub.id.value,
+            applicantUserIds = applicantIds,
+            platformAdminUserId = platformAdmin.id.value,
+            javiPlayerId = platformAdminPlayer.id.value
+        )
     }
 
     /** Registered users with linked players and rating history for ranking/profile manual testing. */
@@ -309,6 +345,49 @@ object SeedData {
         tournaments.startTournament(tournament.id)
     }
 
+    /**
+     * The platform-admin's own club, with one tournament per lifecycle state so the operator can
+     * test the full host surface from their own account: a ready-to-start draft, an in-progress
+     * bracket, a finished one, and a cancelled one.
+     */
+    private suspend fun seedSantomeraTournaments(
+        tournaments: TournamentRepository,
+        matches: MatchRepository,
+        context: SeedContext
+    ) {
+        val clubId = context.santomeraClubId
+
+        // Ready to start: 12 players and one knockout phase, left in DRAFT so "start" is one click.
+        val open = createTournament(tournaments, context, "Santomera Open", SurfaceType.CLAY, clubId)
+        addNamedPlayers(tournaments, open.id, count = 12, prefix = "Santomera Open Player")
+        tournaments.createPhase(open.id, knockoutPhase(thirdPlacePlayoff = false))
+
+        // In progress: started knockout with the first round already scored.
+        val masters = createTournament(tournaments, context, "Santomera Masters", SurfaceType.HARD, clubId)
+        addNamedPlayers(tournaments, masters.id, count = 8, prefix = "Santomera Masters Player")
+        tournaments.createPhase(masters.id, knockoutPhase(thirdPlacePlayoff = true))
+        tournaments.startTournament(masters.id)
+        scoreFirstRound(tournaments, matches, masters.id)
+
+        // Completed: knockout driven all the way to a champion.
+        val classic = createTournament(tournaments, context, "Santomera Classic", SurfaceType.GRASS, clubId)
+        addNamedPlayers(tournaments, classic.id, count = 4, prefix = "Santomera Classic Player")
+        tournaments.createPhase(classic.id, knockoutPhase(thirdPlacePlayoff = false))
+        tournaments.startTournament(classic.id)
+        completeAllMatches(tournaments, matches, classic.id)
+
+        // Cancelled: no service transition reaches this status yet, so set it directly on the row.
+        val cup = createTournament(tournaments, context, "Santomera Cup", SurfaceType.HARD, clubId)
+        addNamedPlayers(tournaments, cup.id, count = 6, prefix = "Santomera Cup Player")
+        setTournamentStatus(cup.id, TournamentStatus.CANCELLED)
+    }
+
+    private suspend fun setTournamentStatus(tournamentId: Int, status: TournamentStatus) = dbQuery {
+        val tournament = TournamentDAO.findById(tournamentId)
+            ?: error("Seeded tournament $tournamentId not found")
+        tournament.status = status.name
+    }
+
     /** Pending onboarding inquiries so the /admin review flow has content on first run. */
     private suspend fun seedClubContactRequests() = dbQuery {
         ClubContactRequestDAO.new {
@@ -334,17 +413,211 @@ object SeedData {
         }
     }
 
+    // ---------------------------------------------------------------------------
+    // Javiparmu profile showcase
+    // ---------------------------------------------------------------------------
+    // Populates the claimable platform-admin persona (javiparmu@gmail.com once claimed) with a
+    // rich player profile: real tournament runs, completed matches, auto-generated rating events,
+    // titles/achievements and a spread-out activity calendar. Everything is produced by driving
+    // the genuine repository/service layer (so ratings/standings match real domain behavior), then
+    // the timestamps are back-dated so the rating graph and calendar look lived-in instead of all
+    // landing on "today".
+
+    private enum class ShowcaseOutcome { WIN_TITLE, DEEP_RUN, EARLY_EXIT }
+
+    private data class ShowcaseRun(
+        val name: String,
+        val surface: SurfaceType,
+        val playerCount: Int,
+        val outcome: ShowcaseOutcome,
+        val daysAgo: Long
+    )
+
+    private suspend fun seedProfileShowcase(
+        tournaments: TournamentRepository,
+        matches: MatchRepository,
+        context: SeedContext
+    ) {
+        val javiPlayerId = context.javiPlayerId
+        val rivalPlayerIds = createShowcaseRivals()
+
+        // Two titles, one deep run ending in a loss, and one first-round exit: a varied record
+        // with rating swings both ways, laid out from ~2.5 months ago up to a couple weeks back.
+        val runs = listOf(
+            ShowcaseRun("Santomera Winter Open", SurfaceType.HARD, 8, ShowcaseOutcome.WIN_TITLE, 78),
+            ShowcaseRun("Murcia Regional Open", SurfaceType.CLAY, 4, ShowcaseOutcome.WIN_TITLE, 54),
+            ShowcaseRun("Costa Cálida Masters", SurfaceType.HARD, 8, ShowcaseOutcome.DEEP_RUN, 30),
+            ShowcaseRun("Club Night Cup", SurfaceType.CLAY, 4, ShowcaseOutcome.EARLY_EXIT, 12)
+        )
+
+        runs.forEach { run ->
+            val tournament = createTournament(tournaments, context, run.name, run.surface)
+            val participantIds = listOf(javiPlayerId) + rivalPlayerIds.take(run.playerCount - 1)
+            tournaments.addPlayersToTournament(
+                tournament.id,
+                AddPlayersRequest(participantIds.map { TournamentPlayerRequest(playerId = it) })
+            )
+            tournaments.createPhase(tournament.id, knockoutPhase(thirdPlacePlayoff = false))
+            tournaments.startTournament(tournament.id)
+
+            when (run.outcome) {
+                ShowcaseOutcome.WIN_TITLE ->
+                    completeKnockoutFavoring(tournaments, matches, tournament.id, favoredPlayerId = javiPlayerId)
+                ShowcaseOutcome.DEEP_RUN ->
+                    completeKnockoutFavoring(tournaments, matches, tournament.id, favoredPlayerId = rivalPlayerIds.first())
+                ShowcaseOutcome.EARLY_EXIT ->
+                    completeKnockoutLosing(tournaments, matches, tournament.id, losingPlayerId = javiPlayerId)
+            }
+
+            backdateShowcaseTournament(tournament.id, daysAgo = run.daysAgo)
+        }
+
+        // Match scoring stamps lastRatedAt with "now"; realign it with the back-dated events.
+        refreshLastRatedAt(listOf(javiPlayerId) + rivalPlayerIds)
+        seedShowcaseTrainings(context.platformAdminUserId)
+    }
+
+    /** Registered rivals (external = false) so javiparmu's matches produce normal rating events. */
+    private suspend fun createShowcaseRivals(): List<Int> = dbQuery {
+        listOf(
+            "Pablo Ferrer", "Marc Ortega", "Iván Ruiz", "Sergio Molina",
+            "Nacho Beltrán", "Álvaro Gil", "Dani Prieto"
+        ).mapIndexed { index, fullName ->
+            val handle = "showcase-rival-${index + 1}"
+            val user = UserDAO.new {
+                username = handle
+                name = fullName
+                email = "$handle@example.com"
+                authProvider = "clerk"
+                authSubject = "$handle-subject"
+            }
+            PlayerDAO.new {
+                name = fullName
+                external = false
+                this.user = user
+            }.id.value
+        }
+    }
+
+    /**
+     * Drives a knockout to completion making [favoredPlayerId] win every match they play (so they
+     * finish champion); every other match goes to the first-listed player. Same one-match-at-a-time
+     * loop as [completeAllMatches].
+     */
+    private suspend fun completeKnockoutFavoring(
+        tournaments: TournamentRepository,
+        matches: MatchRepository,
+        tournamentId: Int,
+        favoredPlayerId: Int,
+        maxIterations: Int = 200
+    ) {
+        repeat(maxIterations) {
+            val next = tournaments.getTournamentMatches(tournamentId).firstOrNull { it.isScoreable() } ?: return
+            val request = if (next.player2?.id == favoredPlayerId) player2Win() else player1Win()
+            matches.updateMatchScore(next.id, request)
+        }
+        log.warn("completeKnockoutFavoring hit iteration cap for tournament $tournamentId")
+    }
+
+    /**
+     * Drives a knockout to completion making [losingPlayerId] lose every match they appear in
+     * (a clean first-round exit); every other match goes to the first-listed player, so some
+     * rival ends up champion.
+     */
+    private suspend fun completeKnockoutLosing(
+        tournaments: TournamentRepository,
+        matches: MatchRepository,
+        tournamentId: Int,
+        losingPlayerId: Int,
+        maxIterations: Int = 200
+    ) {
+        repeat(maxIterations) {
+            val next = tournaments.getTournamentMatches(tournamentId).firstOrNull { it.isScoreable() } ?: return
+            val request = if (next.player1?.id == losingPlayerId) player2Win() else player1Win()
+            matches.updateMatchScore(next.id, request)
+        }
+        log.warn("completeKnockoutLosing hit iteration cap for tournament $tournamentId")
+    }
+
+    /**
+     * Rewrites a freshly completed showcase tournament's timestamps so its matches, rating events
+     * and dates sit [daysAgo] in the past instead of "now". Winners and rating values are untouched
+     * (only the clocks move), so the rating graph and profile calendar look spread out. Matches are
+     * placed one day apart per knockout round; completion bonuses land the day after the final.
+     */
+    private suspend fun backdateShowcaseTournament(tournamentId: Int, daysAgo: Long) = dbQuery {
+        val base = Instant.now().minusSeconds(daysAgo * SECONDS_PER_DAY)
+        val tournament = TournamentDAO.findById(tournamentId) ?: return@dbQuery
+
+        val completedMatches = tournament.phases
+            .flatMap { it.matches }
+            .filter { it.status == MatchStatus.COMPLETED.name }
+            .sortedWith(compareBy({ it.round }, { it.id.value }))
+        val maxRound = completedMatches.maxOfOrNull { it.round } ?: 0
+
+        completedMatches.forEach { match ->
+            val at = base.plusSeconds((match.round - 1).toLong() * SECONDS_PER_DAY)
+            match.completedAt = at
+            match.updatedAt = at
+            RatingEventDAO.find { RatingEventsTable.matchId eq match.id }.forEach { it.createdAt = at }
+        }
+
+        val bonusTime = base.plusSeconds(maxRound.toLong() * SECONDS_PER_DAY)
+        RatingEventDAO.find { RatingEventsTable.tournamentId eq tournament.id }
+            .filter { it.match == null }
+            .forEach { it.createdAt = bonusTime }
+
+        tournament.startDate = base.minusSeconds(SECONDS_PER_DAY)
+        tournament.endDate = bonusTime
+        tournament.updatedAt = bonusTime
+    }
+
+    /** Re-points each player's lastRatedAt at their newest (back-dated) rating event. */
+    private suspend fun refreshLastRatedAt(playerIds: List<Int>) = dbQuery {
+        playerIds.distinct().forEach { playerId ->
+            val latest = RatingEventDAO.find { RatingEventsTable.playerId eq playerId }
+                .maxByOrNull { it.createdAt }
+            PlayerDAO.findById(playerId)?.lastRatedAt = latest?.createdAt
+        }
+    }
+
+    /** A mix of public/private trainings so the profile calendar has non-match activity too. */
+    private suspend fun seedShowcaseTrainings(ownerUserId: Int) = dbQuery {
+        val owner = UserDAO.findById(ownerUserId) ?: return@dbQuery
+        val today = LocalDate.now()
+        listOf(
+            Triple(2L, "Serve & volley drills", TrainingVisibility.PUBLIC) to 75,
+            Triple(5L, "Baseline consistency, cross-court", TrainingVisibility.PUBLIC) to 60,
+            Triple(9L, "Physical + footwork", TrainingVisibility.PRIVATE) to 90,
+            Triple(14L, "Match sparring", TrainingVisibility.PUBLIC) to 60,
+            Triple(21L, "Return of serve", TrainingVisibility.PRIVATE) to 45,
+            Triple(28L, "Clay sliding & defense", TrainingVisibility.PUBLIC) to 80,
+            Triple(40L, "Tactics review", TrainingVisibility.PRIVATE) to 60
+        ).forEach { (spec, minutes) ->
+            val (daysAgo, note, vis) = spec
+            UserTrainingDAO.new {
+                ownerUser = owner
+                trainingDate = today.minusDays(daysAgo)
+                durationMinutes = minutes
+                notes = note
+                visibility = vis.name
+            }
+        }
+    }
+
     private suspend fun createTournament(
         tournaments: TournamentRepository,
         context: SeedContext,
         name: String,
-        surface: SurfaceType
+        surface: SurfaceType,
+        clubId: Int = context.clubId
     ) = tournaments.createTournament(
+        context.ownerUserId,
         CreateTournamentRequest(
             name = name,
             description = "Seed data for local testing",
             surface = surface.name,
-            clubId = context.clubId,
+            clubId = clubId,
             startDate = Clock.System.now(),
             endDate = Clock.System.now() + 7.days
         )
@@ -410,6 +683,16 @@ object SeedData {
         )
     )
 
+    /** A straight-sets win for player2 (the second-listed participant). */
+    private fun player2Win() = UpdateMatchScoreRequest(
+        score = TennisScore(
+            sets = listOf(
+                SetScore(4, 6, null),
+                SetScore(4, 6, null)
+            )
+        )
+    )
+
     private fun rankedEventTime(index: Int): Instant =
         Instant.now().minusSeconds((45L - index * 6L) * 24L * 60L * 60L)
 
@@ -421,7 +704,11 @@ object SeedData {
     )
 
     private data class SeedContext(
+        val ownerUserId: Int,
         val clubId: Int,
-        val applicantUserIds: List<Int>
+        val santomeraClubId: Int,
+        val applicantUserIds: List<Int>,
+        val platformAdminUserId: Int,
+        val javiPlayerId: Int
     )
 }

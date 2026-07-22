@@ -31,3 +31,13 @@ suspend fun ApplicationCall.requireLocalUser(userRepository: UserRepository): Us
         preferredName = jwtNameOrNull()
     )
 }
+
+suspend fun ApplicationCall.localUserOrNull(userRepository: UserRepository): User? {
+    val principal = principal<JWTPrincipal>() ?: return null
+    val subject = principal.payload.subject ?: return null
+    return userRepository.findOrCreateByAuthSubject(
+        authSubject = subject,
+        email = jwtEmailOrNull(),
+        preferredName = jwtNameOrNull()
+    )
+}

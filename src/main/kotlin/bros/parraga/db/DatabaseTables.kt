@@ -6,6 +6,10 @@ import bros.parraga.db.schema.ClubAdminsTable
 import bros.parraga.db.schema.ClubContactRequestsTable
 import bros.parraga.db.schema.GroupStandingsTable
 import bros.parraga.db.schema.GroupsTable
+import bros.parraga.db.schema.LeagueMatchesTable
+import bros.parraga.db.schema.LeagueMembersTable
+import bros.parraga.db.schema.LeagueRatingEventsTable
+import bros.parraga.db.schema.LeaguesTable
 import bros.parraga.db.schema.MatchDependenciesTable
 import bros.parraga.db.schema.MatchesTable
 import bros.parraga.db.schema.PlayersTable
@@ -32,6 +36,10 @@ object DatabaseTables {
         ClubsTable,
         ClubAdminsTable,
         ClubContactRequestsTable,
+        LeaguesTable,
+        LeagueMembersTable,
+        LeagueMatchesTable,
+        LeagueRatingEventsTable,
         TournamentsTable,
         TournamentJoinRequestsTable,
         TournamentPlayersTable,

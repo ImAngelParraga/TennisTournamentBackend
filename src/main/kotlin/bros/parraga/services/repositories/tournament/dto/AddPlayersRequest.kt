@@ -6,14 +6,16 @@ import kotlinx.serialization.Serializable
 data class TournamentPlayerRequest(
     val playerId: Int? = null,
     val name: String? = null,
+    val email: String? = null,
     val seed: Int? = null
 ) {
     init {
-        require(playerId != null || name != null) {
-            "Either playerId or name must be provided"
+        val identifiers = listOfNotNull(playerId, name, email)
+        require(identifiers.isNotEmpty()) {
+            "Either playerId, name, or email must be provided"
         }
-        require(!(playerId != null && name != null)) {
-            "Cannot provide both playerId and name"
+        require(identifiers.size == 1) {
+            "Cannot provide more than one of playerId, name, or email"
         }
         require(seed == null || seed > 0) {
             "Seed must be greater than 0 when provided"
